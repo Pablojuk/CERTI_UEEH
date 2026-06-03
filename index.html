@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Módulo de Generación de Boletines</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Animaciones suaves */
+        .transition-all { transition-property: all; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 300ms; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen pb-12">
+
+    <nav class="bg-white border-b border-slate-200 px-6 py-3 flex justify-between items-center sticky top-0 z-50 shadow-sm">
+        <div class="flex items-center gap-3">
+            <div class="bg-indigo-600 text-white p-2 rounded-lg">
+                <i class="fa-solid fa-graduation-cap"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg leading-tight">UEEH • Sistema Académico</h1>
+                <p class="text-xs text-slate-500">Unidad Educativa Emiliano Hinostroza</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="relative hidden md:block">
+                <i class="fa-solid fa-search absolute left-3 top-2.5 text-slate-400 text-sm"></i>
+                <input type="text" id="global-search" placeholder="Buscar estudiantes..." oninput="filtrarEstudiantes()" class="pl-9 pr-4 py-2 bg-slate-100 border-none rounded-full text-sm focus:ring-2 focus:ring-indigo-500 w-64 outline-none">
+            </div>
+            <!-- Estado de Licencia -->
+            <div id="license-badge" class="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-bold tracking-wide flex items-center gap-1.5 shadow-sm">
+                <div class="w-2 h-2 rounded-full bg-slate-400"></div> Verificando Licencia...
+            </div>
+            <div class="flex items-center gap-2 border-l border-slate-200 pl-4">
+                <div class="text-right hidden sm:block">
+                    <p class="text-sm font-semibold">Econ. Pablo Juca</p>
+                    <p class="text-xs text-slate-500">Rector / Administrador</p>
+                </div>
+                <div class="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold">
+                    PJ
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 mt-8 space-y-6">
+        
+        <div class="flex justify-between items-end mb-8">
+            <div>
+                <p class="text-indigo-600 text-sm font-semibold mb-1"><i class="fa-solid fa-file-lines mr-1"></i> ADMINISTRACIÓN ACADÉMICA</p>
+                <h2 class="text-3xl font-bold text-slate-900">Módulo de Generación de Boletines</h2>
+                <p class="text-slate-500 mt-1">Cargue las notas, configure los datos y genere los boletines trimestrales.</p>
+            </div>
+            <div class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold tracking-wide flex items-center gap-1.5 shadow-sm">
+                <div class="w-2 h-2 rounded-full bg-emerald-500"></div> AÑO LECTIVO 2026-2027
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-slate-50 border-b border-slate-200 px-5 py-3 flex items-center gap-2">
+                    <i class="fa-solid fa-folder-open text-indigo-500"></i>
+                    <h3 class="font-semibold text-slate-800">Carga de Notas (Archivos Excel)</h3>
+                </div>
+                <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    
+                    <div class="border rounded-lg p-4 flex flex-col justify-between">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded">T1</span>
+                            <span class="font-semibold text-sm">Trimestre 1</span>
+                        </div>
+                        <label class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:bg-slate-50 transition-all group flex-grow mb-3">
+                            <input type="file" id="file-t1" class="hidden" accept=".xlsx, .xls" onchange="handleFileSelect('t1')">
+                            <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400 group-hover:text-indigo-500 mb-2 transition-all"></i>
+                            <p class="text-sm font-medium text-slate-600">Haz clic para subir archivo</p>
+                            <p id="name-t1" class="text-xs text-slate-400 mt-1">.xlsx / .xls</p>
+                        </label>
+                        <button onclick="clearFile('t1')" class="w-full py-2 text-sm text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-md font-medium transition-all">
+                            <i class="fa-regular fa-trash-can mr-1"></i> Limpiar archivo
+                        </button>
+                    </div>
+
+                    <div class="border rounded-lg p-4 flex flex-col justify-between">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded">T2</span>
+                            <span class="font-semibold text-sm">Trimestre 2</span>
+                        </div>
+                        <label class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:bg-slate-50 transition-all group flex-grow mb-3">
+                            <input type="file" id="file-t2" class="hidden" accept=".xlsx, .xls" onchange="handleFileSelect('t2')">
+                            <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400 group-hover:text-indigo-500 mb-2 transition-all"></i>
+                            <p class="text-sm font-medium text-slate-600">Haz clic para subir archivo</p>
+                            <p id="name-t2" class="text-xs text-slate-400 mt-1">.xlsx / .xls</p>
+                        </label>
+                        <button onclick="clearFile('t2')" class="w-full py-2 text-sm text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-md font-medium transition-all">
+                            <i class="fa-regular fa-trash-can mr-1"></i> Limpiar archivo
+                        </button>
+                    </div>
+
+                    <div class="border rounded-lg p-4 flex flex-col justify-between">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded">T3</span>
+                            <span class="font-semibold text-sm">Trimestre 3</span>
+                        </div>
+                        <label class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:bg-slate-50 transition-all group flex-grow mb-3">
+                            <input type="file" id="file-t3" class="hidden" accept=".xlsx, .xls" onchange="handleFileSelect('t3')">
+                            <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400 group-hover:text-indigo-500 mb-2 transition-all"></i>
+                            <p class="text-sm font-medium text-slate-600">Haz clic para subir archivo</p>
+                            <p id="name-t3" class="text-xs text-slate-400 mt-1">.xlsx / .xls</p>
+                        </label>
+                        <button onclick="clearFile('t3')" class="w-full py-2 text-sm text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-md font-medium transition-all">
+                            <i class="fa-regular fa-trash-can mr-1"></i> Limpiar archivo
+                        </button>
+                    </div>
+
+                    <div class="border rounded-lg p-4 flex flex-col justify-between">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-1 rounded">SU</span>
+                            <span class="font-semibold text-sm">Supletorio</span>
+                        </div>
+                        <label class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:bg-slate-50 transition-all group flex-grow mb-3">
+                            <input type="file" id="file-su" class="hidden" accept=".xlsx, .xls" onchange="handleFileSelect('su')">
+                            <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400 group-hover:text-indigo-500 mb-2 transition-all"></i>
+                            <p class="text-sm font-medium text-slate-600">Haz clic para subir archivo</p>
+                            <p id="name-su" class="text-xs text-slate-400 mt-1">.xlsx / .xls</p>
+                        </label>
+                        <button onclick="clearFile('su')" class="w-full py-2 text-sm text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-md font-medium transition-all">
+                            <i class="fa-regular fa-trash-can mr-1"></i> Limpiar archivo
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                <div class="bg-slate-50 border-b border-slate-200 px-5 py-3 flex items-center gap-2">
+                    <i class="fa-solid fa-images text-indigo-500"></i>
+                    <h3 class="font-semibold text-slate-800">Logotipos</h3>
+                </div>
+                <div class="p-5 flex-grow flex flex-col gap-5">
+                    <div class="flex-grow flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-xl p-4 hover:bg-slate-50 transition-all relative">
+                        <input type="file" id="file-logo1" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/*" onchange="previewImage(event, 'preview1', 'logo1')">
+                        <div id="preview1-container" class="text-center">
+                            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-2 text-slate-400">
+                                <i class="fa-solid fa-building-columns text-2xl"></i>
+                            </div>
+                            <p class="text-sm font-medium text-slate-600">Logo Institucional</p>
+                            <p class="text-xs text-slate-400 mt-1">Click para cargar</p>
+                        </div>
+                        <img id="preview1" class="hidden h-24 object-contain mx-auto pointer-events-none" />
+                    </div>
+                    <div class="flex-grow flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-xl p-4 hover:bg-slate-50 transition-all relative">
+                        <input type="file" id="file-logo2" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/*" onchange="previewImage(event, 'preview2', 'logo2')">
+                        <div id="preview2-container" class="text-center">
+                            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-2 text-slate-400">
+                                <i class="fa-solid fa-landmark text-2xl"></i>
+                            </div>
+                            <p class="text-sm font-medium text-slate-600">Logotipo MinEduc</p>
+                            <p class="text-xs text-slate-400 mt-1">Click para cargar</p>
+                        </div>
+                        <img id="preview2" class="hidden h-24 object-contain mx-auto pointer-events-none" />
+                    </div>
+                </div>
+                <div class="bg-slate-50 p-3 text-xs text-slate-500 text-center border-t border-slate-100">
+                    <i class="fa-solid fa-circle-info mr-1"></i> Formatos aceptados: PNG, JPG. Máx: 2MB.
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="bg-slate-50 border-b border-slate-200 px-5 py-3 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-school text-indigo-500"></i>
+                    <h3 class="font-semibold text-slate-800">Datos de la Institución (Encabezado)</h3>
+                </div>
+                <button class="text-xs font-medium bg-white border border-slate-300 px-3 py-1 rounded text-slate-600 hover:bg-slate-50 transition-all">
+                    <i class="fa-solid fa-pen mr-1"></i> EDITABLE
+                </button>
+            </div>
+            <div class="p-6">
+                <form id="inst-form" class="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <div class="md:col-span-2 xl:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Nombre de la Institución</label>
+                        <input type="text" id="inst-nombre" value="UNIDAD EDUCATIVA EMILIANO HINOSTROZA" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Año Lectivo</label>
+                        <input type="text" id="inst-anio" value="Costa - Galapagos 2026-2027" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Código AMIE</label>
+                        <input type="text" id="inst-amie" value="01H01289" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Grado/Curso</label>
+                        <input type="text" id="inst-grado" value="1RO DE BACHILLERATO CIENCIAS" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Paralelo</label>
+                        <input type="text" id="inst-paralelo" value="A" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Jornada</label>
+                        <select id="inst-jornada" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                            <option selected>MATUTINA</option>
+                            <option>VESPERTINA</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Rector/Director</label>
+                        <input type="text" id="inst-rector" value="Econ. Pablo Juca" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                    </div>
+                    <div class="md:col-span-3 xl:col-span-4">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Tutor/a de Curso</label>
+                        <input type="text" id="inst-tutor" placeholder="Ingrese el nombre del tutor..." class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="bg-slate-50 border-b border-slate-200 px-5 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <div class="bg-indigo-100 text-indigo-600 w-8 h-8 rounded flex items-center justify-center">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-slate-800">Gestión de Estudiantes</h3>
+                        <p class="text-xs text-slate-500">Seleccione los estudiantes para generar sus boletines</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="relative">
+                        <i class="fa-solid fa-search absolute left-3 top-2.5 text-slate-400 text-sm"></i>
+                        <input type="text" id="table-search" placeholder="Buscar estudiante..." oninput="filtrarEstudiantes()" class="pl-9 pr-4 py-2 border border-slate-300 rounded-md text-sm w-48 sm:w-64 outline-none focus:border-indigo-500 transition-all">
+                    </div>
+                    <div class="bg-indigo-50 text-indigo-700 px-3 py-2 rounded border border-indigo-200 text-sm font-medium">
+                        <i class="fa-solid fa-filter mr-1"></i> <span id="selected-count">0</span> seleccionados
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cargando Spinner -->
+            <div id="loading-overlay" class="hidden p-8 text-center text-slate-500">
+                <i class="fa-solid fa-circle-notch fa-spin text-3xl text-indigo-600 mb-2"></i>
+                <p class="text-sm font-medium">Procesando datos con Python...</p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse" id="students-table">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            <th class="p-4 w-12 text-center">
+                                <input type="checkbox" id="selectAll" class="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer" onchange="toggleAllCheckboxes()">
+                            </th>
+                            <th class="p-4 w-16">N.º</th>
+                            <th class="p-4">Nombre del Estudiante</th>
+                            <th class="p-4">Cédula / ID</th>
+                            <th class="p-4 text-center">Estado</th>
+                            <th class="p-4 text-center">Promedio</th>
+                            <th class="p-4 text-center w-24">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-sm" id="students-body">
+                        <!-- Inicialmente vacío, se carga dinámicamente -->
+                        <tr id="empty-row">
+                            <td colspan="7" class="p-8 text-center text-slate-400">
+                                <i class="fa-solid fa-folder-open text-2xl mb-2 block"></i>
+                                Cargue los archivos de notas de los trimestres para visualizar los estudiantes.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-white border-t border-slate-200 p-5 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-3 text-xs text-slate-500">
+                    <i class="fa-solid fa-circle-info text-indigo-500 text-sm"></i>
+                    <span>Verifique los datos institucionales antes de emitir los documentos.</span>
+                </div>
+                <div class="flex items-center gap-3 w-full sm:w-auto">
+                    <button onclick="emitirDocumentos('certificados')" class="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-md font-medium text-sm transition-all shadow-sm">
+                        <i class="fa-solid fa-print"></i> Imprimir certificados
+                    </button>
+                    <button onclick="emitirDocumentos('boletines')" class="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-md font-semibold text-sm transition-all shadow-md hover:shadow-lg">
+                        <i class="fa-solid fa-file-pdf"></i> Descargar PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal de Vista Previa / Estado -->
+    <div id="status-modal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden">
+            <div class="p-6 text-center">
+                <div id="modal-icon" class="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <!-- Icono dinámico -->
+                </div>
+                <h3 id="modal-title" class="text-lg font-bold text-slate-900 mb-2"></h3>
+                <p id="modal-message" class="text-sm text-slate-500 mb-6"></p>
+                <div class="flex justify-center gap-3">
+                    <button id="modal-btn-action" class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-semibold hover:bg-indigo-700 transition-all"></button>
+                    <button onclick="cerrarModal()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-md text-sm font-semibold hover:bg-slate-200 transition-all">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Almacén de rutas absolutas locales
+        const filePaths = {
+            t1: null,
+            t2: null,
+            t3: null,
+            su: null,
+            logo1: null,
+            logo2: null
+        };
+
+        let estudiantesCargados = [];
+        let licenciaActiva = false;
+
+        // Inicialización al cargar la ventana
+        window.onload = async () => {
+            try {
+                const res = await window.electronAPI.verificarLicencia();
+                const badge = document.getElementById('license-badge');
+                if (res.valido) {
+                    licenciaActiva = true;
+                    badge.className = "bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold tracking-wide flex items-center gap-1.5 shadow-sm";
+                    badge.innerHTML = `<div class="w-2 h-2 rounded-full bg-emerald-500"></div> LICENCIA ACTIVA`;
+                } else {
+                    licenciaActiva = false;
+                    badge.className = "bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1 rounded-full text-xs font-bold tracking-wide flex items-center gap-1.5 shadow-sm";
+                    badge.innerHTML = `<div class="w-2 h-2 rounded-full bg-amber-500"></div> PRUEBA OFFLINE (MAX 3)`;
+                }
+            } catch (err) {
+                console.error("Error al verificar licencia:", err);
+            }
+        };
+
+        // Función para capturar el path y actualizar interfaz al subir archivos de Excel
+        async function handleFileSelect(id) {
+            const input = document.getElementById(`file-${id}`);
+            const nameLabel = document.getElementById(`name-${id}`);
+            
+            if (input.files && input.files.length > 0) {
+                const absolutePath = input.files[0].path;
+                filePaths[id] = absolutePath;
+                
+                nameLabel.textContent = input.files[0].name;
+                nameLabel.classList.remove('text-slate-400');
+                nameLabel.classList.add('text-indigo-600', 'font-medium');
+                
+                // Ejecutar análisis automático de estudiantes
+                await analizarNotas();
+            }
+        }
+
+        // Función para limpiar/resetear un archivo subido
+        function clearFile(id) {
+            const input = document.getElementById(`file-${id}`);
+            const nameLabel = document.getElementById(`name-${id}`);
+            
+            input.value = '';
+            filePaths[id] = null;
+            nameLabel.textContent = '.xlsx / .xls';
+            nameLabel.classList.remove('text-indigo-600', 'font-medium');
+            nameLabel.classList.add('text-slate-400');
+            
+            analizarNotas();
+        }
+
+        // Función para previsualizar imágenes cargadas (Logos)
+        function previewImage(event, previewId, key) {
+            const input = event.target;
+            const preview = document.getElementById(previewId);
+            const containerText = document.getElementById(`${previewId}-container`);
+
+            if (input.files && input.files[0]) {
+                filePaths[key] = input.files[0].path;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.classList.remove('hidden');
+                    containerText.classList.add('hidden');
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // Analizar notas enviando los excels a Python
+        async function analizarNotas() {
+            // Verificar si al menos hay un excel seleccionado
+            if (!filePaths.t1 && !filePaths.t2 && !filePaths.t3 && !filePaths.su) {
+                estudiantesCargados = [];
+                renderEstudiantes();
+                return;
+            }
+            
+            document.getElementById('empty-row').classList.add('hidden');
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            
+            try {
+                const result = await window.electronAPI.analizarExcel(filePaths);
+                document.getElementById('loading-overlay').classList.add('hidden');
+                
+                if (result.error) {
+                    mostrarAlerta("Error", "No se pudieron analizar los archivos: " + result.error, "error");
+                } else if (Array.isArray(result)) {
+                    estudiantesCargados = result;
+                    renderEstudiantes();
+                }
+            } catch (err) {
+                document.getElementById('loading-overlay').classList.add('hidden');
+                mostrarAlerta("Error", "Error al conectar con el backend de Python: " + err, "error");
+            }
+        }
+
+        // Renderizar tabla de estudiantes
+        function renderEstudiantes(estudiantes = estudiantesCargados) {
+            const body = document.getElementById('students-body');
+            body.innerHTML = '';
+            
+            if (estudiantes.length === 0) {
+                body.innerHTML = `
+                    <tr id="empty-row">
+                        <td colspan="7" class="p-8 text-center text-slate-400">
+                            <i class="fa-solid fa-folder-open text-2xl mb-2 block"></i>
+                            Cargue los archivos de notas de los trimestres para visualizar los estudiantes.
+                        </td>
+                    </tr>
+                `;
+                document.getElementById('selected-count').textContent = 0;
+                document.getElementById('selectAll').checked = false;
+                return;
+            }
+            
+            estudiantes.forEach((est, idx) => {
+                const num = String(idx + 1).padStart(2, '0');
+                
+                let badgeClass = "bg-slate-100 text-slate-700 border border-slate-200";
+                if (est.estado === "APROBADO") badgeClass = "bg-emerald-100 text-emerald-700 border border-emerald-200";
+                else if (est.estado === "SUPLETORIO") badgeClass = "bg-amber-100 text-amber-700 border border-amber-200";
+                else if (est.estado === "REPROBADO") badgeClass = "bg-rose-100 text-rose-700 border border-rose-200";
+                
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-colors student-row";
+                tr.dataset.cedula = est.cedula;
+                tr.dataset.nombre = est.nombre;
+                
+                tr.innerHTML = `
+                    <td class="p-4 text-center">
+                        <input type="checkbox" class="student-checkbox w-4 h-4 text-indigo-600 border-slate-300 rounded cursor-pointer" onchange="updateSelectedCount()">
+                    </td>
+                    <td class="p-4 font-medium text-slate-500">${num}</td>
+                    <td class="p-4 font-semibold text-slate-800">${est.nombre}</td>
+                    <td class="p-4 text-slate-500">${est.cedula}</td>
+                    <td class="p-4 text-center">
+                        <span class="${badgeClass} px-2 py-1 rounded text-xs font-semibold">${est.estado}</span>
+                    </td>
+                    <td class="p-4 text-center font-bold text-slate-700">${est.promedio.toFixed(2)}</td>
+                    <td class="p-4 text-center">
+                        <button onclick="vistaPrevia('${est.cedula}')" class="w-8 h-8 rounded-full bg-slate-100 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-800 transition-all flex items-center justify-center mx-auto" title="Vista Previa">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </td>
+                `;
+                body.appendChild(tr);
+            });
+            updateSelectedCount();
+        }
+
+        // Filtrar estudiantes por barra de búsqueda
+        function filtrarEstudiantes() {
+            const queryGlobal = document.getElementById('global-search').value.toLowerCase().trim();
+            const queryTable = document.getElementById('table-search').value.toLowerCase().trim();
+            const query = queryGlobal || queryTable;
+            
+            const filtrados = estudiantesCargados.filter(est => 
+                est.nombre.toLowerCase().includes(query) || est.cedula.includes(query)
+            );
+            renderEstudiantes(filtrados);
+        }
+
+        // Checkboxes
+        function toggleAllCheckboxes() {
+            const selectAllCheckbox = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.student-checkbox');
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = selectAllCheckbox.checked;
+            });
+            updateSelectedCount();
+        }
+
+        function updateSelectedCount() {
+            const checkboxes = document.querySelectorAll('.student-checkbox');
+            const selectAllCheckbox = document.getElementById('selectAll');
+            let count = 0;
+            let allChecked = true;
+
+            checkboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    count++;
+                } else {
+                    allChecked = false;
+                }
+            });
+
+            document.getElementById('selected-count').textContent = count;
+            if (checkboxes.length > 0) {
+                selectAllCheckbox.checked = allChecked;
+            }
+        }
+
+        // Obtener ids/cédulas de estudiantes seleccionados
+        function getSelectedStudentIds() {
+            const checkboxes = document.querySelectorAll('.student-checkbox');
+            const ids = [];
+            checkboxes.forEach(cb => {
+                if (cb.checked) {
+                    const row = cb.closest('tr');
+                    ids.push(row.dataset.cedula);
+                }
+            });
+            return ids;
+        }
+
+        // Emitir Boletines o Certificados
+        async function emitirDocumentos(tipo) {
+            const seleccionados = getSelectedStudentIds();
+            
+            if (seleccionados.length === 0) {
+                mostrarAlerta("Sin selección", "Por favor seleccione al menos un estudiante para generar los boletines.", "warning");
+                return;
+            }
+
+            // Aplicar restricción de Prueba Offline
+            if (!licenciaActiva && seleccionados.length > 3) {
+                mostrarAlerta("Límite Excedido - Prueba Offline", `El sistema está en modo de Prueba Offline. La generación masiva (más de 3 boletines) está restringida. Por favor, adquiera una licencia o seleccione un máximo de 3 estudiantes. (Seleccionados: ${seleccionados.length})`, "warning");
+                return;
+            }
+
+            document.getElementById('loading-overlay').classList.remove('hidden');
+
+            const payload = {
+                excels: filePaths,
+                logos: {
+                    logo1: filePaths.logo1,
+                    logo2: filePaths.logo2
+                },
+                institucion: {
+                    nombre: document.getElementById('inst-nombre').value,
+                    anio: document.getElementById('inst-anio').value,
+                    amie: document.getElementById('inst-amie').value,
+                    grado: document.getElementById('inst-grado').value,
+                    paralelo: document.getElementById('inst-paralelo').value,
+                    jornada: document.getElementById('inst-jornada').value,
+                    rector: document.getElementById('inst-rector').value,
+                    tutor: document.getElementById('inst-tutor').value
+                },
+                estudiantes: seleccionados,
+                tipo: tipo // 'boletines' o 'certificados'
+            };
+
+            try {
+                const res = await window.electronAPI.generarBoletines(payload);
+                document.getElementById('loading-overlay').classList.add('hidden');
+                
+                if (res.success) {
+                    mostrarAlerta("Éxito", `Documentos generados con éxito en la ruta:<br><strong class="text-xs break-all">${res.path}</strong>`, "success", res.path);
+                } else {
+                    mostrarAlerta("Error", "Ocurrió un error al generar los PDF: " + res.error, "error");
+                }
+            } catch (err) {
+                document.getElementById('loading-overlay').classList.add('hidden');
+                mostrarAlerta("Error", "Error al comunicarse con Python: " + err, "error");
+            }
+        }
+
+        // Vista previa rápida de notas
+        function vistaPrevia(cedula) {
+            const est = estudiantesCargados.find(e => e.cedula === cedula);
+            if (!est) return;
+            
+            const info = `Estudiante: ${est.nombre}\nCédula: ${est.cedula}\nPromedio General: ${est.promedio.toFixed(2)}\nEstado: ${est.estado}`;
+            alert(info);
+        }
+
+        // Ventana Modal de Alerta
+        function mostrarAlerta(titulo, mensaje, tipo, pathLink = null) {
+            const modal = document.getElementById('status-modal');
+            const iconContainer = document.getElementById('modal-icon');
+            const titleElem = document.getElementById('modal-title');
+            const msgElem = document.getElementById('modal-message');
+            const btnAction = document.getElementById('modal-btn-action');
+
+            titleElem.innerHTML = titulo;
+            msgElem.innerHTML = mensaje;
+
+            btnAction.classList.add('hidden');
+
+            if (tipo === 'success') {
+                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 bg-emerald-100 text-emerald-600";
+                iconContainer.innerHTML = `<i class="fa-solid fa-circle-check text-2xl"></i>`;
+                if (pathLink) {
+                    btnAction.classList.remove('hidden');
+                    btnAction.textContent = "Abrir PDF";
+                    btnAction.onclick = () => {
+                        // Enviar solicitud para abrir el archivo
+                        alert("Abriendo PDF: " + pathLink);
+                    };
+                }
+            } else if (tipo === 'error') {
+                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 bg-rose-100 text-rose-600";
+                iconContainer.innerHTML = `<i class="fa-solid fa-circle-xmark text-2xl"></i>`;
+            } else {
+                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 bg-amber-100 text-amber-600";
+                iconContainer.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-2xl"></i>`;
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function cerrarModal() {
+            document.getElementById('status-modal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>

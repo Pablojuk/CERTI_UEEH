@@ -1,0 +1,22 @@
+{
+  "name": "certi-ueeh-boletines",
+  "version": "1.0.0",
+  "description": "Modulo de Generación de Boletines Trimestrales - UEEH",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "postinstall": "electron-builder install-app-deps || echo postinstall-skip"
+  },
+  "keywords": [
+    "electron",
+    "python",
+    "excel",
+    "reportlab",
+    "school"
+  ],
+  "author": "Econ. Pablo Juca",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "33.3.1"
+  }
+}
