@@ -93,8 +93,7 @@
                             <span class="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded">T1</span>
                             <span class="font-semibold text-sm">Trimestre 1</span>
                         </div>
-                        <label class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:bg-slate-50 transition-all group flex-grow mb-3">
-                            <input type="file" id="file-t1" class="hidden" accept=".xlsx, .xls" onchange="handleFileSelect('t1')">
+                        <label onclick="handleFileSelect('t1')" class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:bg-slate-50 transition-all group flex-grow mb-3">
                             <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400 group-hover:text-indigo-500 mb-2 transition-all"></i>
                             <p class="text-sm font-medium text-slate-600">Haz clic para subir archivo</p>
                             <p id="name-t1" class="text-xs text-slate-400 mt-1">.xlsx / .xls</p>
@@ -109,8 +108,7 @@
                             <span class="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded">T2</span>
                             <span class="font-semibold text-sm">Trimestre 2</span>
                         </div>
-                        <label class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:bg-slate-50 transition-all group flex-grow mb-3">
-                            <input type="file" id="file-t2" class="hidden" accept=".xlsx, .xls" onchange="handleFileSelect('t2')">
+                        <label onclick="handleFileSelect('t2')" class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:bg-slate-50 transition-all group flex-grow mb-3">
                             <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400 group-hover:text-indigo-500 mb-2 transition-all"></i>
                             <p class="text-sm font-medium text-slate-600">Haz clic para subir archivo</p>
                             <p id="name-t2" class="text-xs text-slate-400 mt-1">.xlsx / .xls</p>
@@ -125,8 +123,7 @@
                             <span class="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded">T3</span>
                             <span class="font-semibold text-sm">Trimestre 3</span>
                         </div>
-                        <label class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:bg-slate-50 transition-all group flex-grow mb-3">
-                            <input type="file" id="file-t3" class="hidden" accept=".xlsx, .xls" onchange="handleFileSelect('t3')">
+                        <label onclick="handleFileSelect('t3')" class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:bg-slate-50 transition-all group flex-grow mb-3">
                             <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400 group-hover:text-indigo-500 mb-2 transition-all"></i>
                             <p class="text-sm font-medium text-slate-600">Haz clic para subir archivo</p>
                             <p id="name-t3" class="text-xs text-slate-400 mt-1">.xlsx / .xls</p>
@@ -141,8 +138,7 @@
                             <span class="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-1 rounded">SU</span>
                             <span class="font-semibold text-sm">Supletorio</span>
                         </div>
-                        <label class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:bg-slate-50 transition-all group flex-grow mb-3">
-                            <input type="file" id="file-su" class="hidden" accept=".xlsx, .xls" onchange="handleFileSelect('su')">
+                        <label onclick="handleFileSelect('su')" class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:bg-slate-50 transition-all group flex-grow mb-3">
                             <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400 group-hover:text-indigo-500 mb-2 transition-all"></i>
                             <p class="text-sm font-medium text-slate-600">Haz clic para subir archivo</p>
                             <p id="name-su" class="text-xs text-slate-400 mt-1">.xlsx / .xls</p>
@@ -521,8 +517,6 @@
 
         function updateFileLabel(id, periodData) {
             const nameLabel = document.getElementById(`name-${id}`);
-            const input = document.getElementById(`file-${id}`);
-            input.value = ''; // Limpiar input file nativo
 
             if (periodData && periodData.nombreArchivo) {
                 nameLabel.textContent = periodData.nombreArchivo + " (" + periodData.fechaCarga + ")";
@@ -845,16 +839,22 @@
 
         // Carga de Excel e Importación de datos
         async function handleFileSelect(id) {
-            const input = document.getElementById(`file-${id}`);
-            if (!input.files || input.files.length === 0) return;
+            const absolutePath = await window.electronAPI.seleccionarArchivo({
+                properties: ['openFile'],
+                filters: [
+                    { name: 'Archivos Excel', extensions: ['xlsx', 'xls'] }
+                ]
+            });
 
-            const absolutePath = input.files[0].path;
-            const fileName = input.files[0].name;
+            if (!absolutePath) return;
+
+            console.log("[handleFileSelect] Ruta seleccionada desde Electron:", absolutePath);
+
+            const fileName = absolutePath.split(/[\\/]/).pop() || '';
 
             // Validar extensión
-            if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
+            if (!fileName.toLowerCase().endsWith('.xlsx') && !fileName.toLowerCase().endsWith('.xls')) {
                 mostrarAlerta("Formato no válido", "Por favor seleccione un archivo oficial de formato Excel (.xlsx o .xls)", "error");
-                input.value = '';
                 return;
             }
 
@@ -865,12 +865,14 @@
                 const filePathsPayload = {};
                 filePathsPayload[id] = absolutePath;
 
+                console.log("[handleFileSelect] Payload enviado a analizarExcel:", filePathsPayload);
+
                 const result = await window.electronAPI.analizarExcel(filePathsPayload);
+                console.log("[handleFileSelect] Resultado recibido desde Python:", result);
                 document.getElementById('loading-overlay').classList.add('hidden');
 
                 if (result.error) {
                     mostrarAlerta("Error de formato", "No se pudo leer el archivo. Asegúrese de que sea el formato oficial obtenido desde 'Descargar Formato'.<br><small class='text-rose-500'>" + result.error + "</small>", "error");
-                    input.value = '';
                     return;
                 }
 
@@ -879,22 +881,28 @@
                 // Validaciones
                 if (!inst.nombreInstitucion) {
                     mostrarAlerta("Formato incorrecto", "No se detectó el nombre de la institución (Celda A1). Use el formato oficial.", "warning");
-                    input.value = '';
                     return;
                 }
                 if (!inst.gradoCurso) {
                     mostrarAlerta("Formato incorrecto", "No se detectó el Grado/Curso (Celda B3). Use el formato oficial.", "warning");
-                    input.value = '';
                     return;
                 }
                 if (!inst.paralelo) {
                     mostrarAlerta("Formato incorrecto", "No se detectó el Paralelo (Celda B5). Use el formato oficial.", "warning");
-                    input.value = '';
                     return;
                 }
+
+                document.getElementById('inst-nombre').value = inst.nombreInstitucion || '';
+                document.getElementById('inst-anio').value = inst.anioLectivo || '';
+                document.getElementById('inst-amie').value = inst.codigoAmie || '';
+                document.getElementById('inst-grado').value = inst.gradoCurso || '';
+                document.getElementById('inst-paralelo').value = inst.paralelo || '';
+                document.getElementById('inst-jornada').value = inst.jornada || 'MATUTINA';
+                document.getElementById('inst-rector').value = inst.rectorDirector || '';
+                document.getElementById('inst-tutor').value = inst.tutorCurso || '';
+
                 if (!result.estudiantes || result.estudiantes.length === 0) {
                     mostrarAlerta("Archivo vacío", "No se detectaron registros de estudiantes en el archivo Excel.", "warning");
-                    input.value = '';
                     return;
                 }
 
@@ -931,7 +939,6 @@
                     else if (ans === '4') { periodKey = 'supletorio'; periodoDetectadoStr = 'SUPLETORIO'; }
                     else {
                         mostrarAlerta("Carga cancelada", "Debe especificar un período válido.", "warning");
-                        input.value = '';
                         return;
                     }
                 }
@@ -1055,7 +1062,6 @@
             } catch (err) {
                 document.getElementById('loading-overlay').classList.add('hidden');
                 mostrarAlerta("Error", "Error al importar el archivo Excel: " + err, "error");
-                input.value = '';
             }
         }
 
