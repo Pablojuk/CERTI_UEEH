@@ -93,8 +93,7 @@
                             <span class="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded">T1</span>
                             <span class="font-semibold text-sm">Trimestre 1</span>
                         </div>
-                        <label class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:bg-slate-50 transition-all group flex-grow mb-3">
-                            <input type="file" id="file-t1" class="hidden" accept=".xlsx, .xls" onchange="handleFileSelect('t1')">
+                        <label onclick="handleFileSelect('t1')" class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:bg-slate-50 transition-all group flex-grow mb-3">
                             <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400 group-hover:text-indigo-500 mb-2 transition-all"></i>
                             <p class="text-sm font-medium text-slate-600">Haz clic para subir archivo</p>
                             <p id="name-t1" class="text-xs text-slate-400 mt-1">.xlsx / .xls</p>
@@ -109,8 +108,7 @@
                             <span class="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded">T2</span>
                             <span class="font-semibold text-sm">Trimestre 2</span>
                         </div>
-                        <label class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:bg-slate-50 transition-all group flex-grow mb-3">
-                            <input type="file" id="file-t2" class="hidden" accept=".xlsx, .xls" onchange="handleFileSelect('t2')">
+                        <label onclick="handleFileSelect('t2')" class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:bg-slate-50 transition-all group flex-grow mb-3">
                             <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400 group-hover:text-indigo-500 mb-2 transition-all"></i>
                             <p class="text-sm font-medium text-slate-600">Haz clic para subir archivo</p>
                             <p id="name-t2" class="text-xs text-slate-400 mt-1">.xlsx / .xls</p>
@@ -125,8 +123,7 @@
                             <span class="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded">T3</span>
                             <span class="font-semibold text-sm">Trimestre 3</span>
                         </div>
-                        <label class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:bg-slate-50 transition-all group flex-grow mb-3">
-                            <input type="file" id="file-t3" class="hidden" accept=".xlsx, .xls" onchange="handleFileSelect('t3')">
+                        <label onclick="handleFileSelect('t3')" class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:bg-slate-50 transition-all group flex-grow mb-3">
                             <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400 group-hover:text-indigo-500 mb-2 transition-all"></i>
                             <p class="text-sm font-medium text-slate-600">Haz clic para subir archivo</p>
                             <p id="name-t3" class="text-xs text-slate-400 mt-1">.xlsx / .xls</p>
@@ -141,8 +138,7 @@
                             <span class="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-1 rounded">SU</span>
                             <span class="font-semibold text-sm">Supletorio</span>
                         </div>
-                        <label class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:bg-slate-50 transition-all group flex-grow mb-3">
-                            <input type="file" id="file-su" class="hidden" accept=".xlsx, .xls" onchange="handleFileSelect('su')">
+                        <label onclick="handleFileSelect('su')" class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:bg-slate-50 transition-all group flex-grow mb-3">
                             <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400 group-hover:text-indigo-500 mb-2 transition-all"></i>
                             <p class="text-sm font-medium text-slate-600">Haz clic para subir archivo</p>
                             <p id="name-su" class="text-xs text-slate-400 mt-1">.xlsx / .xls</p>
@@ -270,6 +266,17 @@
                 <p class="text-sm font-medium">Procesando datos con Python...</p>
             </div>
 
+            <div id="no-encontrados-section" class="hidden m-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <div class="flex items-start gap-3 mb-3">
+                    <i class="fa-solid fa-user-clock text-amber-600 mt-1"></i>
+                    <div>
+                        <h4 class="font-semibold text-amber-900">Estudiantes no encontrados en la base</h4>
+                        <p class="text-xs text-amber-700">Revise estudiantes nuevos de T2/T3 antes de agregarlos como traslado. No se colocarán notas faltantes en 0.</p>
+                    </div>
+                </div>
+                <div id="no-encontrados-list" class="space-y-2"></div>
+            </div>
+
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse" id="students-table">
                     <thead>
@@ -330,6 +337,47 @@
         </div>
     </div>
 
+    <!-- Modal para crear alumno por traslado -->
+    <div id="traslado-modal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-slate-200 max-w-2xl w-full overflow-hidden">
+            <div class="p-6">
+                <h3 class="text-lg font-bold text-slate-900 mb-2">Crear alumno por traslado</h3>
+                <p class="text-sm text-slate-500 mb-4">Complete los datos y las notas faltantes de la institución anterior.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Cédula / ID</label>
+                        <input type="text" id="traslado-cedula" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Periodo de ingreso</label>
+                        <input type="text" id="traslado-periodo" readonly class="w-full bg-slate-100 border border-slate-300 text-slate-600 rounded-md px-3 py-2 text-sm outline-none">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Nombres completos</label>
+                        <input type="text" id="traslado-nombre" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Curso</label>
+                        <input type="text" id="traslado-curso" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Paralelo</label>
+                        <input type="text" id="traslado-paralelo" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Institución de origen</label>
+                        <input type="text" id="traslado-origen" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                    </div>
+                </div>
+                <div id="traslado-notas-container" class="max-h-72 overflow-y-auto border border-slate-200 rounded-lg p-4 mb-4 bg-slate-50"></div>
+                <div class="flex justify-end gap-3">
+                    <button onclick="cerrarTrasladoModal()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-md text-sm font-semibold hover:bg-slate-200 transition-all">Cancelar</button>
+                    <button onclick="confirmarCrearAlumnoPorTraslado()" class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-semibold hover:bg-indigo-700 transition-all">Guardar traslado</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal para Crear/Editar Curso -->
     <div id="course-modal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden">
@@ -359,6 +407,7 @@
         };
 
         let estudiantesCargados = []; // Consolidado de la tabla para buscar/filtrar
+        let trasladoPendienteActual = null;
         let licenciaActiva = false;
 
         // Inicializar IndexedDB
@@ -521,8 +570,6 @@
 
         function updateFileLabel(id, periodData) {
             const nameLabel = document.getElementById(`name-${id}`);
-            const input = document.getElementById(`file-${id}`);
-            input.value = ''; // Limpiar input file nativo
 
             if (periodData && periodData.nombreArchivo) {
                 nameLabel.textContent = periodData.nombreArchivo + " (" + periodData.fechaCarga + ")";
@@ -717,93 +764,503 @@
         }
 
         // Consolidación de estudiantes localmente (IndexedDB)
+        function corregirTextoUTF8SiEsNecesario(texto) {
+            if (texto === null || texto === undefined) return '';
+            let limpio = texto.toString();
+            const reemplazosMojibake = {
+                'Ã‘': 'Ñ', 'Ã±': 'ñ', 'Ã¡': 'á', 'Ã©': 'é', 'Ã­': 'í', 'Ã³': 'ó', 'Ãº': 'ú',
+                'Ã': 'Á', 'Ã‰': 'É', 'Ã': 'Í', 'Ã“': 'Ó', 'Ãš': 'Ú', 'Ã¼': 'ü', 'Ãœ': 'Ü'
+            };
+            Object.entries(reemplazosMojibake).forEach(([mal, bien]) => {
+                limpio = limpio.replaceAll(mal, bien);
+            });
+
+            // Recuperación limitada cuando ya llegó el carácter de reemplazo en apellidos comunes.
+            const reemplazosFrecuentes = [
+                [/ORDO�EZ/gi, 'ORDOÑEZ'], [/MU�OZ/gi, 'MUÑOZ'], [/NU�EZ/gi, 'NUÑEZ'],
+                [/PE�A/gi, 'PEÑA'], [/PI�A/gi, 'PIÑA'], [/NI�O/gi, 'NIÑO'], [/A�EZ/gi, 'AÑEZ']
+            ];
+            reemplazosFrecuentes.forEach(([patron, valor]) => {
+                limpio = limpio.replace(patron, valor);
+            });
+            return limpio;
+        }
+
+        function normalizarNombre(nombre) {
+            return corregirTextoUTF8SiEsNecesario(nombre)
+                .toString()
+                .trim()
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/ñ/g, "n")
+                .replace(/Ñ/g, "n")
+                .replace(/[^a-z0-9\s]/g, " ")
+                .replace(/\s+/g, " ")
+                .trim();
+        }
+
+        function calcularDistanciaLevenshtein(a, b) {
+            if (a === b) return 0;
+            if (!a) return b.length;
+            if (!b) return a.length;
+            const prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+            const curr = new Array(b.length + 1);
+            for (let i = 1; i <= a.length; i++) {
+                curr[0] = i;
+                for (let j = 1; j <= b.length; j++) {
+                    const costo = a[i - 1] === b[j - 1] ? 0 : 1;
+                    curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + costo);
+                }
+                for (let j = 0; j <= b.length; j++) prev[j] = curr[j];
+            }
+            return prev[b.length];
+        }
+
+        function calcularSimilitudNombre(nombreA, nombreB) {
+            const a = normalizarNombre(nombreA);
+            const b = normalizarNombre(nombreB);
+            if (!a || !b) return 0;
+            if (a === b) return 1;
+            const maxLen = Math.max(a.length, b.length);
+            return maxLen === 0 ? 1 : 1 - (calcularDistanciaLevenshtein(a, b) / maxLen);
+        }
+
+        function normalizarCedula(cedula) {
+            const valor = (cedula || '').toString().trim();
+            return valor && valor !== 'S/C' ? valor : '';
+        }
+
+        function crearEstructuraNotasInicial() {
+            return {
+                trimestre1: { origenRegistro: 'PENDIENTE', asignaturas: {} },
+                trimestre2: { origenRegistro: 'PENDIENTE', asignaturas: {} },
+                trimestre3: { origenRegistro: 'PENDIENTE', asignaturas: {} }
+            };
+        }
+
+        function crearEstudianteConsolidadoBase(estudiante, periodoIngreso, tipoIngreso = 'REGULAR') {
+            const nombreOficial = corregirTextoUTF8SiEsNecesario(estudiante.nombre || estudiante.nombreOficial || '');
+            const cedula = normalizarCedula(estudiante.cedula);
+            return {
+                estudianteId: cedula ? `cedula_${cedula}` : `nombre_${normalizarNombre(nombreOficial)}`,
+                cedula: cedula,
+                nombreOficial: nombreOficial,
+                nombreNormalizado: normalizarNombre(nombreOficial),
+                aliases: Array.from(new Set([nombreOficial, normalizarNombre(nombreOficial)].filter(Boolean))),
+                tipoIngreso: tipoIngreso,
+                periodoIngreso: periodoIngreso,
+                institucionOrigen: estudiante.institucionOrigen || '',
+                coincidencias: {},
+                notas: crearEstructuraNotasInicial()
+            };
+        }
+
+        function encontrarEstudianteCoincidente(estudiante, base) {
+            const cedula = normalizarCedula(estudiante.cedula);
+            const nombre = corregirTextoUTF8SiEsNecesario(estudiante.nombre || '');
+            if (cedula) {
+                const porCedula = base.find(item => normalizarCedula(item.cedula) === cedula);
+                if (porCedula) return { estudiante: porCedula, tipo: 'POR_CEDULA', similitud: 1 };
+            }
+
+            const nombreNormalizado = normalizarNombre(nombre);
+            if (nombreNormalizado) {
+                const porNombre = base.find(item => item.nombreNormalizado === nombreNormalizado || (item.aliases || []).some(alias => normalizarNombre(alias) === nombreNormalizado));
+                if (porNombre) return { estudiante: porNombre, tipo: 'POR_NOMBRE', similitud: 1 };
+            }
+
+            let mejor = null;
+            base.forEach(item => {
+                const similitud = calcularSimilitudNombre(nombre, item.nombreOficial);
+                if (!mejor || similitud > mejor.similitud) {
+                    mejor = { estudiante: item, tipo: similitud >= 0.90 ? 'POR_NOMBRE' : 'DUDOSO', similitud };
+                }
+            });
+
+            if (mejor && mejor.similitud >= 0.80) return mejor;
+            return null;
+        }
+
+        function obtenerPeriodoNombre(periodKey) {
+            return {
+                trimestre1: 'TRIMESTRE 1',
+                trimestre2: 'TRIMESTRE 2',
+                trimestre3: 'TRIMESTRE 3'
+            }[periodKey] || periodKey;
+        }
+
+        function periodoCortoDesdeKey(periodKey) {
+            return { trimestre1: 't1', trimestre2: 't2', trimestre3: 't3' }[periodKey] || periodKey;
+        }
+
+        function aplicarNotasPeriodo(estudianteBase, estudianteExcel, periodKey, origenRegistro, coincidencia) {
+            const nombreExcel = corregirTextoUTF8SiEsNecesario(estudianteExcel.nombre || '');
+            if (nombreExcel && !(estudianteBase.aliases || []).includes(nombreExcel)) estudianteBase.aliases.push(nombreExcel);
+            estudianteBase.notas[periodKey] = {
+                origenRegistro,
+                asignaturas: estudianteExcel.notas || {}
+            };
+            estudianteBase.coincidencias[periodKey] = coincidencia;
+        }
+
+        function crearClavePendiente(estudiante, periodKey) {
+            const cedula = normalizarCedula(estudiante.cedula);
+            return `${periodKey}|${cedula || normalizarNombre(estudiante.nombre)}`;
+        }
+
+        function detectarEstudiantesNoEncontrados(periodKey, lista, base) {
+            const curso = obtenerCursoActivo();
+            if (!curso || periodKey === 'trimestre1') return [];
+            curso.estudiantesNoEncontrados = curso.estudiantesNoEncontrados || [];
+            const nuevos = [];
+
+            lista.forEach(estudiante => {
+                const match = encontrarEstudianteCoincidente(estudiante, base);
+                if (!match || match.similitud < 0.90) {
+                    const item = {
+                        id: crearClavePendiente(estudiante, periodKey),
+                        cedula: normalizarCedula(estudiante.cedula),
+                        nombre: corregirTextoUTF8SiEsNecesario(estudiante.nombre),
+                        periodoKey: periodKey,
+                        periodo: obtenerPeriodoNombre(periodKey),
+                        estudianteExcel: estudiante,
+                        estadoRevision: match && match.similitud >= 0.80 ? 'DUDOSO' : 'NO_ENCONTRADO',
+                        posibleCoincidencia: match ? {
+                            nombre: match.estudiante.nombreOficial,
+                            cedula: match.estudiante.cedula,
+                            similitud: Number(match.similitud.toFixed(2))
+                        } : null
+                    };
+                    if (!curso.estudiantesNoEncontrados.some(p => p.id === item.id && p.estadoRevision !== 'IGNORADO')) {
+                        curso.estudiantesNoEncontrados.push(item);
+                    }
+                    nuevos.push(item);
+                }
+            });
+            return nuevos;
+        }
+
+        function obtenerAsignaturasCurso(curso, pendiente) {
+            const asignaturas = new Set();
+            ['trimestre1', 'trimestre2', 'trimestre3'].forEach(periodKey => {
+                ((curso.periodos?.[periodKey]?.asignaturas) || []).forEach(asig => asignaturas.add(asig));
+                ((curso.periodos?.[periodKey]?.estudiantes) || []).forEach(est => {
+                    Object.keys(est.notas || {}).forEach(asig => asignaturas.add(asig));
+                });
+            });
+            Object.keys(pendiente?.estudianteExcel?.notas || {}).forEach(asig => asignaturas.add(asig));
+            return Array.from(asignaturas);
+        }
+
+        function validarNotasManuales(notas) {
+            for (const [periodKey, asignaturas] of Object.entries(notas)) {
+                for (const [asignatura, valor] of Object.entries(asignaturas)) {
+                    if (valor === null || valor === '') return `Falta nota de ${asignatura} en ${obtenerPeriodoNombre(periodKey)}.`;
+                    const numero = Number(valor);
+                    if (Number.isNaN(numero) || numero < 0 || numero > 10) {
+                        return `La nota de ${asignatura} en ${obtenerPeriodoNombre(periodKey)} debe estar entre 0 y 10.`;
+                    }
+                }
+            }
+            return null;
+        }
+
+        function guardarNotasManualExterno(alumno, notasManuales) {
+            Object.entries(notasManuales).forEach(([periodKey, asignaturas]) => {
+                alumno.notas[periodKey] = {
+                    origenRegistro: 'MANUAL_EXTERNO',
+                    asignaturas: Object.fromEntries(Object.entries(asignaturas).map(([asig, valor]) => [asig, truncar2Decimales(Number(valor))]))
+                };
+                alumno.coincidencias[periodKey] = 'MANUAL';
+            });
+        }
+
+        function crearAlumnoPorTraslado(pendiente, datosFormulario, notasManuales) {
+            const alumno = crearEstudianteConsolidadoBase({
+                cedula: datosFormulario.cedula,
+                nombre: datosFormulario.nombre,
+                institucionOrigen: datosFormulario.institucionOrigen
+            }, pendiente.periodo, 'TRASLADO');
+            alumno.institucionOrigen = datosFormulario.institucionOrigen || '';
+            guardarNotasManualExterno(alumno, notasManuales);
+            aplicarNotasPeriodo(alumno, pendiente.estudianteExcel, pendiente.periodoKey, 'EXCEL', 'NUEVO_TRASLADO');
+            return alumno;
+        }
+
+        function renderEstudiantesNoEncontrados() {
+            const curso = obtenerCursoActivo();
+            const section = document.getElementById('no-encontrados-section');
+            const list = document.getElementById('no-encontrados-list');
+            if (!section || !list || !curso) return;
+
+            const pendientes = (curso.estudiantesNoEncontrados || []).filter(p => p.estadoRevision !== 'IGNORADO' && p.estadoRevision !== 'RESUELTO');
+            list.innerHTML = '';
+            if (pendientes.length === 0) {
+                section.classList.add('hidden');
+                return;
+            }
+
+            section.classList.remove('hidden');
+            pendientes.forEach(pendiente => {
+                const card = document.createElement('div');
+                card.className = 'bg-white border border-amber-200 rounded-md p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3';
+                const info = document.createElement('div');
+                const title = document.createElement('p');
+                title.className = 'text-sm font-semibold text-slate-800';
+                title.textContent = pendiente.nombre;
+                const detail = document.createElement('p');
+                detail.className = 'text-xs text-slate-500';
+                detail.textContent = `Cédula: ${pendiente.cedula || 'S/C'} · Periodo: ${pendiente.periodo}` + (pendiente.posibleCoincidencia ? ` · Posible: ${pendiente.posibleCoincidencia.nombre} (${pendiente.posibleCoincidencia.similitud})` : '');
+                info.appendChild(title);
+                info.appendChild(detail);
+
+                const actions = document.createElement('div');
+                actions.className = 'flex flex-wrap gap-2';
+                const btnCrear = document.createElement('button');
+                btnCrear.className = 'px-3 py-1.5 bg-indigo-600 text-white rounded text-xs font-semibold hover:bg-indigo-700 transition-all';
+                btnCrear.textContent = 'Crear alumno por traslado';
+                btnCrear.onclick = () => abrirTrasladoModal(pendiente.id);
+                const btnIgnorar = document.createElement('button');
+                btnIgnorar.className = 'px-3 py-1.5 bg-rose-50 text-rose-600 rounded text-xs font-semibold hover:bg-rose-100 transition-all';
+                btnIgnorar.textContent = 'Ignorar';
+                btnIgnorar.onclick = () => marcarPendiente(pendiente.id, 'IGNORADO');
+                const btnDespues = document.createElement('button');
+                btnDespues.className = 'px-3 py-1.5 bg-slate-100 text-slate-600 rounded text-xs font-semibold hover:bg-slate-200 transition-all';
+                btnDespues.textContent = 'Revisar después';
+                btnDespues.onclick = () => marcarPendiente(pendiente.id, 'REVISAR_DESPUES');
+                actions.appendChild(btnCrear);
+                actions.appendChild(btnIgnorar);
+                actions.appendChild(btnDespues);
+                card.appendChild(info);
+                card.appendChild(actions);
+                list.appendChild(card);
+            });
+        }
+
+        async function marcarPendiente(id, estado) {
+            const curso = obtenerCursoActivo();
+            if (!curso) return;
+            const pendiente = (curso.estudiantesNoEncontrados || []).find(p => p.id === id);
+            if (pendiente) pendiente.estadoRevision = estado;
+            await saveStateToDB();
+            renderEstudiantesNoEncontrados();
+        }
+
+        function abrirTrasladoModal(pendienteId) {
+            const curso = obtenerCursoActivo();
+            const pendiente = (curso?.estudiantesNoEncontrados || []).find(p => p.id === pendienteId);
+            if (!curso || !pendiente) return;
+            trasladoPendienteActual = pendiente;
+
+            document.getElementById('traslado-cedula').value = pendiente.cedula || '';
+            document.getElementById('traslado-nombre').value = pendiente.nombre || '';
+            document.getElementById('traslado-periodo').value = pendiente.periodo;
+            document.getElementById('traslado-curso').value = curso.datosInstitucion?.gradoCurso || '';
+            document.getElementById('traslado-paralelo').value = curso.datosInstitucion?.paralelo || '';
+            document.getElementById('traslado-origen').value = '';
+
+            const cont = document.getElementById('traslado-notas-container');
+            cont.innerHTML = '';
+            const titulo = document.createElement('p');
+            titulo.className = 'text-sm font-semibold text-slate-700 mb-3';
+            titulo.textContent = 'Notas faltantes por ingresar';
+            cont.appendChild(titulo);
+
+            const periodosFaltantes = pendiente.periodoKey === 'trimestre2' ? ['trimestre1'] : ['trimestre1', 'trimestre2'];
+            const asignaturas = obtenerAsignaturasCurso(curso, pendiente);
+            if (asignaturas.length === 0) {
+                const aviso = document.createElement('p');
+                aviso.className = 'text-sm text-amber-700';
+                aviso.textContent = 'No se detectaron asignaturas. El alumno se guardará con notas externas pendientes.';
+                cont.appendChild(aviso);
+            }
+
+            periodosFaltantes.forEach(periodKey => {
+                const block = document.createElement('div');
+                block.className = 'mb-4';
+                const h = document.createElement('h4');
+                h.className = 'text-xs font-bold text-slate-500 uppercase tracking-wider mb-2';
+                h.textContent = obtenerPeriodoNombre(periodKey);
+                block.appendChild(h);
+                asignaturas.forEach(asig => {
+                    const row = document.createElement('div');
+                    row.className = 'grid grid-cols-2 gap-3 items-center mb-2';
+                    const label = document.createElement('label');
+                    label.className = 'text-sm text-slate-600';
+                    label.textContent = asig;
+                    const input = document.createElement('input');
+                    input.type = 'number';
+                    input.min = '0';
+                    input.max = '10';
+                    input.step = '0.01';
+                    input.dataset.periodKey = periodKey;
+                    input.dataset.asignatura = asig;
+                    input.className = 'bg-white border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all';
+                    row.appendChild(label);
+                    row.appendChild(input);
+                    block.appendChild(row);
+                });
+                cont.appendChild(block);
+            });
+
+            document.getElementById('traslado-modal').classList.remove('hidden');
+        }
+
+        function cerrarTrasladoModal() {
+            trasladoPendienteActual = null;
+            document.getElementById('traslado-modal').classList.add('hidden');
+        }
+
+        async function confirmarCrearAlumnoPorTraslado() {
+            const curso = obtenerCursoActivo();
+            if (!curso || !trasladoPendienteActual) return;
+            const notasManuales = {};
+            document.querySelectorAll('#traslado-notas-container input[data-period-key]').forEach(input => {
+                const periodKey = input.dataset.periodKey;
+                const asignatura = input.dataset.asignatura;
+                if (!notasManuales[periodKey]) notasManuales[periodKey] = {};
+                notasManuales[periodKey][asignatura] = input.value;
+            });
+
+            const errorNotas = validarNotasManuales(notasManuales);
+            if (errorNotas) {
+                mostrarAlerta('Notas inválidas', errorNotas, 'warning');
+                return;
+            }
+
+            const datosFormulario = {
+                cedula: document.getElementById('traslado-cedula').value.trim(),
+                nombre: corregirTextoUTF8SiEsNecesario(document.getElementById('traslado-nombre').value.trim()),
+                curso: document.getElementById('traslado-curso').value.trim(),
+                paralelo: document.getElementById('traslado-paralelo').value.trim(),
+                institucionOrigen: document.getElementById('traslado-origen').value.trim()
+            };
+            if (!datosFormulario.nombre) {
+                mostrarAlerta('Datos incompletos', 'Ingrese los nombres completos del alumno por traslado.', 'warning');
+                return;
+            }
+
+            curso.alumnosTraslado = curso.alumnosTraslado || [];
+            const alumno = crearAlumnoPorTraslado(trasladoPendienteActual, datosFormulario, notasManuales);
+            curso.alumnosTraslado = curso.alumnosTraslado.filter(a => a.estudianteId !== alumno.estudianteId);
+            curso.alumnosTraslado.push(alumno);
+
+            const pendiente = (curso.estudiantesNoEncontrados || []).find(p => p.id === trasladoPendienteActual.id);
+            if (pendiente) pendiente.estadoRevision = 'RESUELTO';
+
+            await saveStateToDB();
+            cerrarTrasladoModal();
+            consolidarYRenderizar();
+            mostrarAlerta('Alumno creado', 'El alumno por traslado fue creado y sus notas externas quedaron guardadas como MANUAL_EXTERNO.', 'success');
+        }
+
+        function validarCargaTrimestre3(periodKey, periodoDetectadoStr, result, cursoEncontrado, fileName) {
+            if (periodKey !== 'trimestre3') return;
+            console.log('[T3] Archivo seleccionado:', fileName);
+            console.log('[T3] Periodo detectado:', periodoDetectadoStr);
+            console.log('[T3] periodKey final:', periodKey);
+            console.log('[T3] Estudiantes detectados:', result.estudiantes?.length || 0);
+            console.log('[T3] Guardado en curso:', cursoEncontrado.periodos.trimestre3);
+        }
+
         function consolidarYRenderizar() {
             const curso = obtenerCursoActivo();
             if (!curso) {
                 estudiantesCargados = [];
                 renderEstudiantes();
+                renderEstudiantesNoEncontrados();
                 return;
             }
+
+            curso.estudiantesNoEncontrados = curso.estudiantesNoEncontrados || [];
+            curso.alumnosTraslado = curso.alumnosTraslado || [];
 
             const t1 = curso.periodos.trimestre1 || {};
             const t2 = curso.periodos.trimestre2 || {};
             const t3 = curso.periodos.trimestre3 || {};
             const su = curso.periodos.supletorio || {};
 
-            const t1_students = t1.estudiantes || [];
-            const t2_students = t2.estudiantes || [];
-            const t3_students = t3.estudiantes || [];
+            const fuentes = [
+                { key: 'trimestre1', label: 'TRIMESTRE 1', estudiantes: t1.estudiantes || [] },
+                { key: 'trimestre2', label: 'TRIMESTRE 2', estudiantes: t2.estudiantes || [] },
+                { key: 'trimestre3', label: 'TRIMESTRE 3', estudiantes: t3.estudiantes || [] }
+            ];
             const su_students = su.estudiantes || [];
 
-            if (t1_students.length === 0 && t2_students.length === 0 && t3_students.length === 0 && su_students.length === 0) {
+            if (fuentes.every(f => f.estudiantes.length === 0) && su_students.length === 0 && curso.alumnosTraslado.length === 0) {
                 estudiantesCargados = [];
                 renderEstudiantes();
+                renderEstudiantesNoEncontrados();
                 return;
             }
 
-            const allKeys = new Set();
-            const studentsMap = {};
+            const base = [];
+            curso.alumnosTraslado.forEach(alumno => {
+                const clon = JSON.parse(JSON.stringify(alumno));
+                clon.nombreOficial = corregirTextoUTF8SiEsNecesario(clon.nombreOficial);
+                clon.nombreNormalizado = normalizarNombre(clon.nombreOficial);
+                clon.aliases = clon.aliases || [clon.nombreOficial];
+                clon.notas = { ...crearEstructuraNotasInicial(), ...(clon.notas || {}) };
+                base.push(clon);
+            });
 
-            const processSrc = (list, keyPeriod) => {
-                list.forEach(s => {
-                    const idKey = (s.cedula && s.cedula.trim()) ? s.cedula.trim() : s.nombre.trim();
-                    allKeys.add(idKey);
-                    if (!studentsMap[idKey]) {
-                        studentsMap[idKey] = {
-                            nombre: s.nombre,
-                            cedula: s.cedula,
-                            t1_notas: {},
-                            t2_notas: {},
-                            t3_notas: {},
-                            su_notas: {}
-                        };
+            fuentes.forEach(fuente => {
+                if (fuente.key !== 'trimestre1') detectarEstudiantesNoEncontrados(fuente.key, fuente.estudiantes, base);
+                fuente.estudiantes.forEach(estudiante => {
+                    const nombreLimpio = corregirTextoUTF8SiEsNecesario(estudiante.nombre);
+                    const estudianteLimpio = { ...estudiante, nombre: nombreLimpio };
+                    let match = encontrarEstudianteCoincidente(estudianteLimpio, base);
+
+                    if (!match && fuente.key === 'trimestre1') {
+                        const nuevo = crearEstudianteConsolidadoBase(estudianteLimpio, fuente.label, 'REGULAR');
+                        base.push(nuevo);
+                        match = { estudiante: nuevo, tipo: 'BASE', similitud: 1 };
                     }
-                    studentsMap[idKey][`${keyPeriod}_notas`] = s.notas || {};
+
+                    if (match && (match.similitud >= 0.90 || match.tipo === 'POR_CEDULA' || match.tipo === 'BASE')) {
+                        aplicarNotasPeriodo(match.estudiante, estudianteLimpio, fuente.key, 'EXCEL', match.tipo === 'BASE' ? 'BASE' : match.tipo);
+                    }
                 });
-            };
+            });
 
-            processSrc(t1_students, 't1');
-            processSrc(t2_students, 't2');
-            processSrc(t3_students, 't3');
-            processSrc(su_students, 'su');
+            // Mantener el supletorio fuera de la mejora: se adjunta sin alterar su flujo de carga.
+            su_students.forEach(estudiante => {
+                const match = encontrarEstudianteCoincidente(estudiante, base);
+                if (match && match.similitud >= 0.90) {
+                    match.estudiante.su_notas = estudiante.notas || {};
+                }
+            });
 
-            const listaConsolidada = [];
-
-            allKeys.forEach(idKey => {
-                const s = studentsMap[idKey];
+            const listaConsolidada = base.map(s => {
                 const subjects = new Set([
-                    ...Object.keys(s.t1_notas),
-                    ...Object.keys(s.t2_notas),
-                    ...Object.keys(s.t3_notas),
-                    ...Object.keys(s.su_notas)
+                    ...Object.keys(s.notas.trimestre1?.asignaturas || {}),
+                    ...Object.keys(s.notas.trimestre2?.asignaturas || {}),
+                    ...Object.keys(s.notas.trimestre3?.asignaturas || {}),
+                    ...Object.keys(s.su_notas || {})
                 ]);
 
                 const materias = {};
                 subjects.forEach(sub => {
-                    const g1 = s.t1_notas[sub] !== undefined ? s.t1_notas[sub] : 0.0;
-                    const g2 = s.t2_notas[sub] !== undefined ? s.t2_notas[sub] : 0.0;
-                    const g3 = s.t3_notas[sub] !== undefined ? s.t3_notas[sub] : 0.0;
-                    const su_grade = s.su_notas[sub] !== undefined ? s.su_notas[sub] : null;
+                    const g1 = s.notas.trimestre1?.asignaturas?.[sub] ?? null;
+                    const g2 = s.notas.trimestre2?.asignaturas?.[sub] ?? null;
+                    const g3 = s.notas.trimestre3?.asignaturas?.[sub] ?? null;
+                    const su_grade = s.su_notas?.[sub] ?? null;
+                    const pendiente = g1 === null || g2 === null || g3 === null;
 
-                    const p_anual = truncar2Decimales((g1 + g2 + g3) / 3.0);
-                    let nota_final = p_anual;
-                    let estado = "APROBADO";
-
-                    if (p_anual >= 7.0) {
+                    let p_anual = null;
+                    let nota_final = null;
+                    let estado = 'PENDIENTE DE NOTAS EXTERNAS';
+                    if (!pendiente) {
+                        p_anual = truncar2Decimales((Number(g1) + Number(g2) + Number(g3)) / 3.0);
                         nota_final = p_anual;
-                        estado = "APROBADO";
-                    } else {
-                        if (su_grade !== null) {
-                            if (su_grade >= 7.0) {
-                                nota_final = 7.0;
-                                estado = "APROBADO";
-                            } else {
-                                nota_final = p_anual;
-                                estado = "REPROBADO";
-                            }
+                        if (p_anual >= 7.0) {
+                            estado = 'APROBADO';
+                        } else if (su_grade !== null) {
+                            estado = su_grade >= 7.0 ? 'APROBADO' : 'REPROBADO';
+                            nota_final = su_grade >= 7.0 ? 7.0 : p_anual;
                         } else {
-                            nota_final = p_anual;
-                            estado = "SUPLETORIO";
+                            estado = 'SUPLETORIO';
                         }
                     }
 
@@ -814,47 +1271,65 @@
                         promedio_anual: p_anual,
                         supletorio: su_grade,
                         nota_final: nota_final,
-                        estado: estado
+                        estado: estado,
+                        origenRegistro: {
+                            trimestre1: s.notas.trimestre1?.origenRegistro || 'PENDIENTE',
+                            trimestre2: s.notas.trimestre2?.origenRegistro || 'PENDIENTE',
+                            trimestre3: s.notas.trimestre3?.origenRegistro || 'PENDIENTE'
+                        }
                     };
                 });
 
-                const finalGradesList = Object.values(materias).map(m => m.nota_final);
-                const prom_general = finalGradesList.length > 0 ? (finalGradesList.reduce((a, b) => a + b, 0) / finalGradesList.length) : 0.0;
+                const materiasList = Object.values(materias);
+                const tienePendiente = materiasList.some(m => m.estado === 'PENDIENTE DE NOTAS EXTERNAS') || ['trimestre1', 'trimestre2', 'trimestre3'].some(periodKey => s.notas[periodKey]?.origenRegistro === 'PENDIENTE');
+                const finalesValidos = materiasList.map(m => m.nota_final).filter(v => typeof v === 'number');
+                const prom_general = (!tienePendiente && finalesValidos.length > 0) ? (finalesValidos.reduce((a, b) => a + b, 0) / finalesValidos.length) : null;
+                const tiene_supletorio = materiasList.some(m => m.estado === 'SUPLETORIO');
+                const tiene_reprobado = materiasList.some(m => m.estado === 'REPROBADO');
 
-                const tiene_supletorio = Object.values(materias).some(m => m.estado === "SUPLETORIO");
-                const tiene_reprobado = Object.values(materias).some(m => m.estado === "REPROBADO");
+                let estado_general = 'APROBADO';
+                if (tienePendiente) estado_general = 'PENDIENTE DE NOTAS EXTERNAS';
+                else if (tiene_reprobado) estado_general = 'REPROBADO';
+                else if (tiene_supletorio) estado_general = 'SUPLETORIO';
 
-                let estado_general = "APROBADO";
-                if (tiene_reprobado) estado_general = "REPROBADO";
-                else if (tiene_supletorio) estado_general = "SUPLETORIO";
-
-                listaConsolidada.push({
-                    cedula: s.cedula && s.cedula.length < 15 ? s.cedula : "S/C",
-                    id_real: idKey,
-                    nombre: s.nombre,
-                    promedio: truncar2Decimales(prom_general),
+                return {
+                    cedula: s.cedula || 'S/C',
+                    id_real: s.estudianteId,
+                    nombre: s.nombreOficial,
+                    nombreNormalizado: s.nombreNormalizado,
+                    promedio: prom_general === null ? null : truncar2Decimales(prom_general),
                     estado: estado_general,
+                    tipoIngreso: s.tipoIngreso,
+                    periodoIngreso: s.periodoIngreso,
                     materias: materias
-                });
+                };
             });
 
-            listaConsolidada.sort((a, b) => a.nombre.localeCompare(b.nombre));
+            listaConsolidada.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
             estudiantesCargados = listaConsolidada;
+            console.log('[consolidarYRenderizar] T3 estudiantes integrados:', t3.estudiantes?.length || 0);
             renderEstudiantes();
+            renderEstudiantesNoEncontrados();
         }
 
         // Carga de Excel e Importación de datos
         async function handleFileSelect(id) {
-            const input = document.getElementById(`file-${id}`);
-            if (!input.files || input.files.length === 0) return;
+            const absolutePath = await window.electronAPI.seleccionarArchivo({
+                properties: ['openFile'],
+                filters: [
+                    { name: 'Archivos Excel', extensions: ['xlsx', 'xls'] }
+                ]
+            });
 
-            const absolutePath = input.files[0].path;
-            const fileName = input.files[0].name;
+            if (!absolutePath) return;
+
+            console.log("[handleFileSelect] Ruta seleccionada desde Electron:", absolutePath);
+
+            const fileName = absolutePath.split(/[\\/]/).pop() || '';
 
             // Validar extensión
-            if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
+            if (!fileName.toLowerCase().endsWith('.xlsx') && !fileName.toLowerCase().endsWith('.xls')) {
                 mostrarAlerta("Formato no válido", "Por favor seleccione un archivo oficial de formato Excel (.xlsx o .xls)", "error");
-                input.value = '';
                 return;
             }
 
@@ -865,12 +1340,14 @@
                 const filePathsPayload = {};
                 filePathsPayload[id] = absolutePath;
 
+                console.log("[handleFileSelect] Payload enviado a analizarExcel:", filePathsPayload);
+
                 const result = await window.electronAPI.analizarExcel(filePathsPayload);
+                console.log("[handleFileSelect] Resultado recibido desde Python:", result);
                 document.getElementById('loading-overlay').classList.add('hidden');
 
                 if (result.error) {
                     mostrarAlerta("Error de formato", "No se pudo leer el archivo. Asegúrese de que sea el formato oficial obtenido desde 'Descargar Formato'.<br><small class='text-rose-500'>" + result.error + "</small>", "error");
-                    input.value = '';
                     return;
                 }
 
@@ -879,22 +1356,28 @@
                 // Validaciones
                 if (!inst.nombreInstitucion) {
                     mostrarAlerta("Formato incorrecto", "No se detectó el nombre de la institución (Celda A1). Use el formato oficial.", "warning");
-                    input.value = '';
                     return;
                 }
                 if (!inst.gradoCurso) {
                     mostrarAlerta("Formato incorrecto", "No se detectó el Grado/Curso (Celda B3). Use el formato oficial.", "warning");
-                    input.value = '';
                     return;
                 }
                 if (!inst.paralelo) {
                     mostrarAlerta("Formato incorrecto", "No se detectó el Paralelo (Celda B5). Use el formato oficial.", "warning");
-                    input.value = '';
                     return;
                 }
+
+                document.getElementById('inst-nombre').value = inst.nombreInstitucion || '';
+                document.getElementById('inst-anio').value = inst.anioLectivo || '';
+                document.getElementById('inst-amie').value = inst.codigoAmie || '';
+                document.getElementById('inst-grado').value = inst.gradoCurso || '';
+                document.getElementById('inst-paralelo').value = inst.paralelo || '';
+                document.getElementById('inst-jornada').value = inst.jornada || 'MATUTINA';
+                document.getElementById('inst-rector').value = inst.rectorDirector || '';
+                document.getElementById('inst-tutor').value = inst.tutorCurso || '';
+
                 if (!result.estudiantes || result.estudiantes.length === 0) {
                     mostrarAlerta("Archivo vacío", "No se detectaron registros de estudiantes en el archivo Excel.", "warning");
-                    input.value = '';
                     return;
                 }
 
@@ -931,9 +1414,14 @@
                     else if (ans === '4') { periodKey = 'supletorio'; periodoDetectadoStr = 'SUPLETORIO'; }
                     else {
                         mostrarAlerta("Carga cancelada", "Debe especificar un período válido.", "warning");
-                        input.value = '';
                         return;
                     }
+                }
+
+                if (id === 't3' || periodKey === 'trimestre3') {
+                    console.log("[T3] Periodo detectado:", periodoDetectadoStr);
+                    console.log("[T3] periodKey final:", periodKey);
+                    console.log("[T3] Estudiantes detectados:", result.estudiantes?.length || 0);
                 }
 
                 const cursoActivo = obtenerCursoActivo();
@@ -1034,6 +1522,8 @@
                     estudiantes: result.estudiantes || []
                 };
 
+                validarCargaTrimestre3(periodKey, periodoDetectadoStr, result, cursoEncontrado, fileName);
+
                 // Actualizar cabeceras en el curso si viene información del Excel
                 cursoEncontrado.datosInstitucion = {
                     nombreInstitucion: inst.nombreInstitucion || cursoEncontrado.datosInstitucion.nombreInstitucion,
@@ -1050,12 +1540,12 @@
                 await saveStateToDB();
                 actualizarSelectorCursosUI();
                 cargarCursoActivoEnPantalla();
+                await saveStateToDB();
                 mostrarAlerta("Éxito al cargar", `Notas importadas correctamente para el curso:<br><strong>${cursoEncontrado.nombreVisible}</strong><br>Período: <strong>${periodoDetectadoStr}</strong>`, "success");
 
             } catch (err) {
                 document.getElementById('loading-overlay').classList.add('hidden');
                 mostrarAlerta("Error", "Error al importar el archivo Excel: " + err, "error");
-                input.value = '';
             }
         }
 
@@ -1076,6 +1566,7 @@
                 asignaturas: [],
                 estudiantes: []
             };
+            curso.estudiantesNoEncontrados = (curso.estudiantesNoEncontrados || []).filter(p => p.periodoKey !== periodKey);
 
             await saveStateToDB();
             cargarCursoActivoEnPantalla();
@@ -1110,19 +1601,48 @@
                 tr.dataset.nombre = est.nombre;
                 tr.dataset.id_real = est.id_real;
 
-                tr.innerHTML = `
-                    <td class="p-4 text-center">
-                        <input type="checkbox" class="student-checkbox w-4 h-4 text-indigo-600 border-slate-300 rounded cursor-pointer" onchange="updateSelectedCount()">
-                    </td>
-                    <td class="p-4 font-medium text-slate-500">${num}</td>
-                    <td class="p-4 font-semibold text-slate-800">${est.nombre}</td>
-                    <td class="p-4 text-slate-500">${est.cedula}</td>
-                    <td class="p-4 text-center">
-                        <button onclick="vistaPrevia('${est.id_real}')" class="w-8 h-8 rounded-full bg-slate-100 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-800 transition-all flex items-center justify-center mx-auto" title="Vista Previa">
-                            <i class="fa-solid fa-eye"></i>
-                        </button>
-                    </td>
-                `;
+                const tdCheck = document.createElement('td');
+                tdCheck.className = 'p-4 text-center';
+                const check = document.createElement('input');
+                check.type = 'checkbox';
+                check.className = 'student-checkbox w-4 h-4 text-indigo-600 border-slate-300 rounded cursor-pointer';
+                check.onchange = updateSelectedCount;
+                tdCheck.appendChild(check);
+
+                const tdNum = document.createElement('td');
+                tdNum.className = 'p-4 font-medium text-slate-500';
+                tdNum.textContent = num;
+
+                const tdNombre = document.createElement('td');
+                tdNombre.className = 'p-4 font-semibold text-slate-800';
+                tdNombre.textContent = est.nombre;
+                if (est.estado === 'PENDIENTE DE NOTAS EXTERNAS') {
+                    const badge = document.createElement('span');
+                    badge.className = 'ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700';
+                    badge.textContent = 'PENDIENTE DE NOTAS EXTERNAS';
+                    tdNombre.appendChild(badge);
+                }
+
+                const tdCedula = document.createElement('td');
+                tdCedula.className = 'p-4 text-slate-500';
+                tdCedula.textContent = est.cedula;
+
+                const tdAccion = document.createElement('td');
+                tdAccion.className = 'p-4 text-center';
+                const btn = document.createElement('button');
+                btn.className = 'w-8 h-8 rounded-full bg-slate-100 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-800 transition-all flex items-center justify-center mx-auto';
+                btn.title = 'Vista Previa';
+                btn.onclick = () => vistaPrevia(est.id_real);
+                const icon = document.createElement('i');
+                icon.className = 'fa-solid fa-eye';
+                btn.appendChild(icon);
+                tdAccion.appendChild(btn);
+
+                tr.appendChild(tdCheck);
+                tr.appendChild(tdNum);
+                tr.appendChild(tdNombre);
+                tr.appendChild(tdCedula);
+                tr.appendChild(tdAccion);
                 body.appendChild(tr);
             });
             updateSelectedCount();
@@ -1134,8 +1654,9 @@
             const queryTable = document.getElementById('table-search').value.toLowerCase().trim();
             const query = queryGlobal || queryTable;
 
+            const queryNormalizada = normalizarNombre(query);
             const filtrados = estudiantesCargados.filter(est => 
-                est.nombre.toLowerCase().includes(query) || est.cedula.includes(query)
+                normalizarNombre(est.nombre).includes(queryNormalizada) || (est.cedula || '').includes(query)
             );
             renderEstudiantes(filtrados);
         }
@@ -1198,6 +1719,12 @@
                 return;
             }
 
+            const seleccionadosPendientes = estudiantesCargados.filter(e => seleccionados.includes(e.id_real) && e.estado === 'PENDIENTE DE NOTAS EXTERNAS');
+            if (seleccionadosPendientes.length > 0) {
+                const continuar = confirm(`Hay ${seleccionadosPendientes.length} estudiante(s) con notas externas pendientes. No se calculará promedio anual definitivo. ¿Desea continuar de todas formas?`);
+                if (!continuar) return;
+            }
+
             // Aplicar restricción de Prueba Offline
             if (!licenciaActiva && seleccionados.length > 3) {
                 mostrarAlerta("Límite Excedido - Prueba Offline", `El sistema está en modo de Prueba Offline. La generación masiva (más de 3 boletines) está restringida. Por favor, adquiera una licencia o seleccione un máximo de 3 estudiantes. (Seleccionados: ${seleccionados.length})`, "warning");
@@ -1253,16 +1780,18 @@
             const est = estudiantesCargados.find(e => e.id_real === idReal);
             if (!est) return;
 
+            const fmtNota = (valor) => typeof valor === 'number' ? valor.toFixed(2) : 'PENDIENTE';
             let notasInfo = '';
             Object.entries(est.materias).forEach(([materia, d]) => {
-                notasInfo += `• ${materia}: T1=${d.t1.toFixed(2)} | T2=${d.t2.toFixed(2)} | T3=${d.t3.toFixed(2)}`;
+                notasInfo += `• ${materia}: T1=${fmtNota(d.t1)} | T2=${fmtNota(d.t2)} | T3=${fmtNota(d.t3)}`;
                 if (d.supletorio !== null) {
-                    notasInfo += ` | SUP=${d.supletorio.toFixed(2)}`;
+                    notasInfo += ` | SUP=${fmtNota(d.supletorio)}`;
                 }
-                notasInfo += ` => FINAL=${d.nota_final.toFixed(2)} (${d.estado})\n`;
+                notasInfo += ` => FINAL=${fmtNota(d.nota_final)} (${d.estado})\n`;
             });
 
-            const info = `Estudiante: ${est.nombre}\nCédula: ${est.cedula}\nPromedio General: ${est.promedio.toFixed(2)}\nEstado: ${est.estado}\n\nCalificaciones por Asignatura:\n${notasInfo}`;
+            const promedioTxt = typeof est.promedio === 'number' ? est.promedio.toFixed(2) : 'PENDIENTE';
+            const info = `Estudiante: ${est.nombre}\nCédula: ${est.cedula}\nPromedio General: ${promedioTxt}\nEstado: ${est.estado}\n\nCalificaciones por Asignatura:\n${notasInfo}`;
             alert(info);
         }
 
