@@ -133,14 +133,27 @@ function runPython(args, inputData = null) {
 }
 
 // IPC: Analizar archivos Excel para listar estudiantes
-ipcMain.handle('analizar-excel', async (event, rutas) => {
+ipcMain.handle('analizar-excel', async (event, rutas = {}) => {
     try {
         const args = ['--analizar'];
-        if (rutas.t1) { args.push('--t1', rutas.t1); }
-        if (rutas.t2) { args.push('--t2', rutas.t2); }
-        if (rutas.t3) { args.push('--t3', rutas.t3); }
-        if (rutas.su) { args.push('--su', rutas.su); }
+        const periodos = ['t1', 't2', 't3', 'su'];
+        const rutasValidas = {};
+
+        for (const periodo of periodos) {
+            const ruta = typeof rutas[periodo] === 'string' ? rutas[periodo].trim() : '';
+            if (!ruta) continue;
+            if (!fs.existsSync(ruta)) {
+                return { error: `Ruta inválida: el archivo seleccionado para ${periodo.toUpperCase()} no existe o no es accesible: ${ruta}` };
+            }
+            rutasValidas[periodo] = ruta;
+            args.push(`--${periodo}`, ruta);
+        }
+
+        if (Object.keys(rutasValidas).length === 0) {
+            return { error: "Ruta inválida: no se recibió una ruta real del archivo Excel seleccionado." };
+        }
         
+        console.log("[analizar-excel] Rutas validadas:", rutasValidas);
         console.log("[analizar-excel] Args enviados a Python:", args);
         const result = await runPython(args);
         console.log("[analizar-excel] stdout length:", result.stdout.length);
