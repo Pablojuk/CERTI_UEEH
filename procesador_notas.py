@@ -8,6 +8,12 @@ from __future__ import annotations
 import os
 import sys
 import json
+
+try:
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
+except Exception:
+    pass
 import argparse
 import pandas as pd
 import numpy as np
@@ -92,26 +98,64 @@ def detectar_columnas(df: pd.DataFrame) -> tuple[str | None, str | None, list[st
     return id_col, name_col, subject_cols
 
 def obtener_hoja_principal(wb):
-    """Obtiene la hoja principal del workbook: primero intenta 'Reporte Periodo', luego fallback."""
+    """Obtiene la hoja oficial principal del formato de notas."""
     if "Reporte Periodo" in wb.sheetnames:
         return wb["Reporte Periodo"]
-    # Fallback: buscar la primera hoja que tenga datos en A1
-    for name in wb.sheetnames:
-        sh = wb[name]
-        if sh["A1"].value:
-            return sh
-    # Último recurso: hoja activa
-    return wb.active
+    return None
+
+
+def _celda_con_valor_combinado(sheet, cell_ref):
+    """Devuelve la celda directa o la celda superior izquierda del rango combinado."""
+    cell = sheet[cell_ref]
+    if cell.value not in (None, ""):
+        return cell
+
+    for merged_range in sheet.merged_cells.ranges:
+        if cell.coordinate in merged_range:
+            return sheet.cell(row=merged_range.min_row, column=merged_range.min_col)
+    return cell
+
+
+def _valor_a_texto(value, cell=None):
+    """Convierte valores de Excel a texto limpio, respetando formatos con ceros."""
+    if value is None:
+        return ""
+
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+
+    if isinstance(value, int):
+        number_format = getattr(cell, "number_format", "") if cell is not None else ""
+        if number_format and set(number_format) == {"0"} and len(number_format) > len(str(value)):
+            return str(value).zfill(len(number_format)).strip()
+        return str(value).strip()
+
+    return str(value).strip()
+
+
+def obtener_valor_celda(sheet, cell_ref, fallback_refs=None):
+    """
+    Lee una celda, revisa rangos combinados si está vacía y luego prueba fallbacks.
+    Devuelve siempre texto limpio.
+    """
+    refs = [cell_ref, *(fallback_refs or [])]
+    for ref in refs:
+        cell = _celda_con_valor_combinado(sheet, ref)
+        value = _valor_a_texto(cell.value, cell)
+        if value:
+            return value
+    return ""
 
 def cargar_excel_datos(file_path: str) -> dict[str, dict]:
     """
-    Lee el excel buscando la hoja 'Reporte Periodo' (con fallback a la primera hoja con datos).
+    Lee el excel buscando la hoja oficial 'Reporte Periodo'.
     Busca a partir de la fila donde dice 'LISTADO' en la columna A
     y debajo de 'CEDULA' en la columna B para extraer el nombre y la cédula/ID.
     Retorna un diccionario indexado por cédula/nombre de los estudiantes,
     con 'notas' vacío por ahora.
     """
     if not file_path or not os.path.exists(file_path):
+        print(f"[cargar_excel_datos] Ruta inválida o inexistente: {file_path}", file=sys.stderr)
         return {}
         
     try:
@@ -119,7 +163,9 @@ def cargar_excel_datos(file_path: str) -> dict[str, dict]:
         wb = openpyxl.load_workbook(file_path, data_only=True)
         sheet = obtener_hoja_principal(wb)
         if sheet is None:
+            print(f"[cargar_excel_datos] No existe la hoja 'Reporte Periodo'. Hojas encontradas: {', '.join(wb.sheetnames)}", file=sys.stderr)
             return {}
+        print(f"[cargar_excel_datos] Hoja usada: {sheet.title}", file=sys.stderr)
         
         # Buscar la fila de encabezado
         start_row = None
@@ -144,6 +190,20 @@ def cargar_excel_datos(file_path: str) -> dict[str, dict]:
         if start_row is None:
             return {}
             
+        ignore_subject_keywords = {"promedio", "total", "observacion", "observación", "estado", "firma", "comportamiento"}
+        subject_columns = []
+        for col in range(3, sheet.max_column + 1):
+            header_value = sheet.cell(row=start_row, column=col).value
+            if header_value is None or str(header_value).strip() == "":
+                continue
+            subject_name = str(header_value).strip()
+            subject_norm = normalizar_columna(subject_name)
+            if any(keyword in subject_norm for keyword in ignore_subject_keywords):
+                continue
+            subject_columns.append((col, subject_name))
+
+        print(f"[cargar_excel_datos] Asignaturas detectadas: {[name for _, name in subject_columns]}", file=sys.stderr)
+
         records = {}
         # Leer a partir de la fila siguiente
         for r in range(start_row + 1, sheet.max_row + 1):
@@ -166,11 +226,21 @@ def cargar_excel_datos(file_path: str) -> dict[str, dict]:
                 
             if not cedula:
                 cedula = nombre
+
+            notas = {}
+            for col, subject_name in subject_columns:
+                grade_value = sheet.cell(row=r, column=col).value
+                if grade_value is None or str(grade_value).strip() == "":
+                    continue
+                try:
+                    notas[subject_name] = truncar_2_decimales(float(grade_value))
+                except (TypeError, ValueError):
+                    continue
                 
             records[cedula] = {
                 "nombre": nombre,
                 "cedula": cedula,
-                "notas": {}  # Por lo pronto, no proceses notas
+                "notas": notas
             }
             
         return records
@@ -395,38 +465,28 @@ def generar_boletin_pdf(datos_consolidados, institucion_info, logos_paths, outpu
         
         grades_data = [table_headers]
         
+        def nota_pdf(valor):
+            if valor is None or str(valor).strip() in ["", "PENDIENTE"]:
+                return None
+            try:
+                return float(valor)
+            except (TypeError, ValueError):
+                return None
+
         for sub, grades in est["materias"].items():
-            try:
-                t1_val = float(grades.get('t1', 0.0)) if grades.get('t1') is not None else 0.0
-            except:
-                t1_val = 0.0
-            try:
-                t2_val = float(grades.get('t2', 0.0)) if grades.get('t2') is not None else 0.0
-            except:
-                t2_val = 0.0
-            try:
-                t3_val = float(grades.get('t3', 0.0)) if grades.get('t3') is not None else 0.0
-            except:
-                t3_val = 0.0
-            try:
-                pa_val = float(grades.get('promedio_anual', 0.0)) if grades.get('promedio_anual') is not None else 0.0
-            except:
-                pa_val = 0.0
-            try:
-                su_val = float(grades.get('supletorio')) if (grades.get('supletorio') is not None and str(grades.get('supletorio')).strip() != "-") else None
-            except:
-                su_val = None
-            try:
-                nf_val = float(grades.get('nota_final', 0.0)) if grades.get('nota_final') is not None else 0.0
-            except:
-                nf_val = 0.0
+            t1_val = nota_pdf(grades.get('t1'))
+            t2_val = nota_pdf(grades.get('t2'))
+            t3_val = nota_pdf(grades.get('t3'))
+            pa_val = nota_pdf(grades.get('promedio_anual'))
+            su_val = nota_pdf(grades.get('supletorio'))
+            nf_val = nota_pdf(grades.get('nota_final'))
                 
-            t1_str = f"{t1_val:.2f}"
-            t2_str = f"{t2_val:.2f}"
-            t3_str = f"{t3_val:.2f}"
-            pa_str = f"{pa_val:.2f}"
+            t1_str = f"{t1_val:.2f}" if t1_val is not None else "PEND."
+            t2_str = f"{t2_val:.2f}" if t2_val is not None else "PEND."
+            t3_str = f"{t3_val:.2f}" if t3_val is not None else "PEND."
+            pa_str = f"{pa_val:.2f}" if pa_val is not None else "PEND."
             su_str = f"{su_val:.2f}" if su_val is not None else "-"
-            nf_str = f"{nf_val:.2f}"
+            nf_str = f"{nf_val:.2f}" if nf_val is not None else "PEND."
             
             # Estilos de color para el estado
             est_materia = grades.get('estado', 'APROBADO')
@@ -476,15 +536,17 @@ def generar_boletin_pdf(datos_consolidados, institucion_info, logos_paths, outpu
         story.append(Spacer(1, 10))
         
         # 4. Resumen Final
-        status_color = "#047857" if est['estado'] == "APROBADO" else ("#b45309" if est['estado'] == "SUPLETORIO" else "#b91c1c")
+        status_color = "#047857" if est['estado'] == "APROBADO" else ("#b45309" if est['estado'] in ["SUPLETORIO", "PENDIENTE DE NOTAS EXTERNAS"] else "#b91c1c")
         try:
-            prom_val = float(est.get('promedio', 0.0))
+            prom_raw = est.get('promedio')
+            prom_val = float(prom_raw) if prom_raw is not None else None
         except:
-            prom_val = 0.0
+            prom_val = None
+        prom_txt = f"{prom_val:.2f}" if prom_val is not None else "PENDIENTE"
             
         summary_data = [
             [
-                Paragraph(f"<b>PROMEDIO GENERAL DEL ESTUDIANTE:</b> {prom_val:.2f}", styles['TableTextBold']),
+                Paragraph(f"<b>PROMEDIO GENERAL DEL ESTUDIANTE:</b> {prom_txt}", styles['TableTextBold']),
                 Paragraph(f"<b>ESTADO FINAL:</b> <font color='{status_color}'><b>{est['estado']}</b></font>", styles['TableTextBold'])
             ]
         ]
@@ -527,45 +589,71 @@ def generar_boletin_pdf(datos_consolidados, institucion_info, logos_paths, outpu
 
 
 def extraer_datos_institucionales(file_path: str) -> dict:
-    if not file_path or not os.path.exists(file_path):
-        return {}
+    if not file_path or str(file_path).strip() == "":
+        raise ValueError("Ruta inválida: no se recibió la ruta del archivo Excel.")
+
+    file_path = str(file_path).strip()
+    print(f"[extraer_datos_institucionales] Ruta recibida: {file_path}", file=sys.stderr)
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Ruta inválida: el archivo Excel no existe: {file_path}")
+
     try:
         import openpyxl
         wb = openpyxl.load_workbook(file_path, data_only=True)
-        sheet = obtener_hoja_principal(wb)
-        if sheet is None:
-            raise ValueError("No se encontró una hoja válida en el archivo Excel.")
-        
-        anio_lectivo = sheet["D1"].value
-        if anio_lectivo is None or str(anio_lectivo).strip() == "":
-            anio_lectivo = sheet["D2"].value
-            
-        datos = {
-            "nombreInstitucion": sheet["A1"].value,
-            "nivel": "",
-            "anioLectivo": anio_lectivo,
-            "gradoCurso": sheet["B3"].value,
-            "rectorDirector": sheet["D3"].value,
-            "jornada": sheet["B4"].value,
-            "tutorCurso": sheet["D4"].value,
-            "paralelo": sheet["B5"].value,
-            "periodoExcel": sheet["B6"].value,
-            "codigoAmie": sheet["B7"].value
-        }
-        
-        # Limpiar espacios e inicializar vacíos si son None
-        for k, v in datos.items():
-            if v is None:
-                datos[k] = ""
-            elif isinstance(v, str):
-                datos[k] = v.strip()
-            else:
-                datos[k] = str(v).strip()
-                
-        return datos
     except Exception as e:
-        print(f"Error al extraer cabeceras de {file_path}: {e}", file=sys.stderr)
-        return {}
+        raise ValueError(f"Excel corrupto o ilegible: no se pudo abrir el archivo. Detalle: {e}") from e
+
+    sheet = obtener_hoja_principal(wb)
+    if sheet is None:
+        hojas = ", ".join(wb.sheetnames) or "sin hojas"
+        raise ValueError(f"Formato incorrecto: no existe la hoja obligatoria 'Reporte Periodo'. Hojas encontradas: {hojas}")
+
+    print(f"[extraer_datos_institucionales] Hoja usada: {sheet.title}", file=sys.stderr)
+
+    valores_log = {
+        "A1": obtener_valor_celda(sheet, "A1"),
+        "D1/D2": obtener_valor_celda(sheet, "D1", ["D2"]),
+        "B7": obtener_valor_celda(sheet, "B7"),
+        "B3": obtener_valor_celda(sheet, "B3"),
+        "B5": obtener_valor_celda(sheet, "B5"),
+        "B4": obtener_valor_celda(sheet, "B4"),
+        "D3": obtener_valor_celda(sheet, "D3"),
+        "D4": obtener_valor_celda(sheet, "D4"),
+        "B6": obtener_valor_celda(sheet, "B6"),
+    }
+    for ref, valor in valores_log.items():
+        print(f"[extraer_datos_institucionales] {ref}: {valor}", file=sys.stderr)
+
+    datos = {
+        "nombreInstitucion": valores_log["A1"],
+        "nivel": "",
+        "anioLectivo": valores_log["D1/D2"],
+        "codigoAmie": valores_log["B7"],
+        "gradoCurso": valores_log["B3"],
+        "paralelo": valores_log["B5"],
+        "jornada": valores_log["B4"],
+        "rectorDirector": valores_log["D3"],
+        "tutorCurso": valores_log["D4"],
+        "periodoExcel": valores_log["B6"],
+    }
+
+    campos_obligatorios = {
+        "nombreInstitucion": "Nombre de la Institución (A1)",
+        "anioLectivo": "Año Lectivo (D1/D2)",
+        "codigoAmie": "Código AMIE (B7)",
+        "gradoCurso": "Grado/Curso (B3)",
+        "paralelo": "Paralelo (B5)",
+        "jornada": "Jornada (B4)",
+        "rectorDirector": "Rector/Director (D3)",
+        "periodoExcel": "Período (B6)",
+    }
+    vacios = [descripcion for key, descripcion in campos_obligatorios.items() if not datos.get(key)]
+    if vacios:
+        raise ValueError("Formato incorrecto: celdas obligatorias vacías: " + ", ".join(vacios))
+
+    print(f"[extraer_datos_institucionales] datosInstitucion final: {json.dumps(datos, ensure_ascii=False)}", file=sys.stderr)
+    return datos
 
 
 # 4. Proceso CLI Principal
@@ -617,14 +705,14 @@ def main():
             }
             print(json.dumps(output_data, ensure_ascii=False))
         except Exception as e:
-            print(json.dumps({"error": str(e)}))
+            print(json.dumps({"error": str(e)}, ensure_ascii=False))
             
     elif args.generar:
         try:
             # Leer el payload JSON enviado desde Electron a través de stdin
             input_data = sys.stdin.read()
             if not input_data:
-                print(json.dumps({"success": False, "error": "No se recibió payload en stdin"}))
+                print(json.dumps({"success": False, "error": "No se recibió payload en stdin"}, ensure_ascii=False))
                 return
                 
             payload = json.loads(input_data)
@@ -644,7 +732,7 @@ def main():
                 seleccionados_data = [est for est in datos_completos if est["id_real"] in estudiantes_seleccionados]
             
             if not seleccionados_data:
-                print(json.dumps({"success": False, "error": "No se encontraron datos para los estudiantes seleccionados"}))
+                print(json.dumps({"success": False, "error": "No se encontraron datos para los estudiantes seleccionados"}, ensure_ascii=False))
                 return
                 
             # Definir la ruta de salida en Descargas del usuario
@@ -658,10 +746,10 @@ def main():
             
             generar_boletin_pdf(seleccionados_data, inst, logos, output_pdf)
             
-            print(json.dumps({"success": True, "path": output_pdf}))
+            print(json.dumps({"success": True, "path": output_pdf}, ensure_ascii=False))
             
         except Exception as e:
-            print(json.dumps({"success": False, "error": str(e)}))
+            print(json.dumps({"success": False, "error": str(e)}, ensure_ascii=False))
     else:
         parser.print_help()
 

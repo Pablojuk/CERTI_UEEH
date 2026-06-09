@@ -54,7 +54,7 @@ ipcMain.handle('verificar-licencia', async () => {
 });
 
 // IPC: Diálogo para seleccionar archivos (Logo o Excel)
-ipcMain.handle('seleccionar-archivo', async (event, opciones) => {
+ipcMain.handle('seleccionar-archivo', async (event, opciones = {}) => {
     const result = await dialog.showOpenDialog(mainWindow, {
         properties: opciones.properties || ['openFile'],
         filters: opciones.filters || []
@@ -62,6 +62,7 @@ ipcMain.handle('seleccionar-archivo', async (event, opciones) => {
     if (result.canceled || result.filePaths.length === 0) {
         return null;
     }
+    console.log("[seleccionar-archivo] Ruta seleccionada:", result.filePaths[0]);
     return result.filePaths[0];
 });
 
@@ -100,7 +101,12 @@ function runPython(args, inputData = null) {
         const scriptPath = path.join(__dirname, 'procesador_notas.py');
         
         const processArgs = [scriptPath, ...args];
-        const pyProcess = spawn(pythonExecutable, processArgs);
+        const pyProcess = spawn(pythonExecutable, processArgs, {
+            env: {
+                ...process.env,
+                PYTHONIOENCODING: 'utf-8'
+            }
+        });
         
         let stdoutData = '';
         let stderrData = '';
@@ -111,11 +117,11 @@ function runPython(args, inputData = null) {
         }
         
         pyProcess.stdout.on('data', (data) => {
-            stdoutData += data.toString();
+            stdoutData += data.toString('utf8');
         });
         
         pyProcess.stderr.on('data', (data) => {
-            stderrData += data.toString();
+            stderrData += data.toString('utf8');
         });
         
         pyProcess.on('close', (code) => {
@@ -133,14 +139,27 @@ function runPython(args, inputData = null) {
 }
 
 // IPC: Analizar archivos Excel para listar estudiantes
-ipcMain.handle('analizar-excel', async (event, rutas) => {
+ipcMain.handle('analizar-excel', async (event, rutas = {}) => {
     try {
         const args = ['--analizar'];
-        if (rutas.t1) { args.push('--t1', rutas.t1); }
-        if (rutas.t2) { args.push('--t2', rutas.t2); }
-        if (rutas.t3) { args.push('--t3', rutas.t3); }
-        if (rutas.su) { args.push('--su', rutas.su); }
+        const periodos = ['t1', 't2', 't3', 'su'];
+        const rutasValidas = {};
+
+        for (const periodo of periodos) {
+            const ruta = typeof rutas[periodo] === 'string' ? rutas[periodo].trim() : '';
+            if (!ruta) continue;
+            if (!fs.existsSync(ruta)) {
+                return { error: `Ruta inválida: el archivo seleccionado para ${periodo.toUpperCase()} no existe o no es accesible: ${ruta}` };
+            }
+            rutasValidas[periodo] = ruta;
+            args.push(`--${periodo}`, ruta);
+        }
+
+        if (Object.keys(rutasValidas).length === 0) {
+            return { error: "Ruta inválida: no se recibió una ruta real del archivo Excel seleccionado." };
+        }
         
+        console.log("[analizar-excel] Rutas validadas:", rutasValidas);
         console.log("[analizar-excel] Args enviados a Python:", args);
         const result = await runPython(args);
         console.log("[analizar-excel] stdout length:", result.stdout.length);
