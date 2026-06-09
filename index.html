@@ -858,6 +858,12 @@
                 return;
             }
 
+            if (!absolutePath) {
+                mostrarAlerta("Ruta no disponible", "No se pudo obtener la ruta real del archivo seleccionado. En Electron 33 esto puede ocurrir si el selector HTML no expone file.path; seleccione el archivo desde la aplicación de escritorio o verifique los permisos del entorno.", "error");
+                input.value = '';
+                return;
+            }
+
             document.getElementById('loading-overlay').classList.remove('hidden');
 
             try {
