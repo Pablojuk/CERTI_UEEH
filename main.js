@@ -54,7 +54,7 @@ ipcMain.handle('verificar-licencia', async () => {
 });
 
 // IPC: Diálogo para seleccionar archivos (Logo o Excel)
-ipcMain.handle('seleccionar-archivo', async (event, opciones) => {
+ipcMain.handle('seleccionar-archivo', async (event, opciones = {}) => {
     const result = await dialog.showOpenDialog(mainWindow, {
         properties: opciones.properties || ['openFile'],
         filters: opciones.filters || []
@@ -62,6 +62,7 @@ ipcMain.handle('seleccionar-archivo', async (event, opciones) => {
     if (result.canceled || result.filePaths.length === 0) {
         return null;
     }
+    console.log("[seleccionar-archivo] Ruta seleccionada:", result.filePaths[0]);
     return result.filePaths[0];
 });
 
