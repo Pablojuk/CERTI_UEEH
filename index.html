@@ -848,12 +848,19 @@
             const input = document.getElementById(`file-${id}`);
             if (!input.files || input.files.length === 0) return;
 
-            const absolutePath = input.files[0].path;
-            const fileName = input.files[0].name;
+            const selectedFile = input.files[0];
+            const absolutePath = (selectedFile.path || '').trim();
+            const fileName = selectedFile.name || '';
 
             // Validar extensión
-            if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
+            if (!fileName.toLowerCase().endsWith('.xlsx') && !fileName.toLowerCase().endsWith('.xls')) {
                 mostrarAlerta("Formato no válido", "Por favor seleccione un archivo oficial de formato Excel (.xlsx o .xls)", "error");
+                input.value = '';
+                return;
+            }
+
+            if (!absolutePath) {
+                mostrarAlerta("Ruta no disponible", "No se pudo obtener la ruta real del archivo seleccionado. En Electron 33 esto puede ocurrir si el selector HTML no expone file.path; seleccione el archivo desde la aplicación de escritorio o verifique los permisos del entorno.", "error");
                 input.value = '';
                 return;
             }
@@ -892,6 +899,16 @@
                     input.value = '';
                     return;
                 }
+
+                document.getElementById('inst-nombre').value = inst.nombreInstitucion || '';
+                document.getElementById('inst-anio').value = inst.anioLectivo || '';
+                document.getElementById('inst-amie').value = inst.codigoAmie || '';
+                document.getElementById('inst-grado').value = inst.gradoCurso || '';
+                document.getElementById('inst-paralelo').value = inst.paralelo || '';
+                document.getElementById('inst-jornada').value = inst.jornada || 'MATUTINA';
+                document.getElementById('inst-rector').value = inst.rectorDirector || '';
+                document.getElementById('inst-tutor').value = inst.tutorCurso || '';
+
                 if (!result.estudiantes || result.estudiantes.length === 0) {
                     mostrarAlerta("Archivo vacío", "No se detectaron registros de estudiantes en el archivo Excel.", "warning");
                     input.value = '';
