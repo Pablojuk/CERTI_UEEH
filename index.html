@@ -1391,35 +1391,43 @@
                     return cKey.toLowerCase().replace(/\s+/g, '') === normalizedKey;
                 });
 
-                // Detectar el período desde el Excel (B6)
-                let periodoDetectadoStr = (result.periodoExcel || '').trim().toUpperCase();
-                let periodKey = 'trimestre1';
-                if (periodoDetectadoStr.includes('TRIMESTRE 1') || periodoDetectadoStr.includes('TRIMESTRE1') || id === 't1') {
-                    periodKey = 'trimestre1';
-                    periodoDetectadoStr = 'TRIMESTRE 1';
-                } else if (periodoDetectadoStr.includes('TRIMESTRE 2') || periodoDetectadoStr.includes('TRIMESTRE2') || id === 't2') {
-                    periodKey = 'trimestre2';
-                    periodoDetectadoStr = 'TRIMESTRE 2';
-                } else if (periodoDetectadoStr.includes('TRIMESTRE 3') || periodoDetectadoStr.includes('TRIMESTRE3') || id === 't3') {
-                    periodKey = 'trimestre3';
-                    periodoDetectadoStr = 'TRIMESTRE 3';
-                } else if (periodoDetectadoStr.includes('SUPLETORIO') || id === 'su') {
-                    periodKey = 'supletorio';
-                    periodoDetectadoStr = 'SUPLETORIO';
-                } else {
-                    const ans = prompt("No se detectó el período del archivo en la celda B6. Ingrese:\n1 para Trimestre 1\n2 para Trimestre 2\n3 para Trimestre 3\n4 para Supletorio");
-                    if (ans === '1') { periodKey = 'trimestre1'; periodoDetectadoStr = 'TRIMESTRE 1'; }
-                    else if (ans === '2') { periodKey = 'trimestre2'; periodoDetectadoStr = 'TRIMESTRE 2'; }
-                    else if (ans === '3') { periodKey = 'trimestre3'; periodoDetectadoStr = 'TRIMESTRE 3'; }
-                    else if (ans === '4') { periodKey = 'supletorio'; periodoDetectadoStr = 'SUPLETORIO'; }
-                    else {
-                        mostrarAlerta("Carga cancelada", "Debe especificar un período válido.", "warning");
+                // El período de guardado lo decide SIEMPRE la tarjeta seleccionada.
+                // La celda B6 del Excel solo se usa para advertir inconsistencias.
+                const periodoExcelOriginal = (result.periodoExcel || '').trim().toUpperCase();
+                const detectarPeriodoExcel = (valor) => {
+                    if (valor.includes('TRIMESTRE 1') || valor.includes('TRIMESTRE1')) return 'TRIMESTRE 1';
+                    if (valor.includes('TRIMESTRE 2') || valor.includes('TRIMESTRE2')) return 'TRIMESTRE 2';
+                    if (valor.includes('TRIMESTRE 3') || valor.includes('TRIMESTRE3')) return 'TRIMESTRE 3';
+                    if (valor.includes('SUPLETORIO')) return 'SUPLETORIO';
+                    return '';
+                };
+                const periodosPorTarjeta = {
+                    t1: { key: 'trimestre1', label: 'TRIMESTRE 1' },
+                    t2: { key: 'trimestre2', label: 'TRIMESTRE 2' },
+                    t3: { key: 'trimestre3', label: 'TRIMESTRE 3' },
+                    su: { key: 'supletorio', label: 'SUPLETORIO' }
+                };
+                const periodoSeleccionado = periodosPorTarjeta[id] || periodosPorTarjeta.t1;
+                const periodoExcelDetectado = detectarPeriodoExcel(periodoExcelOriginal);
+                const periodKey = periodoSeleccionado.key;
+                const periodoDetectadoStr = periodoSeleccionado.label;
+
+                if (periodoExcelDetectado && periodoExcelDetectado !== periodoSeleccionado.label) {
+                    const confirmarPeriodo = confirm(`Estás cargando en ${periodoSeleccionado.label}, pero el Excel indica ${periodoExcelDetectado}. ¿Deseas guardarlo como ${periodoSeleccionado.label}?`);
+                    if (!confirmarPeriodo) {
+                        mostrarAlerta("Carga cancelada", "No se guardó el archivo porque el período del Excel no coincide con la tarjeta seleccionada.", "warning");
+                        return;
+                    }
+                } else if (!periodoExcelDetectado) {
+                    const confirmarSinPeriodo = confirm(`No se detectó el período del archivo en la celda B6. ¿Deseas guardarlo como ${periodoSeleccionado.label}?`);
+                    if (!confirmarSinPeriodo) {
+                        mostrarAlerta("Carga cancelada", "No se guardó el archivo porque no se confirmó el período de carga.", "warning");
                         return;
                     }
                 }
 
                 if (id === 't3' || periodKey === 'trimestre3') {
-                    console.log("[T3] Periodo detectado:", periodoDetectadoStr);
+                    console.log("[T3] Periodo detectado:", periodoExcelDetectado || periodoExcelOriginal || 'NO DETECTADO');
                     console.log("[T3] periodKey final:", periodKey);
                     console.log("[T3] Estudiantes detectados:", result.estudiantes?.length || 0);
                 }
