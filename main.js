@@ -18,7 +18,7 @@ function createWindow() {
     });
 
     mainWindow.loadFile('index.html');
-    // mainWindow.webContents.openDevTools(); // Descomentar para depuración
+    // mainWindow.webContents.openDevTools(); // TEMP: habilitado para depuración
 }
 
 app.whenReady().then(() => {
@@ -63,6 +63,34 @@ ipcMain.handle('seleccionar-archivo', async (event, opciones) => {
         return null;
     }
     return result.filePaths[0];
+});
+
+// IPC: Descargar formato Excel de notas
+ipcMain.handle('descargar-formato', async () => {
+    try {
+        const sourcePath = path.join(__dirname, 'FORMATO PARA CARGAR LAS NOTAS.xlsx');
+        if (!fs.existsSync(sourcePath)) {
+            return { success: false, error: "El archivo oficial de formato 'FORMATO PARA CARGAR LAS NOTAS.xlsx' no existe en el directorio de la aplicación." };
+        }
+        
+        const result = await dialog.showSaveDialog(mainWindow, {
+            title: "Guardar Formato de Carga de Notas",
+            defaultPath: path.join(app.getPath('downloads'), "FORMATO PARA CARGAR LAS NOTAS.xlsx"),
+            filters: [
+                { name: "Archivos de Excel", extensions: ["xlsx"] }
+            ]
+        });
+
+        if (result.canceled || !result.filePath) {
+            return { success: false, cancelled: true };
+        }
+
+        fs.copyFileSync(sourcePath, result.filePath);
+        return { success: true, path: result.filePath };
+    } catch (error) {
+        console.error("Error al descargar formato:", error);
+        return { success: false, error: error.message };
+    }
 });
 
 // Helper para ejecutar Python
@@ -113,8 +141,18 @@ ipcMain.handle('analizar-excel', async (event, rutas) => {
         if (rutas.t3) { args.push('--t3', rutas.t3); }
         if (rutas.su) { args.push('--su', rutas.su); }
         
+        console.log("[analizar-excel] Args enviados a Python:", args);
         const result = await runPython(args);
-        return JSON.parse(result.stdout);
+        console.log("[analizar-excel] stdout length:", result.stdout.length);
+        console.log("[analizar-excel] stdout preview:", result.stdout.substring(0, 300));
+        const parsed = JSON.parse(result.stdout);
+        console.log("[analizar-excel] Parsed keys:", Object.keys(parsed));
+        if (parsed.datosInstitucion) {
+            console.log("[analizar-excel] datosInstitucion.nombreInstitucion:", parsed.datosInstitucion.nombreInstitucion);
+        } else {
+            console.log("[analizar-excel] WARNING: No datosInstitucion found in parsed result!");
+        }
+        return parsed;
     } catch (error) {
         console.error("Error en analizar-excel:", error);
         return { error: error.stderr || error.error || "Error al ejecutar el procesador de notas" };
@@ -124,6 +162,38 @@ ipcMain.handle('analizar-excel', async (event, rutas) => {
 // IPC: Generar Boletines (PDF)
 ipcMain.handle('generar-boletines', async (event, datos) => {
     try {
+        const appDataPath = app.getPath('userData');
+        const logosDir = path.join(appDataPath, 'logos');
+        if (!fs.existsSync(logosDir)) {
+            fs.mkdirSync(logosDir, { recursive: true });
+        }
+
+        // Helper to write base64 image to file
+        const saveBase64Image = (base64Str, prefix) => {
+            if (!base64Str || !base64Str.startsWith('data:image/')) {
+                return base64Str; // Return as-is if it's already a filepath or empty
+            }
+            try {
+                const matches = base64Str.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+                if (matches && matches.length === 3) {
+                    const ext = matches[1].split('/')[1] || 'png';
+                    const buffer = Buffer.from(matches[2], 'base64');
+                    const cursoId = datos.cursoActivoId || 'default';
+                    const tempPath = path.join(logosDir, `${prefix}_${cursoId}.${ext}`);
+                    fs.writeFileSync(tempPath, buffer);
+                    return tempPath;
+                }
+            } catch (err) {
+                console.error("Error saving base64 logo:", err);
+            }
+            return null;
+        };
+
+        if (datos.logos) {
+            datos.logos.logo1 = saveBase64Image(datos.logos.logo1, 'logo1');
+            datos.logos.logo2 = saveBase64Image(datos.logos.logo2, 'logo2');
+        }
+
         // Ejecutamos Python pasando el payload JSON por stdin
         const result = await runPython(['--generar'], datos);
         return JSON.parse(result.stdout);

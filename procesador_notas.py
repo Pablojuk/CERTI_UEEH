@@ -71,7 +71,7 @@ def detectar_columnas(df: pd.DataFrame) -> tuple[str | None, str | None, list[st
                 id_col = col
             continue
         # Identificar columna Nombre
-        if any(k in norm for k in ["estudiante", "nombre", "apellidos", "alumno"]):
+        if any(k in norm for k in ["estudiante", "nombre", "apellidos", "alumno", "listado"]):
             if name_col is None:
                 name_col = col
             continue
@@ -91,74 +91,92 @@ def detectar_columnas(df: pd.DataFrame) -> tuple[str | None, str | None, list[st
             
     return id_col, name_col, subject_cols
 
+def obtener_hoja_principal(wb):
+    """Obtiene la hoja principal del workbook: primero intenta 'Reporte Periodo', luego fallback."""
+    if "Reporte Periodo" in wb.sheetnames:
+        return wb["Reporte Periodo"]
+    # Fallback: buscar la primera hoja que tenga datos en A1
+    for name in wb.sheetnames:
+        sh = wb[name]
+        if sh["A1"].value:
+            return sh
+    # Último recurso: hoja activa
+    return wb.active
+
 def cargar_excel_datos(file_path: str) -> dict[str, dict]:
-    """Lee el excel y devuelve un diccionario indexado por cédula/nombre con las asignaturas y sus notas."""
+    """
+    Lee el excel buscando la hoja 'Reporte Periodo' (con fallback a la primera hoja con datos).
+    Busca a partir de la fila donde dice 'LISTADO' en la columna A
+    y debajo de 'CEDULA' en la columna B para extraer el nombre y la cédula/ID.
+    Retorna un diccionario indexado por cédula/nombre de los estudiantes,
+    con 'notas' vacío por ahora.
+    """
     if not file_path or not os.path.exists(file_path):
         return {}
         
     try:
-        # Cargar primera hoja del libro
-        df = pd.read_excel(file_path, sheet_name=0)
-    except Exception as e:
-        print(f"Error al leer {file_path}: {e}", file=sys.stderr)
-        return {}
+        import openpyxl
+        wb = openpyxl.load_workbook(file_path, data_only=True)
+        sheet = obtener_hoja_principal(wb)
+        if sheet is None:
+            return {}
         
-    id_col, name_col, subject_cols = detectar_columnas(df)
-    
-    if not name_col and not id_col:
-        # Fallback si no detecta nombres o ids, usar las primeras columnas
-        if len(df.columns) >= 2:
-            name_col = df.columns[1]
-            id_col = df.columns[0]
-            subject_cols = [c for c in df.columns[2:] if c not in ["Promedio", "Total", "Estado"]]
-        else:
+        # Buscar la fila de encabezado
+        start_row = None
+        for r in range(1, 100):
+            val_a = sheet.cell(row=r, column=1).value
+            val_b = sheet.cell(row=r, column=2).value
+            if val_a and val_b:
+                str_a = str(val_a).strip().upper()
+                str_b = str(val_b).strip().upper()
+                if 'LISTADO' in str_a and 'CEDULA' in str_b:
+                    start_row = r
+                    break
+                    
+        if start_row is None:
+            # Fallback
+            for r in range(1, 100):
+                val_a = sheet.cell(row=r, column=1).value
+                if val_a and 'LISTADO' in str(val_a).strip().upper():
+                    start_row = r
+                    break
+                    
+        if start_row is None:
             return {}
             
-    records = {}
-    for _, row in df.iterrows():
-        # Capturar el nombre del estudiante
-        nombre = str(row[name_col]).strip() if name_col and pd.notna(row[name_col]) else "Estudiante Desconocido"
-        # Capturar la cédula
-        cedula = ""
-        if id_col and pd.notna(row[id_col]):
-            val = row[id_col]
-            if isinstance(val, float):
-                if val.is_integer():
-                    val = int(val)
-                else:
-                    val = str(val)
-            val_str = str(val).strip()
-            if val_str.endswith('.0'):
-                val_str = val_str[:-2]
-            # Si es puramente numérico y tiene 9 dígitos (cédula ecuatoriana sin el 0 inicial), rellenar con 0
-            if val_str.isdigit() and len(val_str) == 9:
-                val_str = "0" + val_str
-            cedula = val_str
+        records = {}
+        # Leer a partir de la fila siguiente
+        for r in range(start_row + 1, sheet.max_row + 1):
+            val_a = sheet.cell(row=r, column=1).value
+            val_b = sheet.cell(row=r, column=2).value
             
-        if not cedula and nombre:
-            # Fallback usar nombre si no hay cédula
-            cedula = nombre
+            # Detenerse en fila vacía o sin nombre en columna A
+            if val_a is None or str(val_a).strip() == "":
+                break
+                
+            nombre = str(val_a).strip()
+            cedula = ""
+            if val_b is not None:
+                val_b_str = str(val_b).strip()
+                if val_b_str.endswith('.0'):
+                    val_b_str = val_b_str[:-2]
+                if val_b_str.isdigit() and len(val_b_str) == 9:
+                    val_b_str = "0" + val_b_str
+                cedula = val_b_str
+                
+            if not cedula:
+                cedula = nombre
+                
+            records[cedula] = {
+                "nombre": nombre,
+                "cedula": cedula,
+                "notas": {}  # Por lo pronto, no proceses notas
+            }
             
-        if not cedula or nombre == "Estudiante Desconocido":
-            continue
-            
-        student_data = {
-            "nombre": nombre,
-            "cedula": cedula,
-            "notas": {}
-        }
-        
-        for sub in subject_cols:
-            val = row[sub]
-            try:
-                val_float = float(val) if pd.notna(val) else 0.0
-            except:
-                val_float = 0.0
-            student_data["notas"][sub] = val_float
-            
-        records[cedula] = student_data
-        
-    return records
+        return records
+    except Exception as e:
+        print(f"Error al cargar excel {file_path}: {e}", file=sys.stderr)
+        return {}
 
 def consolidar_estudiantes(t1_path, t2_path, t3_path, su_path) -> list[dict]:
     t1_data = cargar_excel_datos(t1_path)
@@ -378,15 +396,40 @@ def generar_boletin_pdf(datos_consolidados, institucion_info, logos_paths, outpu
         grades_data = [table_headers]
         
         for sub, grades in est["materias"].items():
-            t1_str = f"{grades['t1']:.2f}"
-            t2_str = f"{grades['t2']:.2f}"
-            t3_str = f"{grades['t3']:.2f}"
-            pa_str = f"{grades['promedio_anual']:.2f}"
-            su_str = f"{grades['supletorio']:.2f}" if grades['supletorio'] is not None else "-"
-            nf_str = f"{grades['nota_final']:.2f}"
+            try:
+                t1_val = float(grades.get('t1', 0.0)) if grades.get('t1') is not None else 0.0
+            except:
+                t1_val = 0.0
+            try:
+                t2_val = float(grades.get('t2', 0.0)) if grades.get('t2') is not None else 0.0
+            except:
+                t2_val = 0.0
+            try:
+                t3_val = float(grades.get('t3', 0.0)) if grades.get('t3') is not None else 0.0
+            except:
+                t3_val = 0.0
+            try:
+                pa_val = float(grades.get('promedio_anual', 0.0)) if grades.get('promedio_anual') is not None else 0.0
+            except:
+                pa_val = 0.0
+            try:
+                su_val = float(grades.get('supletorio')) if (grades.get('supletorio') is not None and str(grades.get('supletorio')).strip() != "-") else None
+            except:
+                su_val = None
+            try:
+                nf_val = float(grades.get('nota_final', 0.0)) if grades.get('nota_final') is not None else 0.0
+            except:
+                nf_val = 0.0
+                
+            t1_str = f"{t1_val:.2f}"
+            t2_str = f"{t2_val:.2f}"
+            t3_str = f"{t3_val:.2f}"
+            pa_str = f"{pa_val:.2f}"
+            su_str = f"{su_val:.2f}" if su_val is not None else "-"
+            nf_str = f"{nf_val:.2f}"
             
             # Estilos de color para el estado
-            est_materia = grades['estado']
+            est_materia = grades.get('estado', 'APROBADO')
             if est_materia == "APROBADO":
                 est_color = colors.HexColor("#065f46") # Emerald oscuro
             elif est_materia == "SUPLETORIO":
@@ -434,10 +477,14 @@ def generar_boletin_pdf(datos_consolidados, institucion_info, logos_paths, outpu
         
         # 4. Resumen Final
         status_color = "#047857" if est['estado'] == "APROBADO" else ("#b45309" if est['estado'] == "SUPLETORIO" else "#b91c1c")
-        
+        try:
+            prom_val = float(est.get('promedio', 0.0))
+        except:
+            prom_val = 0.0
+            
         summary_data = [
             [
-                Paragraph(f"<b>PROMEDIO GENERAL DEL ESTUDIANTE:</b> {est['promedio']:.2f}", styles['TableTextBold']),
+                Paragraph(f"<b>PROMEDIO GENERAL DEL ESTUDIANTE:</b> {prom_val:.2f}", styles['TableTextBold']),
                 Paragraph(f"<b>ESTADO FINAL:</b> <font color='{status_color}'><b>{est['estado']}</b></font>", styles['TableTextBold'])
             ]
         ]
@@ -479,6 +526,48 @@ def generar_boletin_pdf(datos_consolidados, institucion_info, logos_paths, outpu
     doc.build(story)
 
 
+def extraer_datos_institucionales(file_path: str) -> dict:
+    if not file_path or not os.path.exists(file_path):
+        return {}
+    try:
+        import openpyxl
+        wb = openpyxl.load_workbook(file_path, data_only=True)
+        sheet = obtener_hoja_principal(wb)
+        if sheet is None:
+            raise ValueError("No se encontró una hoja válida en el archivo Excel.")
+        
+        anio_lectivo = sheet["D1"].value
+        if anio_lectivo is None or str(anio_lectivo).strip() == "":
+            anio_lectivo = sheet["D2"].value
+            
+        datos = {
+            "nombreInstitucion": sheet["A1"].value,
+            "nivel": "",
+            "anioLectivo": anio_lectivo,
+            "gradoCurso": sheet["B3"].value,
+            "rectorDirector": sheet["D3"].value,
+            "jornada": sheet["B4"].value,
+            "tutorCurso": sheet["D4"].value,
+            "paralelo": sheet["B5"].value,
+            "periodoExcel": sheet["B6"].value,
+            "codigoAmie": sheet["B7"].value
+        }
+        
+        # Limpiar espacios e inicializar vacíos si son None
+        for k, v in datos.items():
+            if v is None:
+                datos[k] = ""
+            elif isinstance(v, str):
+                datos[k] = v.strip()
+            else:
+                datos[k] = str(v).strip()
+                
+        return datos
+    except Exception as e:
+        print(f"Error al extraer cabeceras de {file_path}: {e}", file=sys.stderr)
+        return {}
+
+
 # 4. Proceso CLI Principal
 def main():
     parser = argparse.ArgumentParser(description="Procesador de Notas Académicas de la UEEH")
@@ -493,17 +582,40 @@ def main():
     
     if args.analizar:
         try:
-            estudiantes = consolidar_estudiantes(args.t1, args.t2, args.t3, args.su)
-            # Retornar una lista reducida para actualizar la tabla del frontend
-            res = []
+            first_path = args.t1 or args.t2 or args.t3 or args.su
+            datos_inst = extraer_datos_institucionales(first_path)
+            
+            # Cargar datos del excel específico
+            records = cargar_excel_datos(first_path)
+            
+            # Obtener asignaturas
+            asignaturas = []
+            if records:
+                first_student = next(iter(records.values()))
+                asignaturas = list(first_student["notas"].keys())
+                
+            estudiantes = list(records.values())
+            
+            # Calcular promedios para la tabla
+            estudiantes_tabla = []
             for est in estudiantes:
-                res.append({
+                grades_list = [v for v in est["notas"].values() if isinstance(v, (int, float))]
+                prom = sum(grades_list) / len(grades_list) if grades_list else 0.0
+                estudiantes_tabla.append({
                     "cedula": est["cedula"],
                     "nombre": est["nombre"],
-                    "promedio": est["promedio"],
-                    "estado": est["estado"]
+                    "promedio": truncar_2_decimales(prom),
+                    "estado": "APROBADO" if prom >= 7.0 else "SUPLETORIO"
                 })
-            print(json.dumps(res, ensure_ascii=False))
+            
+            output_data = {
+                "datosInstitucion": datos_inst,
+                "periodoExcel": datos_inst.get("periodoExcel", ""),
+                "asignaturas": asignaturas,
+                "estudiantes": estudiantes,
+                "estudiantes_tabla": estudiantes_tabla
+            }
+            print(json.dumps(output_data, ensure_ascii=False))
         except Exception as e:
             print(json.dumps({"error": str(e)}))
             
@@ -512,7 +624,7 @@ def main():
             # Leer el payload JSON enviado desde Electron a través de stdin
             input_data = sys.stdin.read()
             if not input_data:
-                print(json.dumps({"success": false, "error": "No se recibió payload en stdin"}))
+                print(json.dumps({"success": False, "error": "No se recibió payload en stdin"}))
                 return
                 
             payload = json.loads(input_data)
@@ -523,12 +635,13 @@ def main():
             estudiantes_seleccionados = payload.get("estudiantes", [])
             
             # Consolidar todos los estudiantes de los excels
-            datos_completos = consolidar_estudiantes(
-                excels.get("t1"), excels.get("t2"), excels.get("t3"), excels.get("su")
-            )
-            
-            # Filtrar los estudiantes seleccionados
-            seleccionados_data = [est for est in datos_completos if est["id_real"] in estudiantes_seleccionados]
+            if payload.get("datos_consolidados"):
+                seleccionados_data = payload.get("datos_consolidados")
+            else:
+                datos_completos = consolidar_estudiantes(
+                    excels.get("t1"), excels.get("t2"), excels.get("t3"), excels.get("su")
+                )
+                seleccionados_data = [est for est in datos_completos if est["id_real"] in estudiantes_seleccionados]
             
             if not seleccionados_data:
                 print(json.dumps({"success": False, "error": "No se encontraron datos para los estudiantes seleccionados"}))

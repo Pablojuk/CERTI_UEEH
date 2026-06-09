@@ -26,6 +26,9 @@
             </div>
         </div>
         <div class="flex items-center gap-4">
+            <button onclick="descargarFormatoExcel()" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 transition-all bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-full border border-indigo-200">
+                <i class="fa-solid fa-file-arrow-down"></i> Descargar Formato
+            </button>
             <div class="relative hidden md:block">
                 <i class="fa-solid fa-search absolute left-3 top-2.5 text-slate-400 text-sm"></i>
                 <input type="text" id="global-search" placeholder="Buscar estudiantes..." oninput="filtrarEstudiantes()" class="pl-9 pr-4 py-2 bg-slate-100 border-none rounded-full text-sm focus:ring-2 focus:ring-indigo-500 w-64 outline-none">
@@ -48,7 +51,7 @@
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 mt-8 space-y-6">
         
-        <div class="flex justify-between items-end mb-8">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-4 gap-4">
             <div>
                 <p class="text-indigo-600 text-sm font-semibold mb-1"><i class="fa-solid fa-file-lines mr-1"></i> ADMINISTRACIÓN ACADÉMICA</p>
                 <h2 class="text-3xl font-bold text-slate-900">Módulo de Generación de Boletines</h2>
@@ -56,6 +59,24 @@
             </div>
             <div class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold tracking-wide flex items-center gap-1.5 shadow-sm">
                 <div class="w-2 h-2 rounded-full bg-emerald-500"></div> AÑO LECTIVO 2026-2027
+            </div>
+        </div>
+
+        <!-- Barra de Gestión de Cursos -->
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex flex-wrap items-center gap-3 flex-grow">
+                <label for="selector-curso" class="text-sm font-bold text-slate-700 whitespace-nowrap">
+                    <i class="fa-solid fa-chalkboard-user mr-1 text-indigo-500"></i> Curso Activo:
+                </label>
+                <select id="selector-curso" onchange="cambiarCursoActivo()" class="bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all flex-grow max-w-md">
+                    <!-- Dinámico -->
+                </select>
+                <button onclick="crearCursoManual()" class="bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 px-3 py-2 rounded-md text-xs font-semibold transition-all">
+                    <i class="fa-solid fa-plus mr-1"></i> Crear Curso
+                </button>
+                <button onclick="editarCursoManual()" class="bg-slate-50 text-slate-600 border border-slate-300 hover:bg-slate-100 px-3 py-2 rounded-md text-xs font-semibold transition-all">
+                    <i class="fa-solid fa-edit mr-1"></i> Editar Nombre
+                </button>
             </div>
         </div>
 
@@ -183,39 +204,39 @@
                 <form id="inst-form" class="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-4">
                     <div class="md:col-span-2 xl:col-span-2">
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Nombre de la Institución</label>
-                        <input type="text" id="inst-nombre" value="UNIDAD EDUCATIVA EMILIANO HINOSTROZA" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                        <input type="text" id="inst-nombre" value="UNIDAD EDUCATIVA EMILIANO HINOSTROZA" oninput="guardarDatosInstitucion()" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Año Lectivo</label>
-                        <input type="text" id="inst-anio" value="Costa - Galapagos 2026-2027" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                        <input type="text" id="inst-anio" value="Costa - Galapagos 2026-2027" oninput="guardarDatosInstitucion()" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Código AMIE</label>
-                        <input type="text" id="inst-amie" value="01H01289" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                        <input type="text" id="inst-amie" value="01H01289" oninput="guardarDatosInstitucion()" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
                     </div>
                     
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Grado/Curso</label>
-                        <input type="text" id="inst-grado" value="1RO DE BACHILLERATO CIENCIAS" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                        <input type="text" id="inst-grado" value="1RO DE BACHILLERATO CIENCIAS" oninput="guardarDatosInstitucion()" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Paralelo</label>
-                        <input type="text" id="inst-paralelo" value="A" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                        <input type="text" id="inst-paralelo" value="A" oninput="guardarDatosInstitucion()" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Jornada</label>
-                        <select id="inst-jornada" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
-                            <option selected>MATUTINA</option>
+                        <select id="inst-jornada" onchange="guardarDatosInstitucion()" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                            <option>MATUTINA</option>
                             <option>VESPERTINA</option>
                         </select>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Rector/Director</label>
-                        <input type="text" id="inst-rector" value="Econ. Pablo Juca" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                        <input type="text" id="inst-rector" value="Econ. Pablo Juca" oninput="guardarDatosInstitucion()" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
                     </div>
                     <div class="md:col-span-3 xl:col-span-4">
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Tutor/a de Curso</label>
-                        <input type="text" id="inst-tutor" placeholder="Ingrese el nombre del tutor..." class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                        <input type="text" id="inst-tutor" placeholder="Ingrese el nombre del tutor..." oninput="guardarDatosInstitucion()" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
                     </div>
                 </form>
             </div>
@@ -259,15 +280,13 @@
                             <th class="p-4 w-16">N.º</th>
                             <th class="p-4">Nombre del Estudiante</th>
                             <th class="p-4">Cédula / ID</th>
-                            <th class="p-4 text-center">Estado</th>
-                            <th class="p-4 text-center">Promedio</th>
                             <th class="p-4 text-center w-24">Acción</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 text-sm" id="students-body">
                         <!-- Inicialmente vacío, se carga dinámicamente -->
                         <tr id="empty-row">
-                            <td colspan="7" class="p-8 text-center text-slate-400">
+                            <td colspan="5" class="p-8 text-center text-slate-400">
                                 <i class="fa-solid fa-folder-open text-2xl mb-2 block"></i>
                                 Cargue los archivos de notas de los trimestres para visualizar los estudiantes.
                             </td>
@@ -311,19 +330,120 @@
         </div>
     </div>
 
+    <!-- Modal para Crear/Editar Curso -->
+    <div id="course-modal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden">
+            <div class="p-6">
+                <h3 id="course-modal-title" class="text-lg font-bold text-slate-900 mb-4">Crear Nuevo Curso</h3>
+                <div class="mb-4">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Nombre del Curso</label>
+                    <input type="text" id="course-modal-input" onkeydown="if(event.key === 'Enter') confirmarCursoModal(); else if(event.key === 'Escape') cerrarCursoModal();" placeholder="Ej: 1RO DE BACHILLERATO CIENCIAS A" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                </div>
+                <div class="flex justify-end gap-3">
+                    <button onclick="cerrarCursoModal()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-md text-sm font-semibold hover:bg-slate-200 transition-all">Cancelar</button>
+                    <button onclick="confirmarCursoModal()" class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-semibold hover:bg-indigo-700 transition-all">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // Almacén de rutas absolutas locales
-        const filePaths = {
-            t1: null,
-            t2: null,
-            t3: null,
-            su: null,
-            logo1: null,
-            logo2: null
+        // DB Configuración (IndexedDB)
+        const DB_NAME = 'SistemaAcademicoDB';
+        const DB_VERSION = 1;
+        const STORE_NAME = 'cursosState';
+
+        let appState = {
+            cursos: [],
+            cursoActivoId: null
         };
 
-        let estudiantesCargados = [];
+        let estudiantesCargados = []; // Consolidado de la tabla para buscar/filtrar
         let licenciaActiva = false;
+
+        // Inicializar IndexedDB
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                    }
+                };
+                request.onsuccess = (event) => resolve(event.target.result);
+                request.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        async function saveStateToDB() {
+            try {
+                const db = await initDB();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(STORE_NAME, 'readwrite');
+                    const store = tx.objectStore(STORE_NAME);
+                    store.put({
+                        id: 'global',
+                        cursos: appState.cursos,
+                        cursoActivoId: appState.cursoActivoId
+                    });
+                    tx.oncomplete = () => resolve(true);
+                    tx.onerror = () => reject(tx.error);
+                });
+            } catch (err) {
+                console.error("Error al guardar estado en IndexedDB:", err);
+            }
+        }
+
+        async function loadStateFromDB() {
+            try {
+                const db = await initDB();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(STORE_NAME, 'readonly');
+                    const store = tx.objectStore(STORE_NAME);
+                    const req = store.get('global');
+                    req.onsuccess = () => {
+                        if (req.result) {
+                            appState.cursos = req.result.cursos || [];
+                            appState.cursoActivoId = req.result.cursoActivoId || null;
+                            resolve(true);
+                        } else {
+                            // Crear un curso inicial por defecto si la BD está vacía
+                            const idDef = 'curso_' + Date.now();
+                            appState.cursos = [{
+                                id: idDef,
+                                nombreVisible: 'SIN CURSOS REGISTRADOS (Cargue un archivo Excel)',
+                                cursoKey: '',
+                                datosInstitucion: {
+                                    nombreInstitucion: "UNIDAD EDUCATIVA EMILIANO HINOSTROZA",
+                                    nivel: "",
+                                    anioLectivo: "Costa - Galapagos 2026-2027",
+                                    codigoAmie: "01H01289",
+                                    gradoCurso: "3RO DE BACHILLERATO CIENCIAS",
+                                    paralelo: "A",
+                                    jornada: "MATUTINA",
+                                    rectorDirector: "Econ. Pablo Juca",
+                                    tutorCurso: ""
+                                },
+                                logos: { logo1: null, logo2: null },
+                                periodos: {
+                                    trimestre1: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] },
+                                    trimestre2: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] },
+                                    trimestre3: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] },
+                                    supletorio: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] }
+                                }
+                            }];
+                            appState.cursoActivoId = idDef;
+                            resolve(false);
+                        }
+                    };
+                    req.onerror = () => reject(req.error);
+                });
+            } catch (err) {
+                console.error("Error al cargar estado de IndexedDB:", err);
+                return false;
+            }
+        }
 
         // Inicialización al cargar la ventana
         window.onload = async () => {
@@ -342,96 +462,635 @@
             } catch (err) {
                 console.error("Error al verificar licencia:", err);
             }
+
+            // Cargar base de datos local
+            await loadStateFromDB();
+            actualizarSelectorCursosUI();
+            cargarCursoActivoEnPantalla();
         };
 
-        // Función para capturar el path y actualizar interfaz al subir archivos de Excel
-        async function handleFileSelect(id) {
-            const input = document.getElementById(`file-${id}`);
+        // UI Helpers
+        function actualizarSelectorCursosUI() {
+            const selector = document.getElementById('selector-curso');
+            selector.innerHTML = '';
+            appState.cursos.forEach(c => {
+                const option = document.createElement('option');
+                option.value = c.id;
+                option.textContent = c.nombreVisible;
+                if (c.id === appState.cursoActivoId) {
+                    option.selected = true;
+                }
+                selector.appendChild(option);
+            });
+        }
+
+        function obtenerCursoActivo() {
+            return appState.cursos.find(c => c.id === appState.cursoActivoId);
+        }
+
+        function cargarCursoActivoEnPantalla() {
+            const curso = obtenerCursoActivo();
+            if (!curso) return;
+
+            // Rellenar formulario institucional
+            const inst = curso.datosInstitucion || {};
+            document.getElementById('inst-nombre').value = inst.nombreInstitucion || '';
+            document.getElementById('inst-anio').value = inst.anioLectivo || '';
+            document.getElementById('inst-amie').value = inst.codigoAmie || '';
+            document.getElementById('inst-grado').value = inst.gradoCurso || '';
+            document.getElementById('inst-paralelo').value = inst.paralelo || '';
+            document.getElementById('inst-jornada').value = inst.jornada || 'MATUTINA';
+            document.getElementById('inst-rector').value = inst.rectorDirector || '';
+            document.getElementById('inst-tutor').value = inst.tutorCurso || '';
+
+            // Actualizar etiquetas de archivos
+            const pers = curso.periodos || {};
+            updateFileLabel('t1', pers.trimestre1);
+            updateFileLabel('t2', pers.trimestre2);
+            updateFileLabel('t3', pers.trimestre3);
+            updateFileLabel('su', pers.supletorio);
+
+            // Cargar logotipos
+            const logos = curso.logos || {};
+            updateLogoPreview('preview1', logos.logo1);
+            updateLogoPreview('preview2', logos.logo2);
+
+            // Consolidar notas y renderizar estudiantes
+            consolidarYRenderizar();
+        }
+
+        function updateFileLabel(id, periodData) {
             const nameLabel = document.getElementById(`name-${id}`);
-            
-            if (input.files && input.files.length > 0) {
-                const absolutePath = input.files[0].path;
-                filePaths[id] = absolutePath;
-                
-                nameLabel.textContent = input.files[0].name;
+            const input = document.getElementById(`file-${id}`);
+            input.value = ''; // Limpiar input file nativo
+
+            if (periodData && periodData.nombreArchivo) {
+                nameLabel.textContent = periodData.nombreArchivo + " (" + periodData.fechaCarga + ")";
                 nameLabel.classList.remove('text-slate-400');
                 nameLabel.classList.add('text-indigo-600', 'font-medium');
-                
-                // Ejecutar análisis automático de estudiantes
-                await analizarNotas();
+            } else {
+                nameLabel.textContent = '.xlsx / .xls';
+                nameLabel.classList.remove('text-indigo-600', 'font-medium');
+                nameLabel.classList.add('text-slate-400');
             }
         }
 
-        // Función para limpiar/resetear un archivo subido
-        function clearFile(id) {
-            const input = document.getElementById(`file-${id}`);
-            const nameLabel = document.getElementById(`name-${id}`);
+        function updateLogoPreview(previewId, logoBase64) {
+            const preview = document.getElementById(previewId);
+            const containerText = document.getElementById(`${previewId}-container`);
             
-            input.value = '';
-            filePaths[id] = null;
-            nameLabel.textContent = '.xlsx / .xls';
-            nameLabel.classList.remove('text-indigo-600', 'font-medium');
-            nameLabel.classList.add('text-slate-400');
-            
-            analizarNotas();
+            if (logoBase64) {
+                preview.src = logoBase64;
+                preview.classList.remove('hidden');
+                containerText.classList.add('hidden');
+            } else {
+                preview.src = '';
+                preview.classList.add('hidden');
+                containerText.classList.remove('hidden');
+            }
         }
 
-        // Función para previsualizar imágenes cargadas (Logos)
+        // Descargar Formato Excel
+        async function descargarFormatoExcel() {
+            try {
+                const res = await window.electronAPI.descargarFormato();
+                if (res.success) {
+                    mostrarAlerta("Formato Descargado", `El archivo oficial se guardó correctamente en:<br><strong class="text-xs break-all">${res.path}</strong>`, "success");
+                } else if (!res.cancelled) {
+                    mostrarAlerta("Error al descargar", res.error || "Ocurrió un error inesperado.", "error");
+                }
+            } catch (err) {
+                mostrarAlerta("Error", "No se pudo comunicar con el proceso principal de Electron.", "error");
+            }
+        }
+
+        // Modal de Curso: Crear/Editar
+        let cursoModalMode = 'crear';
+
+        function abrirCursoModal(mode, initialValue = '') {
+            cursoModalMode = mode;
+            const title = document.getElementById('course-modal-title');
+            const input = document.getElementById('course-modal-input');
+            
+            if (mode === 'crear') {
+                title.textContent = 'Crear Nuevo Curso';
+                input.value = '';
+                input.placeholder = 'Ej: 1RO DE BACHILLERATO CIENCIAS A';
+            } else {
+                title.textContent = 'Editar Nombre del Curso';
+                input.value = initialValue;
+                input.placeholder = '';
+            }
+            
+            document.getElementById('course-modal').classList.remove('hidden');
+            input.focus();
+        }
+
+        function cerrarCursoModal() {
+            document.getElementById('course-modal').classList.add('hidden');
+        }
+
+        async function confirmarCursoModal() {
+            const input = document.getElementById('course-modal-input');
+            const nombre = input.value.trim();
+            if (!nombre) {
+                alert("Por favor, ingrese un nombre válido para el curso.");
+                return;
+            }
+            
+            cerrarCursoModal();
+            
+            if (cursoModalMode === 'crear') {
+                const id = 'curso_' + Date.now();
+                const nuevoCurso = {
+                    id: id,
+                    nombreVisible: nombre.toUpperCase(),
+                    cursoKey: '',
+                    datosInstitucion: {
+                        nombreInstitucion: document.getElementById('inst-nombre').value,
+                        nivel: "",
+                        anioLectivo: document.getElementById('inst-anio').value,
+                        codigoAmie: document.getElementById('inst-amie').value,
+                        gradoCurso: nombre.toUpperCase(),
+                        paralelo: "A",
+                        jornada: "MATUTINA",
+                        rectorDirector: document.getElementById('inst-rector').value,
+                        tutorCurso: ""
+                    },
+                    logos: { logo1: null, logo2: null },
+                    periodos: {
+                        trimestre1: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] },
+                        trimestre2: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] },
+                        trimestre3: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] },
+                        supletorio: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] }
+                    }
+                };
+
+                appState.cursos.push(nuevoCurso);
+                appState.cursoActivoId = id;
+                await saveStateToDB();
+                actualizarSelectorCursosUI();
+                cargarCursoActivoEnPantalla();
+            } else {
+                const curso = obtenerCursoActivo();
+                if (!curso) return;
+
+                curso.nombreVisible = nombre.toUpperCase();
+                if (curso.datosInstitucion) {
+                    curso.datosInstitucion.gradoCurso = nombre.toUpperCase();
+                }
+                await saveStateToDB();
+                actualizarSelectorCursosUI();
+                cargarCursoActivoEnPantalla();
+            }
+        }
+
+        // Crear curso manualmente
+        function crearCursoManual() {
+            abrirCursoModal('crear');
+        }
+
+        // Editar curso manualmente
+        function editarCursoManual() {
+            const curso = obtenerCursoActivo();
+            if (!curso) return;
+            abrirCursoModal('editar', curso.nombreVisible);
+        }
+
+        // Cambiar curso activo
+        async function cambiarCursoActivo() {
+            const val = document.getElementById('selector-curso').value;
+            if (val) {
+                appState.cursoActivoId = val;
+                await saveStateToDB();
+                cargarCursoActivoEnPantalla();
+            }
+        }
+
+        // Guardar cambios manuales en el formulario institucional
+        function guardarDatosInstitucion() {
+            const curso = obtenerCursoActivo();
+            if (!curso) return;
+
+            curso.datosInstitucion = {
+                nombreInstitucion: document.getElementById('inst-nombre').value,
+                anioLectivo: document.getElementById('inst-anio').value,
+                codigoAmie: document.getElementById('inst-amie').value,
+                gradoCurso: document.getElementById('inst-grado').value,
+                paralelo: document.getElementById('inst-paralelo').value,
+                jornada: document.getElementById('inst-jornada').value,
+                rectorDirector: document.getElementById('inst-rector').value,
+                tutorCurso: document.getElementById('inst-tutor').value
+            };
+
+            saveStateToDB();
+        }
+
+        // Previsualizar y guardar logotipos en base64
         function previewImage(event, previewId, key) {
             const input = event.target;
             const preview = document.getElementById(previewId);
             const containerText = document.getElementById(`${previewId}-container`);
 
             if (input.files && input.files[0]) {
-                filePaths[key] = input.files[0].path;
-                
                 const reader = new FileReader();
-                reader.onload = function(e) {
-                    preview.src = e.target.result;
+                reader.onload = async function(e) {
+                    const base64Str = e.target.result;
+                    preview.src = base64Str;
                     preview.classList.remove('hidden');
                     containerText.classList.add('hidden');
+
+                    const curso = obtenerCursoActivo();
+                    if (curso) {
+                        if (!curso.logos) curso.logos = {};
+                        curso.logos[key] = base64Str;
+                        await saveStateToDB();
+                    }
                 }
                 reader.readAsDataURL(input.files[0]);
             }
         }
 
-        // Analizar notas enviando los excels a Python
-        async function analizarNotas() {
-            // Verificar si al menos hay un excel seleccionado
-            if (!filePaths.t1 && !filePaths.t2 && !filePaths.t3 && !filePaths.su) {
+        // Truncar decimales en JS
+        function truncar2Decimales(valor) {
+            return Math.trunc(valor * 100) / 100;
+        }
+
+        // Consolidación de estudiantes localmente (IndexedDB)
+        function consolidarYRenderizar() {
+            const curso = obtenerCursoActivo();
+            if (!curso) {
                 estudiantesCargados = [];
                 renderEstudiantes();
                 return;
             }
-            
-            document.getElementById('empty-row').classList.add('hidden');
+
+            const t1 = curso.periodos.trimestre1 || {};
+            const t2 = curso.periodos.trimestre2 || {};
+            const t3 = curso.periodos.trimestre3 || {};
+            const su = curso.periodos.supletorio || {};
+
+            const t1_students = t1.estudiantes || [];
+            const t2_students = t2.estudiantes || [];
+            const t3_students = t3.estudiantes || [];
+            const su_students = su.estudiantes || [];
+
+            if (t1_students.length === 0 && t2_students.length === 0 && t3_students.length === 0 && su_students.length === 0) {
+                estudiantesCargados = [];
+                renderEstudiantes();
+                return;
+            }
+
+            const allKeys = new Set();
+            const studentsMap = {};
+
+            const processSrc = (list, keyPeriod) => {
+                list.forEach(s => {
+                    const idKey = (s.cedula && s.cedula.trim()) ? s.cedula.trim() : s.nombre.trim();
+                    allKeys.add(idKey);
+                    if (!studentsMap[idKey]) {
+                        studentsMap[idKey] = {
+                            nombre: s.nombre,
+                            cedula: s.cedula,
+                            t1_notas: {},
+                            t2_notas: {},
+                            t3_notas: {},
+                            su_notas: {}
+                        };
+                    }
+                    studentsMap[idKey][`${keyPeriod}_notas`] = s.notas || {};
+                });
+            };
+
+            processSrc(t1_students, 't1');
+            processSrc(t2_students, 't2');
+            processSrc(t3_students, 't3');
+            processSrc(su_students, 'su');
+
+            const listaConsolidada = [];
+
+            allKeys.forEach(idKey => {
+                const s = studentsMap[idKey];
+                const subjects = new Set([
+                    ...Object.keys(s.t1_notas),
+                    ...Object.keys(s.t2_notas),
+                    ...Object.keys(s.t3_notas),
+                    ...Object.keys(s.su_notas)
+                ]);
+
+                const materias = {};
+                subjects.forEach(sub => {
+                    const g1 = s.t1_notas[sub] !== undefined ? s.t1_notas[sub] : 0.0;
+                    const g2 = s.t2_notas[sub] !== undefined ? s.t2_notas[sub] : 0.0;
+                    const g3 = s.t3_notas[sub] !== undefined ? s.t3_notas[sub] : 0.0;
+                    const su_grade = s.su_notas[sub] !== undefined ? s.su_notas[sub] : null;
+
+                    const p_anual = truncar2Decimales((g1 + g2 + g3) / 3.0);
+                    let nota_final = p_anual;
+                    let estado = "APROBADO";
+
+                    if (p_anual >= 7.0) {
+                        nota_final = p_anual;
+                        estado = "APROBADO";
+                    } else {
+                        if (su_grade !== null) {
+                            if (su_grade >= 7.0) {
+                                nota_final = 7.0;
+                                estado = "APROBADO";
+                            } else {
+                                nota_final = p_anual;
+                                estado = "REPROBADO";
+                            }
+                        } else {
+                            nota_final = p_anual;
+                            estado = "SUPLETORIO";
+                        }
+                    }
+
+                    materias[sub] = {
+                        t1: g1,
+                        t2: g2,
+                        t3: g3,
+                        promedio_anual: p_anual,
+                        supletorio: su_grade,
+                        nota_final: nota_final,
+                        estado: estado
+                    };
+                });
+
+                const finalGradesList = Object.values(materias).map(m => m.nota_final);
+                const prom_general = finalGradesList.length > 0 ? (finalGradesList.reduce((a, b) => a + b, 0) / finalGradesList.length) : 0.0;
+
+                const tiene_supletorio = Object.values(materias).some(m => m.estado === "SUPLETORIO");
+                const tiene_reprobado = Object.values(materias).some(m => m.estado === "REPROBADO");
+
+                let estado_general = "APROBADO";
+                if (tiene_reprobado) estado_general = "REPROBADO";
+                else if (tiene_supletorio) estado_general = "SUPLETORIO";
+
+                listaConsolidada.push({
+                    cedula: s.cedula && s.cedula.length < 15 ? s.cedula : "S/C",
+                    id_real: idKey,
+                    nombre: s.nombre,
+                    promedio: truncar2Decimales(prom_general),
+                    estado: estado_general,
+                    materias: materias
+                });
+            });
+
+            listaConsolidada.sort((a, b) => a.nombre.localeCompare(b.nombre));
+            estudiantesCargados = listaConsolidada;
+            renderEstudiantes();
+        }
+
+        // Carga de Excel e Importación de datos
+        async function handleFileSelect(id) {
+            const input = document.getElementById(`file-${id}`);
+            if (!input.files || input.files.length === 0) return;
+
+            const absolutePath = input.files[0].path;
+            const fileName = input.files[0].name;
+
+            // Validar extensión
+            if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
+                mostrarAlerta("Formato no válido", "Por favor seleccione un archivo oficial de formato Excel (.xlsx o .xls)", "error");
+                input.value = '';
+                return;
+            }
+
             document.getElementById('loading-overlay').classList.remove('hidden');
-            
+
             try {
-                const result = await window.electronAPI.analizarExcel(filePaths);
+                // Analizar un solo archivo a la vez
+                const filePathsPayload = {};
+                filePathsPayload[id] = absolutePath;
+
+                const result = await window.electronAPI.analizarExcel(filePathsPayload);
                 document.getElementById('loading-overlay').classList.add('hidden');
-                
+
                 if (result.error) {
-                    mostrarAlerta("Error", "No se pudieron analizar los archivos: " + result.error, "error");
-                } else if (Array.isArray(result)) {
-                    estudiantesCargados = result;
-                    renderEstudiantes();
+                    mostrarAlerta("Error de formato", "No se pudo leer el archivo. Asegúrese de que sea el formato oficial obtenido desde 'Descargar Formato'.<br><small class='text-rose-500'>" + result.error + "</small>", "error");
+                    input.value = '';
+                    return;
                 }
+
+                const inst = result.datosInstitucion || {};
+                
+                // Validaciones
+                if (!inst.nombreInstitucion) {
+                    mostrarAlerta("Formato incorrecto", "No se detectó el nombre de la institución (Celda A1). Use el formato oficial.", "warning");
+                    input.value = '';
+                    return;
+                }
+                if (!inst.gradoCurso) {
+                    mostrarAlerta("Formato incorrecto", "No se detectó el Grado/Curso (Celda B3). Use el formato oficial.", "warning");
+                    input.value = '';
+                    return;
+                }
+                if (!inst.paralelo) {
+                    mostrarAlerta("Formato incorrecto", "No se detectó el Paralelo (Celda B5). Use el formato oficial.", "warning");
+                    input.value = '';
+                    return;
+                }
+                if (!result.estudiantes || result.estudiantes.length === 0) {
+                    mostrarAlerta("Archivo vacío", "No se detectaron registros de estudiantes en el archivo Excel.", "warning");
+                    input.value = '';
+                    return;
+                }
+
+                // Detectar curso key
+                const rawKey = (inst.nivel || '') + '|' + inst.gradoCurso + '|' + inst.paralelo + '|' + (inst.anioLectivo || '');
+                const normalizedKey = rawKey.toLowerCase().replace(/\s+/g, '');
+
+                // Buscar si ya existe el curso
+                let cursoEncontrado = appState.cursos.find(c => {
+                    const cKey = c.cursoKey || '';
+                    return cKey.toLowerCase().replace(/\s+/g, '') === normalizedKey;
+                });
+
+                // Detectar el período desde el Excel (B6)
+                let periodoDetectadoStr = (result.periodoExcel || '').trim().toUpperCase();
+                let periodKey = 'trimestre1';
+                if (periodoDetectadoStr.includes('TRIMESTRE 1') || periodoDetectadoStr.includes('TRIMESTRE1') || id === 't1') {
+                    periodKey = 'trimestre1';
+                    periodoDetectadoStr = 'TRIMESTRE 1';
+                } else if (periodoDetectadoStr.includes('TRIMESTRE 2') || periodoDetectadoStr.includes('TRIMESTRE2') || id === 't2') {
+                    periodKey = 'trimestre2';
+                    periodoDetectadoStr = 'TRIMESTRE 2';
+                } else if (periodoDetectadoStr.includes('TRIMESTRE 3') || periodoDetectadoStr.includes('TRIMESTRE3') || id === 't3') {
+                    periodKey = 'trimestre3';
+                    periodoDetectadoStr = 'TRIMESTRE 3';
+                } else if (periodoDetectadoStr.includes('SUPLETORIO') || id === 'su') {
+                    periodKey = 'supletorio';
+                    periodoDetectadoStr = 'SUPLETORIO';
+                } else {
+                    const ans = prompt("No se detectó el período del archivo en la celda B6. Ingrese:\n1 para Trimestre 1\n2 para Trimestre 2\n3 para Trimestre 3\n4 para Supletorio");
+                    if (ans === '1') { periodKey = 'trimestre1'; periodoDetectadoStr = 'TRIMESTRE 1'; }
+                    else if (ans === '2') { periodKey = 'trimestre2'; periodoDetectadoStr = 'TRIMESTRE 2'; }
+                    else if (ans === '3') { periodKey = 'trimestre3'; periodoDetectadoStr = 'TRIMESTRE 3'; }
+                    else if (ans === '4') { periodKey = 'supletorio'; periodoDetectadoStr = 'SUPLETORIO'; }
+                    else {
+                        mostrarAlerta("Carga cancelada", "Debe especificar un período válido.", "warning");
+                        input.value = '';
+                        return;
+                    }
+                }
+
+                const cursoActivo = obtenerCursoActivo();
+
+                // Validar carga de otro curso
+                if (cursoActivo && cursoActivo.cursoKey && cursoActivo.cursoKey !== rawKey) {
+                    const actName = cursoActivo.nombreVisible;
+                    const detName = `${inst.gradoCurso} - PARALELO ${inst.paralelo} - ${inst.anioLectivo || 'COSTA'}`;
+                    const resConfirm = confirm(`El archivo Excel pertenece a otro curso:\n\nDetectado: "${detName}"\nActivo actualmente: "${actName}"\n\n¿Deseas cambiar al curso detectado o importar su información en un módulo independiente? (Presiona Aceptar para crear/cambiar al curso detectado, o Cancelar para mantener el curso actual).`);
+                    
+                    if (resConfirm) {
+                        if (!cursoEncontrado) {
+                            // Crear el curso
+                            const newId = 'curso_' + Date.now();
+                            cursoEncontrado = {
+                                id: newId,
+                                nombreVisible: detName.toUpperCase(),
+                                cursoKey: rawKey,
+                                datosInstitucion: {
+                                    nombreInstitucion: inst.nombreInstitucion,
+                                    nivel: inst.nivel || '',
+                                    anioLectivo: inst.anioLectivo || '',
+                                    codigoAmie: inst.codigoAmie || '',
+                                    gradoCurso: inst.gradoCurso,
+                                    paralelo: inst.paralelo,
+                                    jornada: inst.jornada || 'MATUTINA',
+                                    rectorDirector: inst.rectorDirector || '',
+                                    tutorCurso: inst.tutorCurso || ''
+                                },
+                                logos: { logo1: null, logo2: null },
+                                periodos: {
+                                    trimestre1: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] },
+                                    trimestre2: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] },
+                                    trimestre3: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] },
+                                    supletorio: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] }
+                                }
+                            };
+                            appState.cursos.push(cursoEncontrado);
+                        }
+                        appState.cursoActivoId = cursoEncontrado.id;
+                    } else {
+                        // Importar en el curso activo actual
+                        cursoEncontrado = cursoActivo;
+                    }
+                }
+
+                // Si no hay curso coincidente y no se activó la confirmación
+                if (!cursoEncontrado) {
+                    const detName = `${inst.gradoCurso} - PARALELO ${inst.paralelo} - ${inst.anioLectivo || 'COSTA'}`;
+                    // Reemplazar el curso por defecto si es el inicial vacío
+                    const hasData = appState.cursos.some(c => 
+                        c.periodos.trimestre1.estudiantes.length > 0 ||
+                        c.periodos.trimestre2.estudiantes.length > 0 ||
+                        c.periodos.trimestre3.estudiantes.length > 0
+                    );
+
+                    if (appState.cursos.length === 1 && !hasData) {
+                        cursoEncontrado = appState.cursos[0];
+                        cursoEncontrado.nombreVisible = detName.toUpperCase();
+                        cursoEncontrado.cursoKey = rawKey;
+                    } else {
+                        const newId = 'curso_' + Date.now();
+                        cursoEncontrado = {
+                            id: newId,
+                            nombreVisible: detName.toUpperCase(),
+                            cursoKey: rawKey,
+                            datosInstitucion: {
+                                nombreInstitucion: inst.nombreInstitucion,
+                                nivel: inst.nivel || '',
+                                anioLectivo: inst.anioLectivo || '',
+                                codigoAmie: inst.codigoAmie || '',
+                                gradoCurso: inst.gradoCurso,
+                                paralelo: inst.paralelo,
+                                jornada: inst.jornada || 'MATUTINA',
+                                rectorDirector: inst.rectorDirector || '',
+                                tutorCurso: inst.tutorCurso || ''
+                            },
+                            logos: { logo1: null, logo2: null },
+                            periodos: {
+                                trimestre1: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] },
+                                trimestre2: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] },
+                                trimestre3: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] },
+                                supletorio: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] }
+                            }
+                        };
+                        appState.cursos.push(cursoEncontrado);
+                    }
+                    appState.cursoActivoId = cursoEncontrado.id;
+                }
+
+                // Guardar la información en el período correcto del curso
+                const nowStr = new Date().toLocaleDateString();
+                cursoEncontrado.periodos[periodKey] = {
+                    nombreArchivo: fileName,
+                    fechaCarga: nowStr,
+                    periodoExcel: periodoDetectadoStr,
+                    asignaturas: result.asignaturas || [],
+                    estudiantes: result.estudiantes || []
+                };
+
+                // Actualizar cabeceras en el curso si viene información del Excel
+                cursoEncontrado.datosInstitucion = {
+                    nombreInstitucion: inst.nombreInstitucion || cursoEncontrado.datosInstitucion.nombreInstitucion,
+                    nivel: inst.nivel || cursoEncontrado.datosInstitucion.nivel,
+                    anioLectivo: inst.anioLectivo || cursoEncontrado.datosInstitucion.anioLectivo,
+                    codigoAmie: inst.codigoAmie || cursoEncontrado.datosInstitucion.codigoAmie,
+                    gradoCurso: inst.gradoCurso || cursoEncontrado.datosInstitucion.gradoCurso,
+                    paralelo: inst.paralelo || cursoEncontrado.datosInstitucion.paralelo,
+                    jornada: inst.jornada || cursoEncontrado.datosInstitucion.jornada,
+                    rectorDirector: inst.rectorDirector || cursoEncontrado.datosInstitucion.rectorDirector,
+                    tutorCurso: inst.tutorCurso || cursoEncontrado.datosInstitucion.tutorCurso
+                };
+
+                await saveStateToDB();
+                actualizarSelectorCursosUI();
+                cargarCursoActivoEnPantalla();
+                mostrarAlerta("Éxito al cargar", `Notas importadas correctamente para el curso:<br><strong>${cursoEncontrado.nombreVisible}</strong><br>Período: <strong>${periodoDetectadoStr}</strong>`, "success");
+
             } catch (err) {
                 document.getElementById('loading-overlay').classList.add('hidden');
-                mostrarAlerta("Error", "Error al conectar con el backend de Python: " + err, "error");
+                mostrarAlerta("Error", "Error al importar el archivo Excel: " + err, "error");
+                input.value = '';
             }
+        }
+
+        // Limpiar archivo del período del curso activo
+        async function clearFile(periodKeyShort) {
+            const curso = obtenerCursoActivo();
+            if (!curso) return;
+
+            let periodKey = 'trimestre1';
+            if (periodKeyShort === 't1') periodKey = 'trimestre1';
+            else if (periodKeyShort === 't2') periodKey = 'trimestre2';
+            else if (periodKeyShort === 't3') periodKey = 'trimestre3';
+            else if (periodKeyShort === 'su') periodKey = 'supletorio';
+
+            curso.periodos[periodKey] = {
+                nombreArchivo: '',
+                fechaCarga: '',
+                asignaturas: [],
+                estudiantes: []
+            };
+
+            await saveStateToDB();
+            cargarCursoActivoEnPantalla();
+            mostrarAlerta("Archivo Eliminado", "La información asociada a este período ha sido eliminada.", "success");
         }
 
         // Renderizar tabla de estudiantes
         function renderEstudiantes(estudiantes = estudiantesCargados) {
             const body = document.getElementById('students-body');
             body.innerHTML = '';
-            
+
             if (estudiantes.length === 0) {
                 body.innerHTML = `
                     <tr id="empty-row">
-                        <td colspan="7" class="p-8 text-center text-slate-400">
+                        <td colspan="5" class="p-8 text-center text-slate-400">
                             <i class="fa-solid fa-folder-open text-2xl mb-2 block"></i>
                             Cargue los archivos de notas de los trimestres para visualizar los estudiantes.
                         </td>
@@ -441,20 +1100,16 @@
                 document.getElementById('selectAll').checked = false;
                 return;
             }
-            
+
             estudiantes.forEach((est, idx) => {
                 const num = String(idx + 1).padStart(2, '0');
-                
-                let badgeClass = "bg-slate-100 text-slate-700 border border-slate-200";
-                if (est.estado === "APROBADO") badgeClass = "bg-emerald-100 text-emerald-700 border border-emerald-200";
-                else if (est.estado === "SUPLETORIO") badgeClass = "bg-amber-100 text-amber-700 border border-amber-200";
-                else if (est.estado === "REPROBADO") badgeClass = "bg-rose-100 text-rose-700 border border-rose-200";
-                
+
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50 transition-colors student-row";
                 tr.dataset.cedula = est.cedula;
                 tr.dataset.nombre = est.nombre;
-                
+                tr.dataset.id_real = est.id_real;
+
                 tr.innerHTML = `
                     <td class="p-4 text-center">
                         <input type="checkbox" class="student-checkbox w-4 h-4 text-indigo-600 border-slate-300 rounded cursor-pointer" onchange="updateSelectedCount()">
@@ -463,11 +1118,7 @@
                     <td class="p-4 font-semibold text-slate-800">${est.nombre}</td>
                     <td class="p-4 text-slate-500">${est.cedula}</td>
                     <td class="p-4 text-center">
-                        <span class="${badgeClass} px-2 py-1 rounded text-xs font-semibold">${est.estado}</span>
-                    </td>
-                    <td class="p-4 text-center font-bold text-slate-700">${est.promedio.toFixed(2)}</td>
-                    <td class="p-4 text-center">
-                        <button onclick="vistaPrevia('${est.cedula}')" class="w-8 h-8 rounded-full bg-slate-100 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-800 transition-all flex items-center justify-center mx-auto" title="Vista Previa">
+                        <button onclick="vistaPrevia('${est.id_real}')" class="w-8 h-8 rounded-full bg-slate-100 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-800 transition-all flex items-center justify-center mx-auto" title="Vista Previa">
                             <i class="fa-solid fa-eye"></i>
                         </button>
                     </td>
@@ -482,7 +1133,7 @@
             const queryGlobal = document.getElementById('global-search').value.toLowerCase().trim();
             const queryTable = document.getElementById('table-search').value.toLowerCase().trim();
             const query = queryGlobal || queryTable;
-            
+
             const filtrados = estudiantesCargados.filter(est => 
                 est.nombre.toLowerCase().includes(query) || est.cedula.includes(query)
             );
@@ -493,7 +1144,7 @@
         function toggleAllCheckboxes() {
             const selectAllCheckbox = document.getElementById('selectAll');
             const checkboxes = document.querySelectorAll('.student-checkbox');
-            
+
             checkboxes.forEach(checkbox => {
                 checkbox.checked = selectAllCheckbox.checked;
             });
@@ -527,7 +1178,7 @@
             checkboxes.forEach(cb => {
                 if (cb.checked) {
                     const row = cb.closest('tr');
-                    ids.push(row.dataset.cedula);
+                    ids.push(row.dataset.id_real);
                 }
             });
             return ids;
@@ -535,8 +1186,13 @@
 
         // Emitir Boletines o Certificados
         async function emitirDocumentos(tipo) {
+            const curso = obtenerCursoActivo();
+            if (!curso) {
+                mostrarAlerta("Sin curso", "No hay un curso activo para generar boletines.", "warning");
+                return;
+            }
+
             const seleccionados = getSelectedStudentIds();
-            
             if (seleccionados.length === 0) {
                 mostrarAlerta("Sin selección", "Por favor seleccione al menos un estudiante para generar los boletines.", "warning");
                 return;
@@ -550,11 +1206,18 @@
 
             document.getElementById('loading-overlay').classList.remove('hidden');
 
+            // Filtrar los datos consolidados de los estudiantes seleccionados
+            const datosConsolidadosSeleccionados = estudiantesCargados.filter(e => 
+                seleccionados.includes(e.id_real)
+            );
+
             const payload = {
-                excels: filePaths,
+                cursoActivoId: curso.id,
+                excels: {}, // Vacío ya que pasamos datos pre-consolidados
+                datos_consolidados: datosConsolidadosSeleccionados,
                 logos: {
-                    logo1: filePaths.logo1,
-                    logo2: filePaths.logo2
+                    logo1: curso.logos ? curso.logos.logo1 : null,
+                    logo2: curso.logos ? curso.logos.logo2 : null
                 },
                 institucion: {
                     nombre: document.getElementById('inst-nombre').value,
@@ -567,13 +1230,13 @@
                     tutor: document.getElementById('inst-tutor').value
                 },
                 estudiantes: seleccionados,
-                tipo: tipo // 'boletines' o 'certificados'
+                tipo: tipo
             };
 
             try {
                 const res = await window.electronAPI.generarBoletines(payload);
                 document.getElementById('loading-overlay').classList.add('hidden');
-                
+
                 if (res.success) {
                     mostrarAlerta("Éxito", `Documentos generados con éxito en la ruta:<br><strong class="text-xs break-all">${res.path}</strong>`, "success", res.path);
                 } else {
@@ -586,15 +1249,24 @@
         }
 
         // Vista previa rápida de notas
-        function vistaPrevia(cedula) {
-            const est = estudiantesCargados.find(e => e.cedula === cedula);
+        function vistaPrevia(idReal) {
+            const est = estudiantesCargados.find(e => e.id_real === idReal);
             if (!est) return;
-            
-            const info = `Estudiante: ${est.nombre}\nCédula: ${est.cedula}\nPromedio General: ${est.promedio.toFixed(2)}\nEstado: ${est.estado}`;
+
+            let notasInfo = '';
+            Object.entries(est.materias).forEach(([materia, d]) => {
+                notasInfo += `• ${materia}: T1=${d.t1.toFixed(2)} | T2=${d.t2.toFixed(2)} | T3=${d.t3.toFixed(2)}`;
+                if (d.supletorio !== null) {
+                    notasInfo += ` | SUP=${d.supletorio.toFixed(2)}`;
+                }
+                notasInfo += ` => FINAL=${d.nota_final.toFixed(2)} (${d.estado})\n`;
+            });
+
+            const info = `Estudiante: ${est.nombre}\nCédula: ${est.cedula}\nPromedio General: ${est.promedio.toFixed(2)}\nEstado: ${est.estado}\n\nCalificaciones por Asignatura:\n${notasInfo}`;
             alert(info);
         }
 
-        // Ventana Modal de Alerta
+        // Ventana Modal de Alertas
         function mostrarAlerta(titulo, mensaje, tipo, pathLink = null) {
             const modal = document.getElementById('status-modal');
             const iconContainer = document.getElementById('modal-icon');
@@ -614,7 +1286,6 @@
                     btnAction.classList.remove('hidden');
                     btnAction.textContent = "Abrir PDF";
                     btnAction.onclick = () => {
-                        // Enviar solicitud para abrir el archivo
                         alert("Abriendo PDF: " + pathLink);
                     };
                 }
