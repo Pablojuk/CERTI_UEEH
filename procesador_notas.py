@@ -8,6 +8,12 @@ from __future__ import annotations
 import os
 import sys
 import json
+
+try:
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
+except Exception:
+    pass
 import argparse
 import pandas as pd
 import numpy as np
@@ -184,6 +190,20 @@ def cargar_excel_datos(file_path: str) -> dict[str, dict]:
         if start_row is None:
             return {}
             
+        ignore_subject_keywords = {"promedio", "total", "observacion", "observación", "estado", "firma", "comportamiento"}
+        subject_columns = []
+        for col in range(3, sheet.max_column + 1):
+            header_value = sheet.cell(row=start_row, column=col).value
+            if header_value is None or str(header_value).strip() == "":
+                continue
+            subject_name = str(header_value).strip()
+            subject_norm = normalizar_columna(subject_name)
+            if any(keyword in subject_norm for keyword in ignore_subject_keywords):
+                continue
+            subject_columns.append((col, subject_name))
+
+        print(f"[cargar_excel_datos] Asignaturas detectadas: {[name for _, name in subject_columns]}", file=sys.stderr)
+
         records = {}
         # Leer a partir de la fila siguiente
         for r in range(start_row + 1, sheet.max_row + 1):
@@ -206,11 +226,21 @@ def cargar_excel_datos(file_path: str) -> dict[str, dict]:
                 
             if not cedula:
                 cedula = nombre
+
+            notas = {}
+            for col, subject_name in subject_columns:
+                grade_value = sheet.cell(row=r, column=col).value
+                if grade_value is None or str(grade_value).strip() == "":
+                    continue
+                try:
+                    notas[subject_name] = truncar_2_decimales(float(grade_value))
+                except (TypeError, ValueError):
+                    continue
                 
             records[cedula] = {
                 "nombre": nombre,
                 "cedula": cedula,
-                "notas": {}  # Por lo pronto, no proceses notas
+                "notas": notas
             }
             
         return records
@@ -435,38 +465,28 @@ def generar_boletin_pdf(datos_consolidados, institucion_info, logos_paths, outpu
         
         grades_data = [table_headers]
         
+        def nota_pdf(valor):
+            if valor is None or str(valor).strip() in ["", "PENDIENTE"]:
+                return None
+            try:
+                return float(valor)
+            except (TypeError, ValueError):
+                return None
+
         for sub, grades in est["materias"].items():
-            try:
-                t1_val = float(grades.get('t1', 0.0)) if grades.get('t1') is not None else 0.0
-            except:
-                t1_val = 0.0
-            try:
-                t2_val = float(grades.get('t2', 0.0)) if grades.get('t2') is not None else 0.0
-            except:
-                t2_val = 0.0
-            try:
-                t3_val = float(grades.get('t3', 0.0)) if grades.get('t3') is not None else 0.0
-            except:
-                t3_val = 0.0
-            try:
-                pa_val = float(grades.get('promedio_anual', 0.0)) if grades.get('promedio_anual') is not None else 0.0
-            except:
-                pa_val = 0.0
-            try:
-                su_val = float(grades.get('supletorio')) if (grades.get('supletorio') is not None and str(grades.get('supletorio')).strip() != "-") else None
-            except:
-                su_val = None
-            try:
-                nf_val = float(grades.get('nota_final', 0.0)) if grades.get('nota_final') is not None else 0.0
-            except:
-                nf_val = 0.0
+            t1_val = nota_pdf(grades.get('t1'))
+            t2_val = nota_pdf(grades.get('t2'))
+            t3_val = nota_pdf(grades.get('t3'))
+            pa_val = nota_pdf(grades.get('promedio_anual'))
+            su_val = nota_pdf(grades.get('supletorio'))
+            nf_val = nota_pdf(grades.get('nota_final'))
                 
-            t1_str = f"{t1_val:.2f}"
-            t2_str = f"{t2_val:.2f}"
-            t3_str = f"{t3_val:.2f}"
-            pa_str = f"{pa_val:.2f}"
+            t1_str = f"{t1_val:.2f}" if t1_val is not None else "PEND."
+            t2_str = f"{t2_val:.2f}" if t2_val is not None else "PEND."
+            t3_str = f"{t3_val:.2f}" if t3_val is not None else "PEND."
+            pa_str = f"{pa_val:.2f}" if pa_val is not None else "PEND."
             su_str = f"{su_val:.2f}" if su_val is not None else "-"
-            nf_str = f"{nf_val:.2f}"
+            nf_str = f"{nf_val:.2f}" if nf_val is not None else "PEND."
             
             # Estilos de color para el estado
             est_materia = grades.get('estado', 'APROBADO')
@@ -516,15 +536,17 @@ def generar_boletin_pdf(datos_consolidados, institucion_info, logos_paths, outpu
         story.append(Spacer(1, 10))
         
         # 4. Resumen Final
-        status_color = "#047857" if est['estado'] == "APROBADO" else ("#b45309" if est['estado'] == "SUPLETORIO" else "#b91c1c")
+        status_color = "#047857" if est['estado'] == "APROBADO" else ("#b45309" if est['estado'] in ["SUPLETORIO", "PENDIENTE DE NOTAS EXTERNAS"] else "#b91c1c")
         try:
-            prom_val = float(est.get('promedio', 0.0))
+            prom_raw = est.get('promedio')
+            prom_val = float(prom_raw) if prom_raw is not None else None
         except:
-            prom_val = 0.0
+            prom_val = None
+        prom_txt = f"{prom_val:.2f}" if prom_val is not None else "PENDIENTE"
             
         summary_data = [
             [
-                Paragraph(f"<b>PROMEDIO GENERAL DEL ESTUDIANTE:</b> {prom_val:.2f}", styles['TableTextBold']),
+                Paragraph(f"<b>PROMEDIO GENERAL DEL ESTUDIANTE:</b> {prom_txt}", styles['TableTextBold']),
                 Paragraph(f"<b>ESTADO FINAL:</b> <font color='{status_color}'><b>{est['estado']}</b></font>", styles['TableTextBold'])
             ]
         ]
@@ -683,14 +705,14 @@ def main():
             }
             print(json.dumps(output_data, ensure_ascii=False))
         except Exception as e:
-            print(json.dumps({"error": str(e)}))
+            print(json.dumps({"error": str(e)}, ensure_ascii=False))
             
     elif args.generar:
         try:
             # Leer el payload JSON enviado desde Electron a través de stdin
             input_data = sys.stdin.read()
             if not input_data:
-                print(json.dumps({"success": False, "error": "No se recibió payload en stdin"}))
+                print(json.dumps({"success": False, "error": "No se recibió payload en stdin"}, ensure_ascii=False))
                 return
                 
             payload = json.loads(input_data)
@@ -710,7 +732,7 @@ def main():
                 seleccionados_data = [est for est in datos_completos if est["id_real"] in estudiantes_seleccionados]
             
             if not seleccionados_data:
-                print(json.dumps({"success": False, "error": "No se encontraron datos para los estudiantes seleccionados"}))
+                print(json.dumps({"success": False, "error": "No se encontraron datos para los estudiantes seleccionados"}, ensure_ascii=False))
                 return
                 
             # Definir la ruta de salida en Descargas del usuario
@@ -724,10 +746,10 @@ def main():
             
             generar_boletin_pdf(seleccionados_data, inst, logos, output_pdf)
             
-            print(json.dumps({"success": True, "path": output_pdf}))
+            print(json.dumps({"success": True, "path": output_pdf}, ensure_ascii=False))
             
         except Exception as e:
-            print(json.dumps({"success": False, "error": str(e)}))
+            print(json.dumps({"success": False, "error": str(e)}, ensure_ascii=False))
     else:
         parser.print_help()
 

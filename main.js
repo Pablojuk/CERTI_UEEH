@@ -101,7 +101,12 @@ function runPython(args, inputData = null) {
         const scriptPath = path.join(__dirname, 'procesador_notas.py');
         
         const processArgs = [scriptPath, ...args];
-        const pyProcess = spawn(pythonExecutable, processArgs);
+        const pyProcess = spawn(pythonExecutable, processArgs, {
+            env: {
+                ...process.env,
+                PYTHONIOENCODING: 'utf-8'
+            }
+        });
         
         let stdoutData = '';
         let stderrData = '';
@@ -112,11 +117,11 @@ function runPython(args, inputData = null) {
         }
         
         pyProcess.stdout.on('data', (data) => {
-            stdoutData += data.toString();
+            stdoutData += data.toString('utf8');
         });
         
         pyProcess.stderr.on('data', (data) => {
-            stderrData += data.toString();
+            stderrData += data.toString('utf8');
         });
         
         pyProcess.on('close', (code) => {
