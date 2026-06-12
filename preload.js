@@ -7,5 +7,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     seleccionarArchivo: (opciones) => ipcRenderer.invoke('seleccionar-archivo', opciones),
     descargarFormato: () => ipcRenderer.invoke('descargar-formato'),
     leerPlantilla: (nombre) => ipcRenderer.invoke('leer-plantilla', nombre),
-    imprimirCertificados: (html) => ipcRenderer.invoke('imprimir-certificados', html)
+    imprimirCertificados: (html) => ipcRenderer.invoke('imprimir-certificados', html),
+    abrirVistaPreviaCertificado: (html) => ipcRenderer.invoke('abrir-vista-previa-certificado', html)
 });

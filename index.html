@@ -312,10 +312,10 @@
                 </div>
                 <div class="flex items-center gap-3 w-full sm:w-auto">
                     <button onclick="emitirDocumentos('certificados')" class="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-md font-medium text-sm transition-all shadow-sm">
-                        <i class="fa-solid fa-print"></i> Imprimir certificados
+                        <i class="fa-solid fa-certificate"></i> Descargar Certificados (PDF)
                     </button>
                     <button onclick="emitirDocumentos('boletines')" class="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-md font-semibold text-sm transition-all shadow-md hover:shadow-lg">
-                        <i class="fa-solid fa-file-pdf"></i> Descargar PDF
+                        <i class="fa-solid fa-file-pdf"></i> Descargar Boletines (PDF)
                     </button>
                 </div>
             </div>
@@ -1875,66 +1875,91 @@
         function _certInjectNotas(doc, est) {
             if (!est.materias || Object.keys(est.materias).length === 0) return;
 
-            // Buscar la sección "Rendimiento Académico"
-            let gradeSectionH3 = null;
-            doc.querySelectorAll('h3').forEach(h3 => {
-                if (h3.textContent.trim().toUpperCase().includes('RENDIMIENTO')) gradeSectionH3 = h3;
-            });
-            if (!gradeSectionH3) return; // Plantilla cualitativa, no inyectar
+            // Helper para normalizar cadenas para comparación
+            const normalizar = (texto) => {
+                return (texto || '')
+                    .toLowerCase()
+                    .normalize("NFD")
+                    .replace(/[\u0300-\u036f]/g, "") // quitar acentos
+                    .replace(/[^a-z0-9]/g, "")      // quitar caracteres no alfanuméricos
+                    .trim();
+            };
 
-            const section = gradeSectionH3.closest('section');
-            if (!section) return;
-            const table = section.querySelector('table');
-            if (!table) return;
-            const tbody = table.querySelector('tbody');
-            if (!tbody) return;
-
-            // Verificar que sea una plantilla con notas numéricas (tiene SUPLETORIO en thead)
-            const thead = table.querySelector('thead');
-            if (!thead || !thead.textContent.includes('SUPLETORIO')) return;
-
-            // Limpiar filas existentes y reconstruir
-            tbody.innerHTML = '';
-
+            // Mapear cada materia por su nombre normalizado
+            const materiasMap = {};
             Object.entries(est.materias).forEach(([nombre, data]) => {
-                const tr = doc.createElement('tr');
+                materiasMap[normalizar(nombre)] = data;
+            });
 
-                const tdNombre = doc.createElement('td');
-                tdNombre.className = 'text-left-cell font-semibold';
-                tdNombre.textContent = nombre;
-                tr.appendChild(tdNombre);
+            // Buscar y actualizar filas en todas las tablas
+            const rows = doc.querySelectorAll('tr');
+            rows.forEach(row => {
+                const cells = Array.from(row.cells);
+                if (cells.length < 2) return;
 
-                const valores = [data.t1, data.t2, data.t3, data.supletorio, data.promedio_anual];
-                valores.forEach((val, idx) => {
-                    const td = doc.createElement('td');
-                    if (idx === 4) td.className = 'font-bold bg-slate-50';
-                    if (val !== null && val !== undefined) {
-                        td.textContent = val;
-                    } else {
-                        td.textContent = idx === 3 ? '0' : '-';
+                // Revisar si la primera o segunda celda coincide con alguna materia
+                let matchedSubjectNorm = null;
+                let subjectCellIndex = -1;
+
+                for (let i = 0; i < Math.min(cells.length, 2); i++) {
+                    const cellText = normalizar(cells[i].textContent);
+                    if (materiasMap[cellText]) {
+                        matchedSubjectNorm = cellText;
+                        subjectCellIndex = i;
+                        break;
                     }
-                    tr.appendChild(td);
+                }
+
+                if (matchedSubjectNorm !== null && subjectCellIndex !== -1) {
+                    const data = materiasMap[matchedSubjectNorm];
+                    const gradeCells = cells.slice(subjectCellIndex + 1);
+
+                    const fmt = (val, isSupletorio = false) => {
+                        if (val === null || val === undefined) {
+                            return isSupletorio ? '0' : '-';
+                        }
+                        return val;
+                    };
+
+                    if (gradeCells.length === 3) {
+                        // Trimestres T1, T2, T3
+                        gradeCells[0].textContent = fmt(data.t1);
+                        gradeCells[1].textContent = fmt(data.t2);
+                        gradeCells[2].textContent = fmt(data.t3);
+                    } else if (gradeCells.length === 4) {
+                        // Trimestres T1, T2, T3 + Promedio Anual (sin supletorio)
+                        gradeCells[0].textContent = fmt(data.t1);
+                        gradeCells[1].textContent = fmt(data.t2);
+                        gradeCells[2].textContent = fmt(data.t3);
+                        gradeCells[3].textContent = fmt(data.promedio_anual || data.nota_final);
+                    } else if (gradeCells.length === 5) {
+                        // Trimestres T1, T2, T3 + Supletorio + Promedio Anual
+                        gradeCells[0].textContent = fmt(data.t1);
+                        gradeCells[1].textContent = fmt(data.t2);
+                        gradeCells[2].textContent = fmt(data.t3);
+                        gradeCells[3].textContent = fmt(data.supletorio, true);
+                        gradeCells[4].textContent = fmt(data.promedio_anual || data.nota_final);
+                    }
+                }
+            });
+
+            // Actualizar PROMEDIO ANUAL o PROMEDIO GENERAL
+            rows.forEach(row => {
+                const cells = Array.from(row.cells);
+                if (cells.length === 0) return;
+                
+                const hasPromedioLabel = cells.some(cell => {
+                    const t = cell.textContent.trim().toUpperCase();
+                    return t === 'PROMEDIO ANUAL' || t === 'PROMEDIO GENERAL';
                 });
 
-                tbody.appendChild(tr);
+                if (hasPromedioLabel) {
+                    const lastCell = cells[cells.length - 1];
+                    if (lastCell) {
+                        lastCell.textContent = (est.promedio !== null && est.promedio !== undefined) ? est.promedio : '-';
+                    }
+                }
             });
-
-            // Fila de promedio general
-            const promTr = doc.createElement('tr');
-            promTr.className = 'bg-slate-100 border-t-2 border-slate-600';
-
-            const tdLabel = doc.createElement('td');
-            tdLabel.setAttribute('colspan', '5');
-            tdLabel.className = 'text-right font-bold pr-4';
-            tdLabel.textContent = 'PROMEDIO ANUAL';
-            promTr.appendChild(tdLabel);
-
-            const tdVal = doc.createElement('td');
-            tdVal.className = 'font-bold text-sm';
-            tdVal.textContent = (est.promedio !== null && est.promedio !== undefined) ? est.promedio : '-';
-            promTr.appendChild(tdVal);
-
-            tbody.appendChild(promTr);
         }
 
         function _certInjectFirmas(doc, inst) {
@@ -1991,7 +2016,13 @@
             const headMatch = templateHTML.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
             const headContent = headMatch ? headMatch[1] : '';
 
-            // 4. Generar una página por estudiante
+            // 4. Obtener las clases y estilos del body original del template
+            const tParser = new DOMParser();
+            const tDoc = tParser.parseFromString(templateHTML, 'text/html');
+            const bodyClass = tDoc.body.className || 'bg-white text-slate-900 font-sans p-8 max-w-5xl mx-auto';
+            const bodyStyle = tDoc.body.getAttribute('style') || '';
+
+            // 5. Generar una página por estudiante
             const pagesHTML = [];
 
             for (const est of estudiantesData) {
@@ -2012,7 +2043,7 @@
                 pagesHTML.push(doc.body.innerHTML);
             }
 
-            // 5. Ensamblar documento HTML final con saltos de página
+            // 6. Ensamblar documento HTML final con saltos de página heredando las clases del body
             const finalHTML = `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -2027,8 +2058,8 @@
         }
     </style>
 </head>
-<body class="bg-white text-slate-900 font-sans">
-    ${pagesHTML.map(page => `<div class="cert-page p-8 max-w-5xl mx-auto">${page}</div>`).join('\n')}
+<body class="bg-white">
+    ${pagesHTML.map(page => `<div class="cert-page ${bodyClass}" style="${bodyStyle}">${page}</div>`).join('\n')}
 </body>
 </html>`;
 
@@ -2127,24 +2158,52 @@
             }
         }
 
-        // Vista previa rápida de notas
-        function vistaPrevia(idReal) {
+        // Vista previa del certificado con plantilla HTML
+        async function vistaPrevia(idReal) {
             const est = estudiantesCargados.find(e => e.id_real === idReal);
             if (!est) return;
 
-            const fmtNota = (valor) => typeof valor === 'number' ? valor.toFixed(2) : 'PENDIENTE';
-            let notasInfo = '';
-            Object.entries(est.materias).forEach(([materia, d]) => {
-                notasInfo += `• ${materia}: T1=${fmtNota(d.t1)} | T2=${fmtNota(d.t2)} | T3=${fmtNota(d.t3)}`;
-                if (d.supletorio !== null) {
-                    notasInfo += ` | SUP=${fmtNota(d.supletorio)}`;
-                }
-                notasInfo += ` => FINAL=${fmtNota(d.nota_final)} (${d.estado})\n`;
-            });
+            const curso = obtenerCursoActivo();
+            if (!curso) return;
 
-            const promedioTxt = typeof est.promedio === 'number' ? est.promedio.toFixed(2) : 'PENDIENTE';
-            const info = `Estudiante: ${est.nombre}\nCédula: ${est.cedula}\nPromedio General: ${promedioTxt}\nEstado: ${est.estado}\n\nCalificaciones por Asignatura:\n${notasInfo}`;
-            alert(info);
+            const inst = curso.datosInstitucion || {};
+            const logos = curso.logos || {};
+
+            // Determinar la plantilla según el grado
+            const plantillaName = mapearPlantilla(inst.gradoCurso || '');
+            if (!plantillaName) {
+                mostrarAlerta("Sin Plantilla",
+                    `No se encontró una plantilla de certificado para el grado: "${inst.gradoCurso || 'sin especificar'}".`,
+                    "error");
+                return;
+            }
+
+            // Cargar la plantilla
+            const result = await window.electronAPI.leerPlantilla(plantillaName);
+            if (result.error) {
+                mostrarAlerta("Error de Plantilla", result.error, "error");
+                return;
+            }
+
+            const templateHTML = result.content;
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(templateHTML, 'text/html');
+
+            // Inyectar todos los datos del estudiante
+            _certInjectLogos(doc, logos);
+            _certInjectInstitucion(doc, inst);
+            _certInjectEstudiante(doc, est, inst);
+            _certInjectNotas(doc, est);
+            _certInjectFirmas(doc, inst);
+
+            // Limpiar inputs de archivo (no necesarios en preview)
+            doc.querySelectorAll('input[type="file"]').forEach(el => el.remove());
+
+            // Serializar el documento completo
+            const finalHTML = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+
+            // Abrir en ventana nueva de Electron
+            await window.electronAPI.abrirVistaPreviaCertificado(finalHTML);
         }
 
         // Ventana Modal de Alertas

@@ -301,3 +301,35 @@ ipcMain.handle('imprimir-certificados', async (event, htmlContent) => {
         return { success: false, error: error.message || "Error al generar el PDF de certificados." };
     }
 });
+
+// IPC: Abrir vista previa de certificado en ventana nueva
+ipcMain.handle('abrir-vista-previa-certificado', async (event, htmlContent) => {
+    try {
+        const tempHtmlPath = path.join(app.getPath('userData'), 'temp_preview_certificado.html');
+        fs.writeFileSync(tempHtmlPath, htmlContent, 'utf-8');
+
+        const previewWindow = new BrowserWindow({
+            width: 900,
+            height: 700,
+            title: 'Vista Previa del Certificado',
+            autoHideMenuBar: true,
+            webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true
+            }
+        });
+
+        const fileUrl = 'file:///' + tempHtmlPath.replace(/\\/g, '/');
+        await previewWindow.loadURL(fileUrl);
+
+        // Limpiar archivo temporal cuando la ventana se cierre
+        previewWindow.on('closed', () => {
+            try { fs.unlinkSync(tempHtmlPath); } catch (e) { /* ignorar */ }
+        });
+
+        return { success: true };
+    } catch (error) {
+        console.error("Error en abrir-vista-previa-certificado:", error);
+        return { success: false, error: error.message };
+    }
+});
