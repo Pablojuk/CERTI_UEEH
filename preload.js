@@ -5,5 +5,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     analizarExcel: (rutas) => ipcRenderer.invoke('analizar-excel', rutas),
     generarBoletines: (datos) => ipcRenderer.invoke('generar-boletines', datos),
     seleccionarArchivo: (opciones) => ipcRenderer.invoke('seleccionar-archivo', opciones),
-    descargarFormato: () => ipcRenderer.invoke('descargar-formato')
+    descargarFormato: () => ipcRenderer.invoke('descargar-formato'),
+    leerPlantilla: (nombre) => ipcRenderer.invoke('leer-plantilla', nombre),
+    imprimirCertificados: (html) => ipcRenderer.invoke('imprimir-certificados', html)
 });

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Calificaciones - Inicial 1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @media print {
+            body { -webkit-print-color-adjust: exact; }
+            .no-print { display: none !important; }
+            .print-border-none { border-color: transparent !important; }
+            tr { page-break-inside: avoid; }
+        }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #475569; padding: 0.25rem 0.5rem; text-align: center; font-size: 0.6rem; }
+        th { background-color: #f8fafc; font-weight: bold; font-size: 0.65rem; }
+        .text-left-cell { text-align: left; }
+        .ambito-header { background-color: #e2e8f0; font-weight: bold; text-align: left; padding-left: 0.5rem; font-size: 0.65rem; text-transform: uppercase; }
+    </style>
+</head>
+<body class="bg-white text-slate-900 font-sans p-8 max-w-5xl mx-auto">
+
+    <!-- Encabezado Institucional -->
+    <header class="mb-4 border-b-2 border-slate-800 pb-4">
+        <div class="flex justify-between items-center mb-2">
+            
+            <!-- Botón de carga para el logo izquierdo (Institución) -->
+            <label class="w-24 h-24 border-2 border-dashed border-slate-300 print-border-none flex items-center justify-center text-slate-400 text-xs text-center rounded relative cursor-pointer hover:bg-slate-50 transition-colors overflow-hidden group">
+                <input type="file" class="hidden no-print" accept="image/*" onchange="previewLogo(event, 'img-logo-1', 'text-logo-1')">
+                <span id="text-logo-1" class="group-hover:text-indigo-500 transition-colors">Logo<br>Institución</span>
+                <img id="img-logo-1" class="hidden absolute inset-0 w-full h-full object-contain p-1" alt="Logo Institución">
+            </label>
+            
+            <div class="text-center flex-1 px-4">
+                <h2 class="font-bold text-base uppercase tracking-wide">Ministerio de Educación, Deporte y Cultura <span class="hidden no-print">[cite: 8]</span></h2>
+                <h1 class="font-bold text-lg uppercase mt-1 text-slate-800">UNIDAD EDUCATIVA EMILIANO HINOSTROZA <span class="hidden no-print">[cite: 8]</span></h1>
+                <div class="mt-2 text-xs font-semibold flex justify-center gap-6">
+                    <span>AMIE: 01H01289 <span class="hidden no-print">[cite: 8]</span></span>
+                    <span>AÑO LECTIVO: COSTA - GALAPAGOS 2025-2026 <span class="hidden no-print">[cite: 8]</span></span>
+                </div>
+            </div>
+
+            <!-- Botón de carga para el logo derecho (MinEduc) -->
+            <label class="w-24 h-24 border-2 border-dashed border-slate-300 print-border-none flex items-center justify-center text-slate-400 text-xs text-center rounded relative cursor-pointer hover:bg-slate-50 transition-colors overflow-hidden group">
+                <input type="file" class="hidden no-print" accept="image/*" onchange="previewLogo(event, 'img-logo-2', 'text-logo-2')">
+                <span id="text-logo-2" class="group-hover:text-indigo-500 transition-colors">Logo<br>MinEduc</span>
+                <img id="img-logo-2" class="hidden absolute inset-0 w-full h-full object-contain p-1" alt="Logo MinEduc">
+            </label>
+            
+        </div>
+    </header>
+
+    <!-- Datos del Estudiante -->
+    <section class="mb-4 flex flex-wrap justify-between text-xs font-medium border border-slate-400 p-2 bg-slate-50">
+        <div class="w-full md:w-1/2 mb-1">
+            <span class="font-bold">NOMBRE DE ESTUDIANTE:</span> BERMEO PANDO MAYTE FERNANDA <span class="hidden no-print">[cite: 8]</span>
+        </div>
+        <div class="w-full md:w-1/2 mb-1 flex items-center">
+            <span class="font-bold mr-1">CÉDULA:</span> <div class="border-b border-slate-400 w-32 inline-block"></div>
+        </div>
+        <div class="w-full md:w-1/2">
+            <span class="font-bold">GRADO:</span> GRUPO DE 3 AÑOS PARALELO: A <span class="hidden no-print">[cite: 8]</span>
+        </div>
+        <div class="w-full md:w-1/2">
+            <span class="font-bold">JORNADA:</span> MATUTINA <span class="hidden no-print">[cite: 8]</span>
+        </div>
+    </section>
+
+    <!-- Tabla Principal de Evaluación de Destrezas -->
+    <section class="mb-6">
+        <h3 class="font-bold text-xs mb-1 uppercase bg-slate-200 p-1 border border-slate-400">Evaluación de Desarrollo y Aprendizaje (Destrezas)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th rowspan="2" class="w-3/4">DESTREZAS</th>
+                    <th colspan="3">TRIMESTRES</th>
+                </tr>
+                <tr>
+                    <th class="w-16">T1</th>
+                    <th class="w-16">T2</th>
+                    <th class="w-16">T3</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+                <!-- ÁMBITO 1 -->
+                <tr><td colspan="4" class="ambito-header">COMPRENSIÓN Y EXPRESIÓN DEL LENGUAJE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Comprender el derecho propio y de las otras personas a decir que no como una respuesta válida y respetable. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Comunicarse a través de dibujos de objetos del entorno con algún detalle que lo vuelve identificable. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Comunicarse utilizando en su vocabulario palabras que nombran personas, animales, objetos y acciones conocidas. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Contar un cuento en base a sus imágenes sin seguir la secuencia de las páginas. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Describir oralmente imágenes que observa en materiales gráficos y digitales empleando oraciones. <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Expresarse oralmente de manera comprensible, puede presentarse dificultades en la pronunciación de s, r, t, l, g, j, f. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Expresarse utilizando oraciones cortas en las que puede omitir o usar incorrectamente algunas palabras. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Identificar "auditivamente" el fonema (sonido) inicial de su nombre. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Identificar etiquetas y rótulos con la ayuda de un adulto y las asocia con el objeto o lugar que los representa. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Identificar su cuento preferido por la imagen de la portada. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Identificar una persona adulta de confianza para solicitar apoyo al enfrentar desafíos emocionales. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Participar en conversaciones cortas repitiendo lo que el otro dice y haciendo preguntas. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Realizar movimientos articulatorios básicos: sopla, intenta inflar globos, imita movimientos de labios, lengua y mejillas. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Relatar cuentos, narrados por el adulto con la ayuda de los paratextos utilizando su propio lenguaje. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Repetir rimas identificando los sonidos que suenan iguales. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Reproducir canciones y poemas cortos, incrementado su vocabulario y capacidad retentiva. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Responder preguntas sobre un texto narrado por el adulto, basándose en los paratextos que observa. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Seguir instrucciones sencillas que involucren la ejecución de dos actividades. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td></tr>
+
+                <!-- ÁMBITO 2 -->
+                <tr><td colspan="4" class="ambito-header">CONVIVENCIA <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Colaborar espontáneamente con los adultos en actividades y situaciones sencillas. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Demostrar interés ante diferentes problemas que presentan sus compañeros y adultos de su entorno. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Demostrar interés ante emociones y sentimientos de las personas de su entorno familiar y escolar. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Demostrar preferencia por jugar con un niño específico estableciendo amistad en función de algún grado de empatía. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>A- <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Establecer relaciones con personas cercanas a su entorno familiar y escolar ampliando su campo de interacción. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Integrarse progresivamente en juegos grupales de reglas sencillas. <span class="hidden no-print">[cite: 8]</span></td><td>A+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Reconocer a los miembros de su familia y los roles que cumple cada uno. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Reconocer los oficios de personas que brindan servicio a la comunidad. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Reconocer y practicar normas de convivencia en la institución de educación inicial y en el hogar. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Relacionarse con sus compañeros sin discriminación de aspectos como: género y diversidad cultural, necesidades especiales. <span class="hidden no-print">[cite: 8]</span></td><td>A- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>A+ <span class="hidden no-print">[cite: 8]</span></td></tr>
+
+                <!-- ÁMBITO 3 -->
+                <tr><td colspan="4" class="ambito-header">EXPRESIÓN ARTÍSTICA <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Cantar canciones cortas asociando la letra con expresiones de su cuerpo. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Comunicar de manera escrita sus ideas a través de garabatos controlados, líneas, círculos o zigzag. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Ejecutar patrones de hasta dos ritmos con partes del cuerpo y elementos o instrumentos sonoros. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Experimentar a través de la manipulación de materiales y mezcla de colores la realización de trabajos creativos. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Expresar su gusto o disgusto al observar una obra artística relacionada a la plástica o a la escultura. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Expresar sus vivencias y experiencias a través del dibujo libre. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Imitar pasos de baile intentando reproducir los movimientos y seguir el ritmo. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Integrarse durante la ejecución de rondas, bailes y juegos tradicionales. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>A+ <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Participar en dramatizaciones y actividades lúdicas que representen situaciones cotidianas en la vía para identificar señales de tránsito. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Representar a personas de su entorno asumiendo roles a través del juego simbólico. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>A- <span class="hidden no-print">[cite: 8]</span></td></tr>
+
+                <!-- ÁMBITO 4 -->
+                <tr><td colspan="4" class="ambito-header">EXPRESIÓN CORPORAL Y MOTRICIDAD <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Orientarse en el espacio realizando desplazamientos en función de consignas (arriba-abajo, dentro-fuera). <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Caminar y correr coordinadamente manteniendo el equilibrio a diferentes distancias. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Caminar, correr y saltar coordinadamente combinando estas formas de desplazamiento. <span class="hidden no-print">[cite: 8]</span></td><td>A+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Galopar y salticar coordinadamente a diferentes ritmos. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Identificar en su cuerpo y en el de los demás, las partes gruesas del cuerpo humano. <span class="hidden no-print">[cite: 8]</span></td><td>A- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Imitar e identificar sonidos onomatopéyicos, naturales y artificiales del entorno. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Mantener control postural en diferentes posiciones del cuerpo (sentado, de pie, en cuclillas). <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Mantener el equilibro al caminar sobre líneas rectas y curvas con altura intentando mantener control. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Realiza varios movimientos y desplazamientos a diferentes velocidades (rápido, lento). <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Realizar actividades de coordinación visomotriz con materiales sencillos y de tamaño grande. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Realizar actividades intentando controlar su fuerza y tonicidad muscular (lanzar, atrapar y patear). <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Realizar desplazamientos y movimientos utilizando el espacio total a diferentes distancias. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Realizar ejercicios de equilibrio dinámico y estático controlando los movimientos. <span class="hidden no-print">[cite: 8]</span></td><td>A- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Realizar ejercicios de simetría corporal observando las partes que conforman el lado derecho e izquierdo. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Realizar ejercicios que involucran movimientos segmentados de partes gruesas del cuerpo. <span class="hidden no-print">[cite: 8]</span></td><td>A+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Realizar movimientos de manos, dedos y muñecas que le permiten coger objetos utilizando la pinza trípode. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Realizar movimientos para la coordinación de ojo y pie (patear pelotas hacia diferentes direcciones). <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>A- <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Realizar representaciones gráficas utilizando el garabateo con nombre. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>A- <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Reconocer la importancia del peatón y respetar su espacio en la vía mediante actividades lúdicas. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>A- <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Representar la figura humana utilizando el monigote o renacuajo. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>A- <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Saltar en dos pies en sentido vertical obstáculos y en sentido horizontal longitudes cortas. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>A- <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Saltar sobre un pie o sobre el otro de manera autónoma. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Subir escaleras sin apoyo en posición de pie, escalón por escalón. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Trepar y reptar combinando obstáculos y recorridos. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>A- <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Ubicar algunas partes de su cuerpo en función de las nociones de arriba-abajo, adelante-atrás. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Utilizar el espacio parcial para realizar representaciones gráficas. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>A- <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Utilizar frecuentemente una de las dos manos o pies al realizar las actividades. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>A- <span class="hidden no-print">[cite: 8]</span></td></tr>
+
+                <!-- ÁMBITO 5 -->
+                <tr><td colspan="4" class="ambito-header">IDENTIDAD Y AUTONOMÍA <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Acudir al baño autónomamente, requiriendo la ayuda del adulto para su aseo. <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Colaborar en el mantenimiento del orden del espacio pedagógico ubicando los objetos en su lugar. <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Comunicar algunos datos de su identidad como: nombre, apellido, edad y nombres de padres. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Ejecutar acciones de seguridad para evitar accidentes que se pueden producir en su entorno inmediato. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Elegir actividades, vestuarios entre otros demostrando sus gustos y preferencias. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Identificar las características generales que diferencian a niños y niñas y se reconoce como parte de uno. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Identificar las situaciones de peligro a las que se puede exponer en su entorno inmediato. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Imitar las acciones a seguir en situaciones de riesgo (temblores, incendios, etc.). <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Manifestar sus emociones y sentimientos con mayor intencionalidad mediante expresiones orales y gestuales. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Realizar acciones de lavado de manos, cara, dientes con la guía del adulto. <span class="hidden no-print">[cite: 8]</span></td><td>A- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Reconocer algunas de sus características físicas como proceso de su reconocimiento como ser único. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>A+ <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Reconocerse como parte integrante de una familia a la que pertenece. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Sacarse y ponerse algunas prendas de vestir sin ayuda del adulto. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>A+ <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Seleccionar prendas de vestir de acuerdo a su preferencia. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>A+ <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Utilizar la cuchara y el vaso cuando se alimenta demostrando mayor independencia. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>A+ <span class="hidden no-print">[cite: 8]</span></td></tr>
+
+                <!-- ÁMBITO 6 -->
+                <tr><td colspan="4" class="ambito-header">RELACIONES CON EL MEDIO NATURAL Y CULTURAL <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Apoyar en el cuidado de plantas y animales de su entorno. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Identificar en las actividades diarias oportunidades para reducir residuos y proteger el entorno. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Diferenciar entre lo que le pertenece, lo de los demás y lo que pertenece al grupo o comunidad. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Identificar a los seres vivos de su entorno a través de la exploración del mundo natural. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Identificar las características de los animales que pueden cumplir el rol de mascota. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Identificar las características del mar y reconocerlo como parte integral del territorio nacional. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Identificar los alimentos nutritivos reconociendo la importancia de éstos en su crecimiento. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Participar en actividades lúdicas para identificar prácticas de movilidad que ayudan a cuidar el planeta. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Participar en algunas prácticas tradicionales de su entorno disfrutando manifestaciones culturales. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Realizar acciones que apoyan al cuidado del medio ambiente como: botar la basura en su lugar. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Reconocer diferentes elementos de su entorno natural mediante la discriminación sensorial. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Reconocer las características de las plantas alimenticias comprendiendo su importancia. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Reconocer las consecuencias de no cuidar sus pertenencias. <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Reconocer y apreciar algunas expresiones culturales importantes de su localidad. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Reconocer y diferenciar entre elementos naturales y artificiales por medio de los sentidos. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td></tr>
+
+                <!-- ÁMBITO 7 -->
+                <tr><td colspan="4" class="ambito-header">RELACIONES LÓGICO-MATEMÁTICAS <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Clasificar objetos con un atributo (tamaño, color o forma). <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Comprender la relación de número-cantidad hasta el 5. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Contar oralmente del 1 al 10 con secuencia numérica, en la mayoría de las veces. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Descubrir formas básicas circulares, triangulares, rectangulares y cuadrangulares. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Diferenciar entre colecciones de más y menos objetos. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Identificar características del día y la noche. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Identificar en los objetos las nociones de medida: alto/bajo, pesado/liviano. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Identificar la diferencia entre lo que se desea y lo que se necesita. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Identificar las nociones de tiempo en acciones que suceden antes y ahora. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Identificar los números de emergencia a través de actividades lúdicas. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Identificar objetos de formas similares en el entorno. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B- <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Imitar patrones simples con elementos de su entorno. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Ordenar en secuencias lógicas sucesos de hasta tres eventos en la rutina diaria. <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Reconocer la ubicación de objetos en relación a sí mismo (arriba/abajo, dentro/fuera). <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Reconocer los colores primarios, el blanco y el negro en objetos e imágenes. <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Reconocer y comparar características personales (estatura, edad, u atributos físicos). <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td></tr>
+                <tr><td class="text-left-cell">Reconocer y comparar objetos de acuerdo a su tamaño (grande/ pequeño). <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>NE <span class="hidden no-print">[cite: 8]</span></td><td>B+ <span class="hidden no-print">[cite: 8]</span></td></tr>
+
+            </tbody>
+        </table>
+    </section>
+
+    <!-- Sección Inferior: Materias Adicionales -->
+    <section class="mb-12">
+        <h3 class="font-bold text-xs mb-1 uppercase bg-slate-200 p-1 border border-slate-400">Materias Adicionales</h3>
+        <table class="w-1/2">
+            <thead>
+                <tr>
+                    <th>MATERIA</th>
+                    <th>TRIMESTRE I</th>
+                    <th>TRIMESTRE II</th>
+                    <th>TRIMESTRE III</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="font-semibold text-left-cell">CÍVICA Y ACOMPAÑAMIENTO INTEGRAL EN EL AULA <span class="hidden no-print">[cite: 8]</span></td>
+                    <td class="font-bold">C+ <span class="hidden no-print">[cite: 8]</span></td>
+                    <td class="font-bold">- <span class="hidden no-print">[cite: 8]</span></td>
+                    <td class="font-bold">C+ <span class="hidden no-print">[cite: 8]</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <!-- Firmas de Responsabilidad -->
+    <section class="mt-8 pt-8 pb-4 flex justify-around text-xs font-semibold">
+        <div class="text-center w-48">
+            <div class="border-b border-slate-800 mb-2 h-6 w-full"></div>
+            <p>TUTOR/A</p>
+        </div>
+        <div class="text-center w-48">
+            <div class="border-b border-slate-800 mb-2 h-6 w-full"></div>
+            <p>RECTOR/A</p>
+        </div>
+    </section>
+
+    <!-- Botón de impresión (no visible en el PDF impreso) -->
+    <div class="text-center mt-6 no-print">
+        <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded shadow transition-all">
+            Imprimir Reporte
+        </button>
+    </div>
+
+    <!-- Script para vista previa de logos -->
+    <script>
+        function previewLogo(event, imgId, textId) {
+            const input = event.target;
+            const img = document.getElementById(imgId);
+            const text = document.getElementById(textId);
+            const label = input.closest('label');
+
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    img.src = e.target.result;
+                    img.classList.remove('hidden');
+                    text.classList.add('hidden');
+                    label.classList.remove('border-dashed'); 
+                    label.classList.add('border-transparent');
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+    </script>
+
+</body>
+</html>

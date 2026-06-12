@@ -221,3 +221,83 @@ ipcMain.handle('generar-boletines', async (event, datos) => {
         return { success: false, error: error.stderr || error.error || "Error de ejecución del generador de PDF" };
     }
 });
+
+// IPC: Leer plantilla de certificado desde assets/certificados/
+ipcMain.handle('leer-plantilla', async (event, nombreArchivo) => {
+    try {
+        const templatePath = path.join(__dirname, 'assets', 'certificados', nombreArchivo);
+        if (!fs.existsSync(templatePath)) {
+            return { error: `Plantilla no encontrada: ${nombreArchivo}. Verifique que exista en assets/certificados/.` };
+        }
+        const content = fs.readFileSync(templatePath, 'utf-8');
+        return { content };
+    } catch (error) {
+        console.error("Error en leer-plantilla:", error);
+        return { error: error.message || "Error al leer la plantilla de certificado." };
+    }
+});
+
+// IPC: Generar PDF de certificados desde HTML ensamblado
+ipcMain.handle('imprimir-certificados', async (event, htmlContent) => {
+    try {
+        // Diálogo para elegir dónde guardar el PDF
+        const saveResult = await dialog.showSaveDialog(mainWindow, {
+            title: 'Guardar Certificados como PDF',
+            defaultPath: path.join(app.getPath('documents'), 'Certificados_UEEH.pdf'),
+            filters: [{ name: 'Archivo PDF', extensions: ['pdf'] }]
+        });
+
+        if (saveResult.canceled || !saveResult.filePath) {
+            return { success: false, cancelled: true };
+        }
+
+        // Guardar HTML temporal en directorio de datos de la app
+        const tempHtmlPath = path.join(app.getPath('userData'), 'temp_certificados.html');
+        fs.writeFileSync(tempHtmlPath, htmlContent, 'utf-8');
+
+        // Crear ventana oculta para renderizar el HTML
+        const printWindow = new BrowserWindow({
+            show: false,
+            width: 1024,
+            height: 768,
+            webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true
+            }
+        });
+
+        try {
+            // Cargar el HTML temporal
+            const fileUrl = 'file:///' + tempHtmlPath.replace(/\\/g, '/');
+            await printWindow.loadURL(fileUrl);
+
+            // Esperar a que Tailwind CSS (CDN) compile los estilos
+            await new Promise(resolve => setTimeout(resolve, 2500));
+
+            // Generar el PDF
+            const pdfBuffer = await printWindow.webContents.printToPDF({
+                printBackground: true,
+                landscape: false,
+                pageSize: 'A4',
+                margins: {
+                    marginType: 'custom',
+                    top: 0.4,
+                    bottom: 0.4,
+                    left: 0.2,
+                    right: 0.2
+                }
+            });
+
+            // Guardar el PDF en la ruta elegida por el usuario
+            fs.writeFileSync(saveResult.filePath, pdfBuffer);
+            return { success: true, path: saveResult.filePath };
+        } finally {
+            printWindow.close();
+            // Limpiar archivo temporal
+            try { fs.unlinkSync(tempHtmlPath); } catch (e) { /* ignorar */ }
+        }
+    } catch (error) {
+        console.error("Error en imprimir-certificados:", error);
+        return { success: false, error: error.message || "Error al generar el PDF de certificados." };
+    }
+});

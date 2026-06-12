@@ -1768,17 +1768,286 @@
             return ids;
         }
 
-        // Emitir Boletines o Certificados
+        // ========== MOTOR DE GENERACIÓN DE CERTIFICADOS HTML ==========
+
+        // Mapear gradoCurso → archivo de plantilla en assets/certificados/
+        function mapearPlantilla(gradoCurso) {
+            const g = (gradoCurso || '').toUpperCase().trim();
+
+            if (g.includes('INICIAL 1') || (g.includes('INICIAL I') && !g.includes('INICIAL 2') && !g.includes('INICIAL II')))
+                return 'FORMATO INICIAL 1.html';
+            if (g.includes('INICIAL 2') || g.includes('INICIAL II'))
+                return 'FORMATO INICIAL 2.html';
+
+            if (g.includes('1RO DE EGB') || g.includes('1RO EGB') || g.includes('PRIMERO DE EGB') || g.includes('PREPARATORIA'))
+                return 'PRIMERO DE EGB.html';
+
+            if (g.includes('ELEMENTAL') ||
+                (/\b2DO\b/.test(g) && g.includes('EGB')) ||
+                (/\b3RO\b/.test(g) && g.includes('EGB')) ||
+                (/\b4TO\b/.test(g) && g.includes('EGB')))
+                return 'FORMALO DE ELEMENTAL.html';
+
+            if (g.includes('EGBM') || (g.includes('MEDIA') && g.includes('EGB')) ||
+                (/\b5TO\b/.test(g) && g.includes('EGB')) ||
+                (/\b6TO\b/.test(g) && g.includes('EGB')) ||
+                (/\b7MO\b/.test(g) && g.includes('EGB')))
+                return 'FORMATO EGBM.html';
+
+            if (g.includes('EGBS') || (g.includes('SUPERIOR') && g.includes('EGB')) ||
+                (/\b8VO\b/.test(g) && g.includes('EGB')) ||
+                (/\b9NO\b/.test(g) && g.includes('EGB')) ||
+                (/\b10MO\b/.test(g) && g.includes('EGB')))
+                return 'FORMATO EGBS.html';
+
+            // 3ro BGU (antes del genérico BGU)
+            if (/\b3RO\b/.test(g) && (g.includes('BGU') || g.includes('BACHILLERATO')))
+                return 'FORMATO DE 3 DE BGU.html';
+
+            // 1ro y 2do BGU
+            if (g.includes('BGU') || g.includes('BACHILLERATO'))
+                return 'FORMATO DE 1 Y 2 DE BGU.html';
+
+            return null;
+        }
+
+        // --- Helpers de inyección DOM para certificados ---
+
+        function _certInjectLogos(doc, logos) {
+            const img1 = doc.getElementById('img-logo-1');
+            const img2 = doc.getElementById('img-logo-2');
+
+            if (img1 && logos.logo1) {
+                img1.src = logos.logo1;
+                img1.classList.remove('hidden');
+                const text = doc.getElementById('text-logo-1');
+                if (text) text.style.display = 'none';
+                const label = img1.closest('label');
+                if (label) { label.classList.remove('border-dashed'); label.style.borderColor = 'transparent'; }
+            }
+            if (img2 && logos.logo2) {
+                img2.src = logos.logo2;
+                img2.classList.remove('hidden');
+                const text = doc.getElementById('text-logo-2');
+                if (text) text.style.display = 'none';
+                const label = img2.closest('label');
+                if (label) { label.classList.remove('border-dashed'); label.style.borderColor = 'transparent'; }
+            }
+        }
+
+        function _certInjectInstitucion(doc, inst) {
+            const h1 = doc.querySelector('header h1');
+            if (h1) h1.textContent = inst.nombreInstitucion || '';
+
+            const headerEl = doc.querySelector('header');
+            if (headerEl) {
+                headerEl.querySelectorAll('span').forEach(span => {
+                    const t = span.textContent.trim();
+                    if (t.includes('AMIE:')) {
+                        span.textContent = 'AMIE: ' + (inst.codigoAmie || '');
+                    } else if (t.includes('AÑO LECTIVO:') || t.includes('ANO LECTIVO:')) {
+                        span.textContent = 'AÑO LECTIVO: ' + (inst.anioLectivo || '').toUpperCase();
+                    }
+                });
+            }
+        }
+
+        function _certInjectEstudiante(doc, est, inst) {
+            const boldSpans = doc.querySelectorAll('section span.font-bold, section span[class*="font-bold"]');
+            boldSpans.forEach(span => {
+                const t = span.textContent.trim().toUpperCase();
+                const parentDiv = span.closest('div');
+                if (!parentDiv) return;
+
+                if (t.includes('NOMBRE') && (t.includes('ESTUDIANTE') || t.includes('DEL'))) {
+                    parentDiv.innerHTML = `<span class="font-bold">${span.textContent.trim()}</span> ${est.nombre || ''}`;
+                } else if (t.includes('DULA') || t.includes('CEDULA')) {
+                    parentDiv.innerHTML = `<span class="font-bold">CÉDULA:</span> ${est.cedula || 'S/C'}`;
+                    parentDiv.className = parentDiv.className.replace('flex', '').replace('items-center', '').trim();
+                } else if (t === 'GRADO:') {
+                    parentDiv.innerHTML = `<span class="font-bold">GRADO:</span> ${inst.gradoCurso || ''} PARALELO: ${inst.paralelo || ''}`;
+                } else if (t === 'JORNADA:') {
+                    parentDiv.innerHTML = `<span class="font-bold">JORNADA:</span> ${inst.jornada || 'MATUTINA'}`;
+                }
+            });
+        }
+
+        function _certInjectNotas(doc, est) {
+            if (!est.materias || Object.keys(est.materias).length === 0) return;
+
+            // Buscar la sección "Rendimiento Académico"
+            let gradeSectionH3 = null;
+            doc.querySelectorAll('h3').forEach(h3 => {
+                if (h3.textContent.trim().toUpperCase().includes('RENDIMIENTO')) gradeSectionH3 = h3;
+            });
+            if (!gradeSectionH3) return; // Plantilla cualitativa, no inyectar
+
+            const section = gradeSectionH3.closest('section');
+            if (!section) return;
+            const table = section.querySelector('table');
+            if (!table) return;
+            const tbody = table.querySelector('tbody');
+            if (!tbody) return;
+
+            // Verificar que sea una plantilla con notas numéricas (tiene SUPLETORIO en thead)
+            const thead = table.querySelector('thead');
+            if (!thead || !thead.textContent.includes('SUPLETORIO')) return;
+
+            // Limpiar filas existentes y reconstruir
+            tbody.innerHTML = '';
+
+            Object.entries(est.materias).forEach(([nombre, data]) => {
+                const tr = doc.createElement('tr');
+
+                const tdNombre = doc.createElement('td');
+                tdNombre.className = 'text-left-cell font-semibold';
+                tdNombre.textContent = nombre;
+                tr.appendChild(tdNombre);
+
+                const valores = [data.t1, data.t2, data.t3, data.supletorio, data.promedio_anual];
+                valores.forEach((val, idx) => {
+                    const td = doc.createElement('td');
+                    if (idx === 4) td.className = 'font-bold bg-slate-50';
+                    if (val !== null && val !== undefined) {
+                        td.textContent = val;
+                    } else {
+                        td.textContent = idx === 3 ? '0' : '-';
+                    }
+                    tr.appendChild(td);
+                });
+
+                tbody.appendChild(tr);
+            });
+
+            // Fila de promedio general
+            const promTr = doc.createElement('tr');
+            promTr.className = 'bg-slate-100 border-t-2 border-slate-600';
+
+            const tdLabel = doc.createElement('td');
+            tdLabel.setAttribute('colspan', '5');
+            tdLabel.className = 'text-right font-bold pr-4';
+            tdLabel.textContent = 'PROMEDIO ANUAL';
+            promTr.appendChild(tdLabel);
+
+            const tdVal = doc.createElement('td');
+            tdVal.className = 'font-bold text-sm';
+            tdVal.textContent = (est.promedio !== null && est.promedio !== undefined) ? est.promedio : '-';
+            promTr.appendChild(tdVal);
+
+            tbody.appendChild(promTr);
+        }
+
+        function _certInjectFirmas(doc, inst) {
+            doc.querySelectorAll('section p').forEach(p => {
+                const t = p.textContent.trim().toUpperCase();
+                if (t === 'TUTOR/A' || t === 'TUTORA' || t === 'TUTOR') {
+                    const lineDiv = p.parentElement?.querySelector('.border-b');
+                    if (lineDiv && inst.tutorCurso) {
+                        lineDiv.textContent = inst.tutorCurso;
+                        lineDiv.style.textAlign = 'center';
+                        lineDiv.style.lineHeight = '2rem';
+                    }
+                } else if (t === 'RECTOR/A' || t === 'RECTORA' || t === 'RECTOR' || t === 'DIRECTOR') {
+                    const lineDiv = p.parentElement?.querySelector('.border-b');
+                    if (lineDiv && inst.rectorDirector) {
+                        lineDiv.textContent = inst.rectorDirector;
+                        lineDiv.style.textAlign = 'center';
+                        lineDiv.style.lineHeight = '2rem';
+                    }
+                }
+            });
+        }
+
+        // --- Función principal: ensamblar certificados HTML ---
+
+        async function generarCertificadosHTML(estudiantesData) {
+            const curso = obtenerCursoActivo();
+            if (!curso) return null;
+
+            const inst = curso.datosInstitucion || {};
+            const logos = curso.logos || {};
+
+            // 1. Determinar la plantilla
+            const plantillaName = mapearPlantilla(inst.gradoCurso || '');
+            if (!plantillaName) {
+                document.getElementById('loading-overlay').classList.add('hidden');
+                mostrarAlerta("Sin Plantilla",
+                    `No se encontró una plantilla de certificado para el grado: "${inst.gradoCurso || 'sin especificar'}".<br>Verifique que el campo "Grado/Curso" esté correctamente configurado.`,
+                    "error");
+                return null;
+            }
+
+            // 2. Cargar la plantilla vía IPC
+            const result = await window.electronAPI.leerPlantilla(plantillaName);
+            if (result.error) {
+                document.getElementById('loading-overlay').classList.add('hidden');
+                mostrarAlerta("Error de Plantilla", result.error, "error");
+                return null;
+            }
+
+            const templateHTML = result.content;
+
+            // 3. Extraer contenido del <head> (estilos + Tailwind CDN)
+            const headMatch = templateHTML.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+            const headContent = headMatch ? headMatch[1] : '';
+
+            // 4. Generar una página por estudiante
+            const pagesHTML = [];
+
+            for (const est of estudiantesData) {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(templateHTML, 'text/html');
+
+                _certInjectLogos(doc, logos);
+                _certInjectInstitucion(doc, inst);
+                _certInjectEstudiante(doc, est, inst);
+                _certInjectNotas(doc, est);
+                _certInjectFirmas(doc, inst);
+
+                // Limpiar elementos interactivos (inputs de archivo, botones de imprimir)
+                doc.querySelectorAll('input[type="file"]').forEach(el => el.remove());
+                doc.querySelectorAll('.no-print').forEach(el => el.remove());
+                doc.querySelectorAll('body > script').forEach(el => el.remove());
+
+                pagesHTML.push(doc.body.innerHTML);
+            }
+
+            // 5. Ensamblar documento HTML final con saltos de página
+            const finalHTML = `<!DOCTYPE html>
+<html lang="es">
+<head>
+    ${headContent}
+    <style>
+        .cert-page { page-break-after: always; }
+        .cert-page:last-child { page-break-after: auto; }
+        @media print {
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .cert-page { page-break-after: always; }
+            .cert-page:last-child { page-break-after: auto; }
+        }
+    </style>
+</head>
+<body class="bg-white text-slate-900 font-sans">
+    ${pagesHTML.map(page => `<div class="cert-page p-8 max-w-5xl mx-auto">${page}</div>`).join('\n')}
+</body>
+</html>`;
+
+            // 6. Enviar al proceso principal para generar el PDF
+            return await window.electronAPI.imprimirCertificados(finalHTML);
+        }
+
+        // ========== EMITIR DOCUMENTOS (Boletines o Certificados) ==========
+
         async function emitirDocumentos(tipo) {
             const curso = obtenerCursoActivo();
             if (!curso) {
-                mostrarAlerta("Sin curso", "No hay un curso activo para generar boletines.", "warning");
+                mostrarAlerta("Sin curso", "No hay un curso activo para generar documentos.", "warning");
                 return;
             }
 
             const seleccionados = getSelectedStudentIds();
             if (seleccionados.length === 0) {
-                mostrarAlerta("Sin selección", "Por favor seleccione al menos un estudiante para generar los boletines.", "warning");
+                mostrarAlerta("Sin selección", "Por favor seleccione al menos un estudiante para generar los documentos.", "warning");
                 return;
             }
 
@@ -1790,17 +2059,37 @@
 
             // Aplicar restricción de Prueba Offline
             if (!licenciaActiva && seleccionados.length > 3) {
-                mostrarAlerta("Límite Excedido - Prueba Offline", `El sistema está en modo de Prueba Offline. La generación masiva (más de 3 boletines) está restringida. Por favor, adquiera una licencia o seleccione un máximo de 3 estudiantes. (Seleccionados: ${seleccionados.length})`, "warning");
+                mostrarAlerta("Límite Excedido - Prueba Offline", `El sistema está en modo de Prueba Offline. La generación masiva (más de 3 documentos) está restringida. Por favor, adquiera una licencia o seleccione un máximo de 3 estudiantes. (Seleccionados: ${seleccionados.length})`, "warning");
                 return;
             }
 
             document.getElementById('loading-overlay').classList.remove('hidden');
 
             // Filtrar los datos consolidados de los estudiantes seleccionados
-            const datosConsolidadosSeleccionados = estudiantesCargados.filter(e => 
+            const datosConsolidadosSeleccionados = estudiantesCargados.filter(e =>
                 seleccionados.includes(e.id_real)
             );
 
+            // ===== RUTA A: CERTIFICADOS (Motor HTML local) =====
+            if (tipo === 'certificados') {
+                try {
+                    const res = await generarCertificadosHTML(datosConsolidadosSeleccionados);
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                    if (!res) return; // Error ya mostrado o usuario canceló
+                    if (res.cancelled) return;
+                    if (res.success) {
+                        mostrarAlerta("Éxito", `Certificados generados con éxito en la ruta:<br><strong class="text-xs break-all">${res.path}</strong>`, "success", res.path);
+                    } else {
+                        mostrarAlerta("Error", "Ocurrió un error al generar los certificados: " + (res.error || ''), "error");
+                    }
+                } catch (err) {
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                    mostrarAlerta("Error", "Error inesperado al generar certificados: " + err, "error");
+                }
+                return;
+            }
+
+            // ===== RUTA B: BOLETINES (Motor Python existente) =====
             const payload = {
                 cursoActivoId: curso.id,
                 excels: {}, // Vacío ya que pasamos datos pre-consolidados
