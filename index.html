@@ -77,6 +77,9 @@
                 <button onclick="editarCursoManual()" class="bg-slate-50 text-slate-600 border border-slate-300 hover:bg-slate-100 px-3 py-2 rounded-md text-xs font-semibold transition-all">
                     <i class="fa-solid fa-edit mr-1"></i> Editar Nombre
                 </button>
+                <button onclick="eliminarCursoActivo()" class="bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 px-3 py-2 rounded-md text-xs font-semibold transition-all">
+                    <i class="fa-solid fa-trash mr-1"></i> Borrar Curso
+                </button>
             </div>
         </div>
 
@@ -702,6 +705,58 @@
             const curso = obtenerCursoActivo();
             if (!curso) return;
             abrirCursoModal('editar', curso.nombreVisible);
+        }
+
+        // Eliminar curso activo
+        async function eliminarCursoActivo() {
+            const curso = obtenerCursoActivo();
+            if (!curso) {
+                alert("No hay ningún curso seleccionado para eliminar.");
+                return;
+            }
+
+            const confirmacion = confirm(`¿Está seguro de que desea eliminar el curso "${curso.nombreVisible}"? Esta acción no se puede deshacer y borrará todos los datos cargados en él.`);
+            if (!confirmacion) return;
+
+            // Eliminar de la lista de cursos
+            appState.cursos = appState.cursos.filter(c => c.id !== appState.cursoActivoId);
+
+            // Si no quedan cursos, creamos uno por defecto
+            if (appState.cursos.length === 0) {
+                const idDef = 'curso_' + Date.now();
+                appState.cursos = [{
+                    id: idDef,
+                    nombreVisible: 'SIN CURSOS REGISTRADOS (Cargue un archivo Excel)',
+                    cursoKey: '',
+                    datosInstitucion: {
+                        nombreInstitucion: "UNIDAD EDUCATIVA EMILIANO HINOSTROZA",
+                        nivel: "",
+                        anioLectivo: "Costa - Galapagos 2026-2027",
+                        codigoAmie: "01H01289",
+                        gradoCurso: "3RO DE BACHILLERATO CIENCIAS",
+                        paralelo: "A",
+                        jornada: "MATUTINA",
+                        rectorDirector: "Econ. Pablo Juca",
+                        tutorCurso: ""
+                    },
+                    logos: { logo1: null, logo2: null },
+                    periodos: {
+                        trimestre1: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] },
+                        trimestre2: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] },
+                        trimestre3: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] },
+                        supletorio: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] }
+                    }
+                }];
+                appState.cursoActivoId = idDef;
+            } else {
+                // Seleccionar el primer curso que quede
+                appState.cursoActivoId = appState.cursos[0].id;
+            }
+
+            await saveStateToDB();
+            actualizarSelectorCursosUI();
+            cargarCursoActivoEnPantalla();
+            mostrarAlerta("Curso Eliminado", "El curso ha sido eliminado con éxito.", "success");
         }
 
         // Cambiar curso activo
