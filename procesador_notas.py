@@ -191,16 +191,40 @@ def cargar_excel_datos(file_path: str) -> dict[str, dict]:
             return {}
             
         ignore_subject_keywords = {"promedio", "total", "observacion", "observación", "estado", "firma", "comportamiento"}
+        
+        # Detectar si es formato de materia única (donde Col C es T1, Col E es T2, Col G es T3)
+        es_materia_unica = False
+        header_c = str(sheet.cell(row=start_row, column=3).value or "").strip()
+        
+        if sheet.max_column >= 5:
+            header_d = str(sheet.cell(row=start_row, column=4).value or "").strip().upper()
+            header_e = str(sheet.cell(row=start_row, column=5).value or "").strip().upper()
+            if any(k in header_d for k in ["EXAM", "PROY", "EVAL"]) or any(k in header_e for k in ["TRIMESTRE 2", "T2", "EXAM", "EVAL"]):
+                es_materia_unica = True
+                
         subject_columns = []
-        for col in range(3, sheet.max_column + 1):
-            header_value = sheet.cell(row=start_row, column=col).value
-            if header_value is None or str(header_value).strip() == "":
-                continue
-            subject_name = str(header_value).strip()
-            subject_norm = normalizar_columna(subject_name)
-            if any(keyword in subject_norm for keyword in ignore_subject_keywords):
-                continue
-            subject_columns.append((col, subject_name))
+        if es_materia_unica:
+            periodo_detectado = str(sheet.cell(row=6, column=2).value or "").strip().upper()
+            col_to_read = 3
+            if "TRIMESTRE 2" in periodo_detectado or "T2" in periodo_detectado or "SEGUNDO" in periodo_detectado:
+                col_to_read = 5
+            elif "TRIMESTRE 3" in periodo_detectado or "T3" in periodo_detectado or "TERCER" in periodo_detectado:
+                col_to_read = 7
+            
+            subject_name = header_c if header_c else "Materia"
+            subject_columns.append((col_to_read, subject_name))
+            print(f"[cargar_excel_datos] Formato materia única: {subject_name}, leyendo columna {col_to_read} ({periodo_detectado})", file=sys.stderr)
+        else:
+            # Formato estándar multiasignatura
+            for col in range(3, sheet.max_column + 1):
+                header_value = sheet.cell(row=start_row, column=col).value
+                if header_value is None or str(header_value).strip() == "":
+                    continue
+                subject_name = str(header_value).strip()
+                subject_norm = normalizar_columna(subject_name)
+                if any(keyword in subject_norm for keyword in ignore_subject_keywords):
+                    continue
+                subject_columns.append((col, subject_name))
 
         print(f"[cargar_excel_datos] Asignaturas detectadas: {[name for _, name in subject_columns]}", file=sys.stderr)
 
@@ -656,11 +680,326 @@ def extraer_datos_institucionales(file_path: str) -> dict:
     return datos
 
 
-# 4. Proceso CLI Principal
+# 4. Inyección de datos en Plantillas HTML de Certificados
+import re
+
+def mapear_plantilla_python(grado_curso: str) -> str | None:
+    g = str(grado_curso).upper()
+    if 'INICIAL 1' in g or 'MINISTERIO INICIAL 1' in g:
+        return 'FORMATO INICIAL 1.html'
+    if 'INICIAL 2' in g or 'MINISTERIO INICIAL 2' in g or 'INFANTIL' in g:
+        return 'FORMATO INICIAL 2.html'
+    if 'PRIMERO DE EGB' in g or '1RO DE EGB' in g or '1ERO DE EGB' in g or '1ER GRADO' in g:
+        return 'PRIMERO DE EGB.html'
+    if any(k in g for k in ['SEGUNDO', 'TERCERO', 'CUARTO', '2DO', '3RO', '4TO', 'ELEMENTAL']):
+        return 'FORMALO DE ELEMENTAL.html'
+    if any(k in g for k in ['QUINTO', 'SEXTO', 'SEPTIMO', '5TO', '6TO', '7MO', 'MEDIA']):
+        return 'FORMATO EGBM.html'
+    if any(k in g for k in ['OCTAVO', 'NOVENO', 'DECIMO', '8VO', '9NO', '10MO', 'SUPERIOR']):
+        return 'FORMATO EGBS.html'
+    if any(k in g for k in ['1RO DE BACHILLERATO', '2DO DE BACHILLERATO', '1ER AÑO DE BACHILLERATO', '2DO AÑO DE BACHILLERATO', '1 BGU', '2 BGU']):
+        return 'FORMATO DE 1 Y 2 DE BGU.html'
+    if any(k in g for k in ['TERCERO DE BACHILLERATO', '3RO DE BACHILLERATO', '3ER AÑO DE BACHILLERATO', '3 BGU', 'TERCER AÑO']):
+        return 'FORMATO DE 3 DE BGU.html'
+    return None
+
+def inject_student_data_html(html_content, student, inst, logos):
+    # 1. Reemplazar datos institucionales y del estudiante
+    html_content = re.sub(
+        r'(NOMBRE DEL ESTUDIANTE:\s*)[^<\n]+', 
+        rf'\g<1>{student["nombre"]}', 
+        html_content, 
+        flags=re.IGNORECASE
+    )
+    html_content = re.sub(
+        r'(CÉDULA:\s*)[^<\n]+', 
+        rf'\g<1>{student["cedula"]}', 
+        html_content, 
+        flags=re.IGNORECASE
+    )
+    
+    grado_completo = f"{inst.get('grado', '')} PARALELO: {inst.get('paralelo', '')}"
+    html_content = re.sub(
+        r'(GRADO:\s*)[^<\n]+', 
+        rf'\g<1>{grado_completo}', 
+        html_content, 
+        flags=re.IGNORECASE
+    )
+    
+    html_content = re.sub(
+        r'(JORNADA:\s*)[^<\n]+', 
+        rf'\g<1>{inst.get("jornada", "")}', 
+        html_content, 
+        flags=re.IGNORECASE
+    )
+    
+    html_content = re.sub(
+        r'(AMIE:\s*)[^<\n\s,]+', 
+        rf'\g<1>{inst.get("amie", "")}', 
+        html_content, 
+        flags=re.IGNORECASE
+    )
+    
+    html_content = re.sub(
+        r'(AÑO LECTIVO:\s*)[^<\n]+', 
+        rf'\g<1>{inst.get("anio", "")}', 
+        html_content, 
+        flags=re.IGNORECASE
+    )
+
+    if inst.get("nombre"):
+        html_content = re.sub(
+            r'(<h1[^>]*>)[^<]*(EMILIANO HINOSTROZA|UNIDAD EDUCATIVA)[^<]*(</h1>)',
+            rf'\g<1>{inst["nombre"]}\g<3>',
+            html_content,
+            flags=re.IGNORECASE
+        )
+        
+    # 2. Inyectar logos en base64
+    if logos.get("logo1"):
+        html_content = re.sub(
+            r'id="img-logo-1"\s*class="[^"]*"',
+            f'id="img-logo-1" class="absolute inset-0 w-full h-full object-contain p-1"',
+            html_content
+        )
+        if 'src=' in html_content.split('id="img-logo-1"')[1].split('>')[0]:
+            html_content = re.sub(
+                r'id="img-logo-1"\s*src="[^"]*"',
+                f'id="img-logo-1" src="{logos["logo1"]}"',
+                html_content
+            )
+        else:
+            html_content = html_content.replace('id="img-logo-1"', f'id="img-logo-1" src="{logos["logo1"]}"')
+        html_content = html_content.replace('id="text-logo-1" class="', 'id="text-logo-1" class="hidden ')
+
+    if logos.get("logo2"):
+        html_content = re.sub(
+            r'id="img-logo-2"\s*class="[^"]*"',
+            f'id="img-logo-2" class="absolute inset-0 w-full h-full object-contain p-1"',
+            html_content
+        )
+        if 'src=' in html_content.split('id="img-logo-2"')[1].split('>')[0]:
+            html_content = re.sub(
+                r'id="img-logo-2"\s*src="[^"]*"',
+                f'id="img-logo-2" src="{logos["logo2"]}"',
+                html_content
+            )
+        else:
+            html_content = html_content.replace('id="img-logo-2"', f'id="img-logo-2" src="{logos["logo2"]}"')
+        html_content = html_content.replace('id="text-logo-2" class="', 'id="text-logo-2" class="hidden ')
+
+    # 3. Firmas
+    tutor_name = inst.get("tutor", "")
+    if tutor_name:
+        tutor_pattern = re.compile(r'<div[^>]*class="[^"]*text-center[^"]*"[\s\S]*?<div[^>]*class="[^"]*border-b[^"]*"[\s\S]*?</div>\s*<p[^>]*>\s*(TUTOR/A|TUTOR|TUTORA)\s*</p>\s*</div>', re.IGNORECASE)
+        match = tutor_pattern.search(html_content)
+        if match:
+            block = match.group(0)
+            new_block = block.replace(
+                'class="border-b border-slate-800 mb-2 h-8 w-full"',
+                'class="border-b border-slate-800 mb-2 w-full" style="height: 3.5rem;"'
+            )
+            if 'cert-nombre-firma' not in new_block:
+                new_block = new_block.replace(
+                    '<p>',
+                    f'<p class="cert-nombre-firma font-bold text-slate-800 mt-1" style="font-size: 0.75rem;">{tutor_name}</p>\n            <p>'
+                )
+            html_content = html_content.replace(block, new_block)
+
+    rector_name = inst.get("rector", "")
+    if rector_name:
+        rector_pattern = re.compile(r'<div[^>]*class="[^"]*text-center[^"]*"[\s\S]*?<div[^>]*class="[^"]*border-b[^"]*"[\s\S]*?</div>\s*<p[^>]*>\s*(RECTOR/A|RECTOR|RECTORA|DIRECTOR|DIRECTORA)\s*</p>\s*</div>', re.IGNORECASE)
+        match = rector_pattern.search(html_content)
+        if match:
+            block = match.group(0)
+            new_block = block.replace(
+                'class="border-b border-slate-800 mb-2 h-8 w-full"',
+                'class="border-b border-slate-800 mb-2 w-full" style="height: 3.5rem;"'
+            )
+            if 'cert-nombre-firma' not in new_block:
+                new_block = new_block.replace(
+                    '<p>',
+                    f'<p class="cert-nombre-firma font-bold text-slate-800 mt-1" style="font-size: 0.75rem;">{rector_name}</p>\n            <p>'
+                )
+            html_content = html_content.replace(block, new_block)
+
+    return html_content
+
+def inject_subject_grades(html_content, materias_data):
+    for sub_name, data in materias_data.items():
+        escaped_sub = re.escape(sub_name)
+        tr_pattern = re.compile(rf'<tr[^>]*>\s*<td[^>]*>\s*{escaped_sub}\s*</td>[\s\S]*?</tr>', re.IGNORECASE)
+        
+        match = tr_pattern.search(html_content)
+        if match:
+            tr_block = match.group(0)
+            td_pattern = re.compile(r'<td[^>]*>([\s\S]*?)</td>', re.IGNORECASE)
+            tds = list(td_pattern.finditer(tr_block))
+            
+            if len(tds) >= 2:
+                grade_tds = tds[1:]
+                fmt = lambda val, is_supletorio=False: f"{float(val):.2f}" if val is not None else ('0.00' if is_supletorio else '-')
+                
+                new_tds = []
+                if len(grade_tds) == 3:
+                    new_tds.append(f'<td>{fmt(data.get("t1"))}</td>')
+                    new_tds.append(f'<td>{fmt(data.get("t2"))}</td>')
+                    new_tds.append(f'<td>{fmt(data.get("t3"))}</td>')
+                elif len(grade_tds) == 4:
+                    new_tds.append(f'<td>{fmt(data.get("t1"))}</td>')
+                    new_tds.append(f'<td>{fmt(data.get("t2"))}</td>')
+                    new_tds.append(f'<td>{fmt(data.get("t3"))}</td>')
+                    new_tds.append(f'<td class="font-bold bg-slate-50">{fmt(data.get("nota_final") or data.get("promedio_anual"))}</td>')
+                elif len(grade_tds) == 5:
+                    new_tds.append(f'<td>{fmt(data.get("t1"))}</td>')
+                    new_tds.append(f'<td>{fmt(data.get("t2"))}</td>')
+                    new_tds.append(f'<td>{fmt(data.get("t3"))}</td>')
+                    new_tds.append(f'<td>{fmt(data.get("supletorio"), True)}</td>')
+                    new_tds.append(f'<td class="font-bold bg-slate-50">{fmt(data.get("nota_final") or data.get("promedio_anual"))}</td>')
+                    
+                new_tr_block = tr_block[:tds[1].start()] + "".join(new_tds) + "</tr>"
+                html_content = html_content.replace(tr_block, new_tr_block)
+                
+    # Reemplazar promedio general
+    prom_pattern = re.compile(r'<tr[^>]*>[\s\S]*?<td[^>]*>\s*(PROMEDIO ANUAL|PROMEDIO GENERAL)\s*</td>[\s\S]*?</tr>', re.IGNORECASE)
+    for m in prom_pattern.finditer(html_content):
+        tr_block = m.group(0)
+        td_pattern = re.compile(r'<td[^>]*>([\s\S]*?)</td>', re.IGNORECASE)
+        tds = list(td_pattern.finditer(tr_block))
+        if tds:
+            try:
+                grades = [float(v.get("nota_final", 0.0) or v.get("promedio_anual", 0.0)) for v in materias_data.values() if v.get("nota_final") is not None or v.get("promedio_anual") is not None]
+                promedio_val = f"{(sum(grades) / len(grades)):.2f}" if grades else "-"
+            except Exception:
+                promedio_val = "-"
+                
+            last_td = tds[-1]
+            new_tr_block = tr_block[:last_td.start()] + f'<td class="font-bold bg-slate-100">{promedio_val}</td>' + "</tr>"
+            html_content = html_content.replace(tr_block, new_tr_block)
+
+    # Reemplazar cabecera "PROMEDIO ANUAL" a "Nota" en th
+    html_content = re.sub(
+        r'(<th[^>]*>\s*)PROMEDIO ANUAL(\s*</th>)',
+        r'\g<1>Nota\g<2>',
+        html_content,
+        flags=re.IGNORECASE
+    )
+    return html_content
+
+def generar_certificados_inicial(payload):
+    estudiantes = payload.get("datos_consolidados", [])
+    inst = payload.get("institucion", {})
+    logos = payload.get("logos", {})
+    
+    cert_dir = os.path.join(os.path.dirname(__file__), "assets", "certificados")
+    os.makedirs(cert_dir, exist_ok=True)
+    
+    supletorios_detectados = []
+    
+    for est in estudiantes:
+        materias = est.get("materias", {})
+        for sub_name, m_data in list(materias.items()):
+            g1 = float(m_data.get("t1") or 0.0)
+            g2 = float(m_data.get("t2") or 0.0)
+            g3 = float(m_data.get("t3") or 0.0)
+            p_anual = calcular_promedio_anual(g1, g2, g3)
+            m_data["promedio_anual"] = p_anual
+            if m_data.get("nota_final") is None:
+                m_data["nota_final"] = p_anual
+                
+            if 4.01 <= p_anual <= 6.99:
+                nivel_str = inst.get("nivel", "")
+                es_egb_media = "MEDIA" in str(inst.get("grado", "")).upper() or "MEDIA" in str(nivel_str).upper()
+                supletorios_detectados.append({
+                    "id": est["id_real"],
+                    "nombre": est["nombre"],
+                    "curso": inst.get("grado", ""),
+                    "asignatura": sub_name,
+                    "nivel": nivel_str,
+                    "es_egb_media": es_egb_media
+                })
+        
+        plantilla_name = mapear_plantilla_python(inst.get("grado", ""))
+        if not plantilla_name:
+            continue
+            
+        plantilla_path = os.path.join(cert_dir, plantilla_name)
+        if not os.path.exists(plantilla_path):
+            continue
+            
+        with open(plantilla_path, "r", encoding="utf-8") as f:
+            template_html = f.read()
+            
+        student_html = inject_student_data_html(template_html, est, inst, logos)
+        student_html = inject_subject_grades(student_html, materias)
+        
+        output_path = os.path.join(cert_dir, f"certificado_{est['id_real']}.html")
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(student_html)
+            
+    return supletorios_detectados
+
+def actualizar_certificado_supletorio(student_id, asignatura, nota_supletorio):
+    cert_dir = os.path.join(os.path.dirname(__file__), "assets", "certificados")
+    file_path = os.path.join(cert_dir, f"certificado_{student_id}.html")
+    
+    if not os.path.exists(file_path):
+        print(f"[actualizar_certificado_supletorio] No existe el certificado para {student_id}", file=sys.stderr)
+        return False
+        
+    with open(file_path, "r", encoding="utf-8") as f:
+        html_content = f.read()
+        
+    try:
+        val_su = float(nota_supletorio)
+        val_final = 7.00 if val_su >= 7.00 else val_su
+    except (ValueError, TypeError):
+        val_su = 0.0
+        val_final = 0.0
+        
+    escaped_sub = re.escape(asignatura)
+    tr_pattern = re.compile(rf'<tr[^>]*>\s*<td[^>]*>\s*{escaped_sub}\s*</td>[\s\S]*?</tr>', re.IGNORECASE)
+    
+    match = tr_pattern.search(html_content)
+    if match:
+        tr_block = match.group(0)
+        td_pattern = re.compile(r'<td[^>]*>([\s\S]*?)</td>', re.IGNORECASE)
+        tds = list(td_pattern.finditer(tr_block))
+        
+        if len(tds) == 6:
+            supletorio_td = tds[4]
+            final_td = tds[5]
+            new_tr_block = (
+                tr_block[:supletorio_td.start()] +
+                f'<td>{val_su:.2f}</td>' +
+                f'<td class="font-bold bg-slate-50">{val_final:.2f}</td>' +
+                '</tr>'
+            )
+            html_content = html_content.replace(tr_block, new_tr_block)
+        elif len(tds) == 5:
+            final_td = tds[4]
+            new_tr_block = (
+                tr_block[:final_td.start()] +
+                f'<td class="font-bold bg-slate-50">{val_final:.2f}</td>' +
+                '</tr>'
+            )
+            html_content = html_content.replace(tr_block, new_tr_block)
+        else:
+            return False
+            
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(html_content)
+        return True
+    return False
+
+
+# 5. Proceso CLI Principal
 def main():
     parser = argparse.ArgumentParser(description="Procesador de Notas Académicas de la UEEH")
     parser.add_argument('--analizar', action='store_true', help='Analiza los excels y devuelve la lista de estudiantes en JSON')
     parser.add_argument('--generar', action='store_true', help='Genera los PDF recibiendo el payload por stdin')
+    parser.add_argument('--certificados', action='store_true', help='Genera los certificados HTML iniciales y detecta supletorios')
+    parser.add_argument('--supletorios', type=str, help='JSON con las notas manuales de supletorio para actualizar')
     parser.add_argument('--t1', type=str, help='Ruta Excel Trimestre 1')
     parser.add_argument('--t2', type=str, help='Ruta Excel Trimestre 2')
     parser.add_argument('--t3', type=str, help='Ruta Excel Trimestre 3')
@@ -668,7 +1007,39 @@ def main():
     
     args = parser.parse_args()
     
-    if args.analizar:
+    if args.supletorios:
+        try:
+            updates = json.loads(args.supletorios)
+            success_count = 0
+            if isinstance(updates, list):
+                for up in updates:
+                    student_id = up.get("id")
+                    asignatura = up.get("asignatura")
+                    nota_su = up.get("nota_supletorio")
+                    if student_id and asignatura and nota_su is not None:
+                        if actualizar_certificado_supletorio(student_id, asignatura, nota_su):
+                            success_count += 1
+            print(json.dumps({"success": True, "updated": success_count}, ensure_ascii=False))
+        except Exception as e:
+            print(json.dumps({"success": False, "error": str(e)}, ensure_ascii=False))
+        return
+
+    if args.certificados:
+        try:
+            # Leer el payload JSON enviado desde Electron a través de stdin
+            input_data = sys.stdin.read()
+            if not input_data:
+                print(json.dumps({"success": False, "error": "No se recibió payload en stdin"}, ensure_ascii=False))
+                return
+                
+            payload = json.loads(input_data)
+            supletorios = generar_certificados_inicial(payload)
+            print(json.dumps({"success": True, "supletorios": supletorios}, ensure_ascii=False))
+        except Exception as e:
+            print(json.dumps({"success": False, "error": str(e)}, ensure_ascii=False))
+        return
+
+    elif args.analizar:
         try:
             first_path = args.t1 or args.t2 or args.t3 or args.su
             datos_inst = extraer_datos_institucionales(first_path)

@@ -222,6 +222,63 @@ ipcMain.handle('generar-boletines', async (event, datos) => {
     }
 });
 
+// IPC: Generar certificados HTML iniciales y detectar supletorios
+ipcMain.handle('generar-certificados', async (event, datos) => {
+    try {
+        const appDataPath = app.getPath('userData');
+        const logosDir = path.join(appDataPath, 'logos');
+        if (!fs.existsSync(logosDir)) {
+            fs.mkdirSync(logosDir, { recursive: true });
+        }
+
+        // Guardar logos base64 en archivos si es necesario
+        const saveBase64Image = (base64Str, prefix) => {
+            if (!base64Str || !base64Str.startsWith('data:image/')) {
+                return base64Str;
+            }
+            try {
+                const matches = base64Str.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+                if (matches && matches.length === 3) {
+                    const ext = matches[1].split('/')[1] || 'png';
+                    const buffer = Buffer.from(matches[2], 'base64');
+                    const cursoId = datos.cursoActivoId || 'default';
+                    const tempPath = path.join(logosDir, `${prefix}_${cursoId}.${ext}`);
+                    fs.writeFileSync(tempPath, buffer);
+                    return tempPath;
+                }
+            } catch (err) {
+                console.error("Error saving base64 logo:", err);
+            }
+            return null;
+        };
+
+        if (datos.logos) {
+            datos.logos.logo1 = saveBase64Image(datos.logos.logo1, 'logo1');
+            datos.logos.logo2 = saveBase64Image(datos.logos.logo2, 'logo2');
+        }
+
+        // Ejecutamos Python con --certificados y pasamos el payload
+        const result = await runPython(['--certificados'], datos);
+        return JSON.parse(result.stdout);
+    } catch (error) {
+        console.error("Error en generar-certificados:", error);
+        return { success: false, error: error.stderr || error.error || "Error de ejecución al procesar certificados" };
+    }
+});
+
+// IPC: Actualizar certificados con notas manuales de supletorio
+ipcMain.handle('actualizar-supletorios', async (event, datos) => {
+    try {
+        const payloadString = JSON.stringify(datos);
+        const result = await runPython(['--supletorios', payloadString]);
+        return JSON.parse(result.stdout);
+    } catch (error) {
+        console.error("Error en actualizar-supletorios:", error);
+        return { success: false, error: error.stderr || error.error || "Error de ejecución al actualizar supletorios" };
+    }
+});
+
+
 // IPC: Leer plantilla de certificado desde assets/certificados/
 ipcMain.handle('leer-plantilla', async (event, nombreArchivo) => {
     try {

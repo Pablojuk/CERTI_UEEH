@@ -8,5 +8,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     descargarFormato: () => ipcRenderer.invoke('descargar-formato'),
     leerPlantilla: (nombre) => ipcRenderer.invoke('leer-plantilla', nombre),
     imprimirCertificados: (html) => ipcRenderer.invoke('imprimir-certificados', html),
-    abrirVistaPreviaCertificado: (html) => ipcRenderer.invoke('abrir-vista-previa-certificado', html)
+    abrirVistaPreviaCertificado: (html) => ipcRenderer.invoke('abrir-vista-previa-certificado', html),
+    generarCertificados: (datos) => ipcRenderer.invoke('generar-certificados', datos),
+    actualizarSupletorios: (datos) => ipcRenderer.invoke('actualizar-supletorios', datos)
 });

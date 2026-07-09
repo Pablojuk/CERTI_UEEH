@@ -280,6 +280,44 @@
                 <div id="no-encontrados-list" class="space-y-2"></div>
             </div>
 
+            <!-- Contenedor de Alertas de Supletorios -->
+            <div id="alerta-supletorios" class="hidden m-5 rounded-lg border border-rose-200 bg-rose-50 p-4 shadow-sm">
+                <div class="flex items-start gap-3">
+                    <i class="fa-solid fa-triangle-exclamation text-rose-600 text-lg mt-0.5"></i>
+                    <div>
+                        <h4 class="font-semibold text-rose-900">Se han generado los certificados, pero los siguientes estudiantes están en supletorio.</h4>
+                        <p class="text-xs text-rose-700">Por favor, ingrese las calificaciones obtenidas en el examen supletorio para actualizar sus certificados correspondientes.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla Dinámica de Supletorios -->
+            <div id="contenedor-supletorios" class="hidden m-5 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                <h4 class="font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-square-poll-vertical text-indigo-600"></i> Calificaciones de Exámenes Supletorios
+                </h4>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse mb-4">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                <th class="p-3">Estudiante</th>
+                                <th class="p-3">Curso</th>
+                                <th class="p-3">Asignatura</th>
+                                <th class="p-3 w-48 text-center">Nota Supletorio</th>
+                            </tr>
+                        </thead>
+                        <tbody id="supletorios-body" class="divide-y divide-slate-100 text-sm text-slate-700">
+                            <!-- Filas dinámicas -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="flex justify-end">
+                    <button onclick="actualizarCertificadosSupletorio()" class="flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-5 py-2.5 rounded-md font-semibold text-sm transition-all shadow-md">
+                        <i class="fa-solid fa-rotate"></i> Actualizar Certificados de Supletorio
+                    </button>
+                </div>
+            </div>
+
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse" id="students-table">
                     <thead>
@@ -2021,65 +2059,136 @@
 
         // --- Función principal: ensamblar certificados HTML ---
 
-        async function generarCertificadosHTML(estudiantesData) {
+        function renderSupletoriosTable(supletorios) {
+            const tbody = document.getElementById('supletorios-body');
+            tbody.innerHTML = '';
+            
+            if (!supletorios || supletorios.length === 0) {
+                document.getElementById('alerta-supletorios').classList.add('hidden');
+                document.getElementById('contenedor-supletorios').classList.add('hidden');
+                return;
+            }
+            
+            document.getElementById('alerta-supletorios').classList.remove('hidden');
+            document.getElementById('contenedor-supletorios').classList.remove('hidden');
+            
+            supletorios.forEach(sup => {
+                const tr = document.createElement('tr');
+                
+                const tdNombre = document.createElement('td');
+                tdNombre.className = 'p-3 font-medium text-slate-900';
+                let warningText = '';
+                if (sup.es_egb_media) {
+                    warningText = ` <span class="text-rose-500 text-xs font-semibold block sm:inline mt-1 sm:mt-0 sm:ml-2">(EGB Media: Promoción sujeta a Junta de Docentes si la nota es menor a 7.00)</span>`;
+                }
+                tdNombre.innerHTML = `${sup.nombre}${warningText}`;
+                
+                const tdCurso = document.createElement('td');
+                tdCurso.className = 'p-3 text-slate-600';
+                tdCurso.textContent = sup.curso;
+                
+                const tdAsignatura = document.createElement('td');
+                tdAsignatura.className = 'p-3 text-slate-600 font-medium';
+                tdAsignatura.textContent = sup.asignatura;
+                
+                const tdNota = document.createElement('td');
+                tdNota.className = 'p-3 text-center';
+                tdNota.innerHTML = `<input type="number" step="0.01" min="0" max="10" placeholder="0.00" data-id="${sup.id}" data-subject="${sup.asignatura}" class="supletorio-input w-24 px-2 py-1 text-center border border-slate-300 rounded focus:outline-none focus:border-indigo-500 text-sm font-semibold">`;
+                
+                tr.appendChild(tdNombre);
+                tr.appendChild(tdCurso);
+                tr.appendChild(tdAsignatura);
+                tr.appendChild(tdNota);
+                
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function actualizarCertificadosSupletorio() {
+            const inputs = document.querySelectorAll('.supletorio-input');
+            const updates = [];
+            
+            inputs.forEach(input => {
+                const val = input.value.trim();
+                if (val) {
+                    updates.push({
+                        id: input.getAttribute('data-id'),
+                        asignatura: input.getAttribute('data-subject'),
+                        nota_supletorio: parseFloat(val)
+                    });
+                }
+            });
+            
+            if (updates.length === 0) {
+                mostrarAlerta("Sin notas", "No ha ingresado ninguna calificación de supletorio.", "warning");
+                return;
+            }
+            
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            
+            try {
+                const res = await window.electronAPI.actualizarSupletorios(updates);
+                
+                if (res.success) {
+                    const seleccionados = getSelectedStudentIds();
+                    const datosConsolidadosSeleccionados = estudiantesCargados.filter(e =>
+                        seleccionados.includes(e.id_real)
+                    );
+                    
+                    const finalRes = await regenerarPDFConsolidado(datosConsolidadosSeleccionados);
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                    
+                    if (finalRes && finalRes.success) {
+                        mostrarAlerta("Certificados Actualizados", `Se actualizaron los certificados de supletorio y se guardó el PDF consolidado en:<br><strong class="text-xs break-all">${finalRes.path}</strong>`, "success", finalRes.path);
+                        document.getElementById('alerta-supletorios').classList.add('hidden');
+                        document.getElementById('contenedor-supletorios').classList.add('hidden');
+                    } else {
+                        mostrarAlerta("Error al generar PDF", "Se actualizaron los HTMLs individuales, pero falló la generación del PDF.", "error");
+                    }
+                } else {
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                    mostrarAlerta("Error", "Error al actualizar supletorios en el backend: " + res.error, "error");
+                }
+            } catch (err) {
+                document.getElementById('loading-overlay').classList.add('hidden');
+                mostrarAlerta("Error", "Error al comunicarse para actualizar supletorios: " + err, "error");
+            }
+        }
+
+        async function regenerarPDFConsolidado(estudiantesData) {
             const curso = obtenerCursoActivo();
             if (!curso) return null;
 
             const inst = curso.datosInstitucion || {};
-            const logos = curso.logos || {};
-
-            // 1. Determinar la plantilla
             const plantillaName = mapearPlantilla(inst.gradoCurso || '');
-            if (!plantillaName) {
-                document.getElementById('loading-overlay').classList.add('hidden');
-                mostrarAlerta("Sin Plantilla",
-                    `No se encontró una plantilla de certificado para el grado: "${inst.gradoCurso || 'sin especificar'}".<br>Verifique que el campo "Grado/Curso" esté correctamente configurado.`,
-                    "error");
-                return null;
-            }
+            if (!plantillaName) return null;
 
-            // 2. Cargar la plantilla vía IPC
-            const result = await window.electronAPI.leerPlantilla(plantillaName);
-            if (result.error) {
-                document.getElementById('loading-overlay').classList.add('hidden');
-                mostrarAlerta("Error de Plantilla", result.error, "error");
-                return null;
-            }
+            const origRes = await window.electronAPI.leerPlantilla(plantillaName);
+            if (origRes.error) return null;
 
-            const templateHTML = result.content;
-
-            // 3. Extraer contenido del <head> (estilos + Tailwind CDN)
+            const templateHTML = origRes.content;
             const headMatch = templateHTML.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
             const headContent = headMatch ? headMatch[1] : '';
-
-            // 4. Obtener las clases y estilos del body original del template
             const tParser = new DOMParser();
             const tDoc = tParser.parseFromString(templateHTML, 'text/html');
             const bodyClass = tDoc.body.className || 'bg-white text-slate-900 font-sans p-8 max-w-5xl mx-auto';
             const bodyStyle = tDoc.body.getAttribute('style') || '';
 
-            // 5. Generar una página por estudiante
             const pagesHTML = [];
-
             for (const est of estudiantesData) {
+                const certRes = await window.electronAPI.leerPlantilla(`certificado_${est.id_real}.html`);
+                if (certRes.error) continue;
+
                 const parser = new DOMParser();
-                const doc = parser.parseFromString(templateHTML, 'text/html');
-
-                _certInjectLogos(doc, logos);
-                _certInjectInstitucion(doc, inst);
-                _certInjectEstudiante(doc, est, inst);
-                _certInjectNotas(doc, est);
-                _certInjectFirmas(doc, inst);
-
-                // Limpiar elementos interactivos (inputs de archivo, botones de imprimir)
+                const doc = parser.parseFromString(certRes.content, 'text/html');
+                
                 doc.querySelectorAll('input[type="file"]').forEach(el => el.remove());
                 doc.querySelectorAll('.no-print').forEach(el => el.remove());
                 doc.querySelectorAll('body > script').forEach(el => el.remove());
-
+                
                 pagesHTML.push(doc.body.innerHTML);
             }
 
-            // 6. Ensamblar documento HTML final con saltos de página heredando las clases del body
             let extraStyles = '';
             const esLargo = ['FORMATO INICIAL 1.html', 'FORMATO INICIAL 2.html', 'PRIMERO DE EGB.html'].includes(plantillaName);
             if (!esLargo) {
@@ -2157,9 +2266,59 @@
 </body>
 </html>`;
 
-            // 6. Enviar al proceso principal para generar el PDF
             return await window.electronAPI.imprimirCertificados(finalHTML);
         }
+
+        async function generarCertificadosHTML(estudiantesData) {
+            const curso = obtenerCursoActivo();
+            if (!curso) return null;
+
+            const inst = curso.datosInstitucion || {};
+            const plantillaName = mapearPlantilla(inst.gradoCurso || '');
+            if (!plantillaName) {
+                document.getElementById('loading-overlay').classList.add('hidden');
+                mostrarAlerta("Sin Plantilla",
+                    `No se encontró una plantilla de certificado para el grado: "${inst.gradoCurso || 'sin especificar'}".<br>Verifique que el campo "Grado/Curso" esté correctamente configurado.`,
+                    "error");
+                return null;
+            }
+
+            const pythonPayload = {
+                cursoActivoId: curso.id,
+                institucion: {
+                    nombre: document.getElementById('inst-nombre').value,
+                    anio: document.getElementById('inst-anio').value,
+                    amie: document.getElementById('inst-amie').value,
+                    grado: document.getElementById('inst-grado').value,
+                    paralelo: document.getElementById('inst-paralelo').value,
+                    jornada: document.getElementById('inst-jornada').value,
+                    rector: document.getElementById('inst-rector').value,
+                    tutor: document.getElementById('inst-tutor').value,
+                    nivel: inst.nivel || ''
+                },
+                logos: {
+                    logo1: curso.logos ? curso.logos.logo1 : null,
+                    logo2: curso.logos ? curso.logos.logo2 : null
+                },
+                datos_consolidados: estudiantesData
+            };
+
+            const pythonRes = await window.electronAPI.generarCertificados(pythonPayload);
+            if (!pythonRes.success) {
+                document.getElementById('loading-overlay').classList.add('hidden');
+                mostrarAlerta("Error en Generación", pythonRes.error || "No se pudo invocar el procesador de notas.", "error");
+                return null;
+            }
+
+            const supletorios = pythonRes.supletorios || [];
+            renderSupletoriosTable(supletorios);
+            if (supletorios.length > 0) {
+                mostrarAlerta("Supletorios Detectados", "Se han generado los certificados iniciales, pero se detectaron estudiantes en supletorio. Complete sus notas abajo para actualizar sus documentos.", "warning");
+            }
+
+            return await regenerarPDFConsolidado(estudiantesData);
+        }
+
 
         // ========== EMITIR DOCUMENTOS (Boletines o Certificados) ==========
 
