@@ -136,18 +136,18 @@
                         </button>
                     </div>
 
-                    <div class="border rounded-lg p-4 flex flex-col justify-between">
+                    <div class="border rounded-lg p-4 flex flex-col justify-between bg-amber-50/20 border-amber-200">
                         <div class="flex items-center gap-2 mb-3">
                             <span class="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-1 rounded">SU</span>
                             <span class="font-semibold text-sm">Supletorio</span>
                         </div>
-                        <label onclick="handleFileSelect('su')" class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:bg-slate-50 transition-all group flex-grow mb-3">
-                            <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400 group-hover:text-indigo-500 mb-2 transition-all"></i>
-                            <p class="text-sm font-medium text-slate-600">Haz clic para subir archivo</p>
-                            <p id="name-su" class="text-xs text-slate-400 mt-1">.xlsx / .xls</p>
-                        </label>
-                        <button onclick="clearFile('su')" class="w-full py-2 text-sm text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-md font-medium transition-all">
-                            <i class="fa-regular fa-trash-can mr-1"></i> Limpiar archivo
+                        <div class="flex flex-col items-center justify-center flex-grow mb-3 p-4 text-center">
+                            <i class="fa-solid fa-square-poll-horizontal text-4xl text-amber-500 mb-3"></i>
+                            <p class="text-sm font-medium text-slate-700 mb-1">Registro Manual de Supletorios</p>
+                            <p class="text-xs text-slate-400 max-w-[180px]">Digita las calificaciones directamente en el sistema.</p>
+                        </div>
+                        <button onclick="abrirCargaSupletorios()" class="w-full py-2.5 text-sm text-white bg-amber-500 hover:bg-amber-600 rounded-md font-semibold transition-all shadow-sm flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-pen-to-square"></i> Cargar Nota de Supletorio
                         </button>
                     </div>
 
@@ -598,7 +598,6 @@
             updateFileLabel('t1', pers.trimestre1);
             updateFileLabel('t2', pers.trimestre2);
             updateFileLabel('t3', pers.trimestre3);
-            updateFileLabel('su', pers.supletorio);
 
             // Cargar logotipos
             const logos = curso.logos || {};
@@ -611,6 +610,7 @@
 
         function updateFileLabel(id, periodData) {
             const nameLabel = document.getElementById(`name-${id}`);
+            if (!nameLabel) return;
 
             if (periodData && periodData.nombreArchivo) {
                 nameLabel.textContent = periodData.nombreArchivo + " (" + periodData.fechaCarga + ")";
@@ -1325,12 +1325,16 @@
                 }
             });
 
+            const supletoriosManuales = curso.supletoriosManuales || {};
+
             const listaConsolidada = base.map(s => {
+                const manual_su_keys = Object.keys(supletoriosManuales[s.cedula] || supletoriosManuales[s.estudianteId] || {});
                 const subjects = new Set([
                     ...Object.keys(s.notas.trimestre1?.asignaturas || {}),
                     ...Object.keys(s.notas.trimestre2?.asignaturas || {}),
                     ...Object.keys(s.notas.trimestre3?.asignaturas || {}),
-                    ...Object.keys(s.su_notas || {})
+                    ...Object.keys(s.su_notas || {}),
+                    ...manual_su_keys
                 ]);
 
                 const materias = {};
@@ -1338,7 +1342,10 @@
                     const g1 = s.notas.trimestre1?.asignaturas?.[sub] ?? null;
                     const g2 = s.notas.trimestre2?.asignaturas?.[sub] ?? null;
                     const g3 = s.notas.trimestre3?.asignaturas?.[sub] ?? null;
-                    const su_grade = s.su_notas?.[sub] ?? null;
+                    
+                    const manual_su_grade = supletoriosManuales[s.cedula]?.[sub] ?? supletoriosManuales[s.estudianteId]?.[sub] ?? null;
+                    const su_grade = manual_su_grade !== null ? manual_su_grade : (s.su_notas?.[sub] ?? null);
+                    
                     const pendiente = g1 === null || g2 === null || g3 === null;
 
                     let p_anual = null;
@@ -2059,6 +2066,54 @@
 
         // --- Función principal: ensamblar certificados HTML ---
 
+        function abrirCargaSupletorios() {
+            const curso = obtenerCursoActivo();
+            if (!curso) {
+                mostrarAlerta("Sin curso", "No hay un curso activo.", "warning");
+                return;
+            }
+            
+            const t1 = curso.periodos?.trimestre1 || {};
+            const t2 = curso.periodos?.trimestre2 || {};
+            const t3 = curso.periodos?.trimestre3 || {};
+            
+            if (!t1.estudiantes?.length || !t2.estudiantes?.length || !t3.estudiantes?.length) {
+                mostrarAlerta("Carga Incompleta", "Por favor cargue los archivos Excel de los 3 trimestres (T1, T2 y T3) antes de cargar calificaciones de supletorio.", "warning");
+                return;
+            }
+            
+            const supletorios = [];
+            estudiantesCargados.forEach(est => {
+                Object.entries(est.materias || {}).forEach(([subName, mData]) => {
+                    const p_anual = mData.promedio_anual;
+                    if (p_anual !== null && p_anual >= 4.01 && p_anual <= 6.99) {
+                        const es_egb_media = "MEDIA" in String(curso.datosInstitucion?.gradoCurso || '').toUpperCase() || "MEDIA" in String(curso.datosInstitucion?.nivel || '').toUpperCase();
+                        const nota_su_existente = mData.supletorio !== null ? mData.supletorio : '';
+                        supletorios.push({
+                            id: est.id_real,
+                            nombre: est.nombre,
+                            curso: curso.datosInstitucion?.gradoCurso || '',
+                            asignatura: subName,
+                            nivel: curso.datosInstitucion?.nivel || '',
+                            es_egb_media: es_egb_media,
+                            nota_existente: nota_su_existente
+                        });
+                    }
+                });
+            });
+            
+            if (supletorios.length === 0) {
+                mostrarAlerta("Sin Supletorios", "Ningún estudiante del curso activo se encuentra en situación de supletorio (promedios entre 4.01 y 6.99).", "info");
+                return;
+            }
+            
+            renderSupletoriosTable(supletorios);
+            
+            const element = document.getElementById('contenedor-supletorios');
+            element.classList.remove('hidden');
+            element.scrollIntoView({ behavior: 'smooth' });
+        }
+
         function renderSupletoriosTable(supletorios) {
             const tbody = document.getElementById('supletorios-body');
             tbody.innerHTML = '';
@@ -2093,7 +2148,8 @@
                 
                 const tdNota = document.createElement('td');
                 tdNota.className = 'p-3 text-center';
-                tdNota.innerHTML = `<input type="number" step="0.01" min="0" max="10" placeholder="0.00" data-id="${sup.id}" data-subject="${sup.asignatura}" class="supletorio-input w-24 px-2 py-1 text-center border border-slate-300 rounded focus:outline-none focus:border-indigo-500 text-sm font-semibold">`;
+                const valAttr = sup.nota_existente !== undefined && sup.nota_existente !== '' ? `value="${sup.nota_existente}"` : '';
+                tdNota.innerHTML = `<input type="number" step="0.01" min="0" max="10" placeholder="0.00" ${valAttr} data-id="${sup.id}" data-subject="${sup.asignatura}" class="supletorio-input w-24 px-2 py-1 text-center border border-slate-300 rounded focus:outline-none focus:border-indigo-500 text-sm font-semibold">`;
                 
                 tr.appendChild(tdNombre);
                 tr.appendChild(tdCurso);
@@ -2130,6 +2186,21 @@
                 const res = await window.electronAPI.actualizarSupletorios(updates);
                 
                 if (res.success) {
+                    const curso = obtenerCursoActivo();
+                    if (curso) {
+                        if (!curso.supletoriosManuales) {
+                            curso.supletoriosManuales = {};
+                        }
+                        updates.forEach(up => {
+                            if (!curso.supletoriosManuales[up.id]) {
+                                curso.supletoriosManuales[up.id] = {};
+                            }
+                            curso.supletoriosManuales[up.id][up.asignatura] = up.nota_supletorio;
+                        });
+                        await saveStateToDB();
+                        consolidarYRenderizar();
+                    }
+
                     const seleccionados = getSelectedStudentIds();
                     const datosConsolidadosSeleccionados = estudiantesCargados.filter(e =>
                         seleccionados.includes(e.id_real)
