@@ -427,9 +427,43 @@
         <div class="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden">
             <div class="p-6">
                 <h3 id="course-modal-title" class="text-lg font-bold text-slate-900 mb-4">Crear Nuevo Curso</h3>
-                <div class="mb-4">
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Nombre del Curso</label>
-                    <input type="text" id="course-modal-input" onkeydown="if(event.key === 'Enter') confirmarCursoModal(); else if(event.key === 'Escape') cerrarCursoModal();" placeholder="Ej: 1RO DE BACHILLERATO CIENCIAS A" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                <div class="mb-4 space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Grado / Curso</label>
+                        <select id="course-modal-select-grade" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                            <option value="INICIAL 1">INICIAL 1</option>
+                            <option value="INICIAL 2">INICIAL 2</option>
+                            <option value="1RO DE EGB">1RO DE EGB</option>
+                            <option value="2DO DE EGB">2DO DE EGB</option>
+                            <option value="3RO DE EGB">3RO DE EGB</option>
+                            <option value="4TO DE EGB">4TO DE EGB</option>
+                            <option value="5TO DE EGB">5TO DE EGB</option>
+                            <option value="6TO DE EGB">6TO DE EGB</option>
+                            <option value="7MO DE EGB">7MO DE EGB</option>
+                            <option value="8VO DE EGB">8VO DE EGB</option>
+                            <option value="9NO DE EGB">9NO DE EGB</option>
+                            <option value="10MO DE EGB">10MO DE EGB</option>
+                            <option value="1RO DE BACHILLERATO CIENCIAS">1RO DE BACHILLERATO CIENCIAS</option>
+                            <option value="2DO DE BACHILLERATO CIENCIAS">2DO DE BACHILLERATO CIENCIAS</option>
+                            <option value="3RO DE BACHILLERATO CIENCIAS">3RO DE BACHILLERATO CIENCIAS</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Paralelo</label>
+                        <select id="course-modal-select-parallel" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                            <option value="D">D</option>
+                            <option value="E">E</option>
+                            <option value="F">F</option>
+                            <option value="G">G</option>
+                            <option value="H">H</option>
+                            <option value="I">I</option>
+                            <option value="J">J</option>
+                            <option value="K">K</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="flex justify-end gap-3">
                     <button onclick="cerrarCursoModal()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-md text-sm font-semibold hover:bg-slate-200 transition-all">Cancelar</button>
@@ -661,20 +695,33 @@
         function abrirCursoModal(mode, initialValue = '') {
             cursoModalMode = mode;
             const title = document.getElementById('course-modal-title');
-            const input = document.getElementById('course-modal-input');
+            
+            const listGrados = [
+                'INICIAL 1', 'INICIAL 2',
+                '1RO DE EGB', '2DO DE EGB', '3RO DE EGB', '4TO DE EGB', '5TO DE EGB',
+                '6TO DE EGB', '7MO DE EGB', '8VO DE EGB', '9NO DE EGB', '10MO DE EGB',
+                '1RO DE BACHILLERATO CIENCIAS', '2DO DE BACHILLERATO CIENCIAS', '3RO DE BACHILLERATO CIENCIAS'
+            ];
+            
+            let gradeVal = listGrados[0];
+            let parallelVal = 'A';
             
             if (mode === 'crear') {
                 title.textContent = 'Crear Nuevo Curso';
-                input.value = '';
-                input.placeholder = 'Ej: 1RO DE BACHILLERATO CIENCIAS A';
             } else {
                 title.textContent = 'Editar Nombre del Curso';
-                input.value = initialValue;
-                input.placeholder = '';
+                // Buscar coincidencia del grado en el valor original
+                const matchedGrade = listGrados.find(g => initialValue.toUpperCase().startsWith(g));
+                if (matchedGrade) {
+                    gradeVal = matchedGrade;
+                    parallelVal = initialValue.replace(matchedGrade, '').trim().toUpperCase();
+                }
             }
             
+            document.getElementById('course-modal-select-grade').value = gradeVal;
+            document.getElementById('course-modal-select-parallel').value = parallelVal;
+            
             document.getElementById('course-modal').classList.remove('hidden');
-            input.focus();
         }
 
         function cerrarCursoModal() {
@@ -682,12 +729,9 @@
         }
 
         async function confirmarCursoModal() {
-            const input = document.getElementById('course-modal-input');
-            const nombre = input.value.trim();
-            if (!nombre) {
-                alert("Por favor, ingrese un nombre válido para el curso.");
-                return;
-            }
+            const grade = document.getElementById('course-modal-select-grade').value;
+            const parallel = document.getElementById('course-modal-select-parallel').value;
+            const nombre = `${grade} ${parallel}`.trim().toUpperCase();
             
             cerrarCursoModal();
             
@@ -695,15 +739,15 @@
                 const id = 'curso_' + Date.now();
                 const nuevoCurso = {
                     id: id,
-                    nombreVisible: nombre.toUpperCase(),
+                    nombreVisible: nombre,
                     cursoKey: '',
                     datosInstitucion: {
                         nombreInstitucion: document.getElementById('inst-nombre').value,
                         nivel: "",
                         anioLectivo: document.getElementById('inst-anio').value,
                         codigoAmie: document.getElementById('inst-amie').value,
-                        gradoCurso: nombre.toUpperCase(),
-                        paralelo: "A",
+                        gradoCurso: grade.toUpperCase(),
+                        paralelo: parallel.toUpperCase(),
                         jornada: "MATUTINA",
                         rectorDirector: document.getElementById('inst-rector').value,
                         tutorCurso: ""
@@ -726,9 +770,10 @@
                 const curso = obtenerCursoActivo();
                 if (!curso) return;
 
-                curso.nombreVisible = nombre.toUpperCase();
+                curso.nombreVisible = nombre;
                 if (curso.datosInstitucion) {
-                    curso.datosInstitucion.gradoCurso = nombre.toUpperCase();
+                    curso.datosInstitucion.gradoCurso = grade.toUpperCase();
+                    curso.datosInstitucion.paralelo = parallel.toUpperCase();
                 }
                 await saveStateToDB();
                 actualizarSelectorCursosUI();
