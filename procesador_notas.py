@@ -849,13 +849,15 @@ def inject_subject_grades(html_content, materias_data):
                     new_tds.append(f'<td>{fmt(data.get("t1"))}</td>')
                     new_tds.append(f'<td>{fmt(data.get("t2"))}</td>')
                     new_tds.append(f'<td>{fmt(data.get("t3"))}</td>')
-                    new_tds.append(f'<td class="font-bold bg-slate-50">{fmt(data.get("nota_final") or data.get("promedio_anual"))}</td>')
+                    val_final = data.get("nota_final") if data.get("nota_final") is not None else data.get("promedio_anual")
+                    new_tds.append(f'<td class="font-bold bg-slate-50">{fmt(val_final)}</td>')
                 elif len(grade_tds) == 5:
                     new_tds.append(f'<td>{fmt(data.get("t1"))}</td>')
                     new_tds.append(f'<td>{fmt(data.get("t2"))}</td>')
                     new_tds.append(f'<td>{fmt(data.get("t3"))}</td>')
                     new_tds.append(f'<td>{fmt(data.get("supletorio"), True)}</td>')
-                    new_tds.append(f'<td class="font-bold bg-slate-50">{fmt(data.get("nota_final") or data.get("promedio_anual"))}</td>')
+                    val_final = data.get("nota_final") if data.get("nota_final") is not None else data.get("promedio_anual")
+                    new_tds.append(f'<td class="font-bold bg-slate-50">{fmt(val_final)}</td>')
                     
                 new_tr_block = tr_block[:tds[1].start()] + "".join(new_tds) + "</tr>"
                 html_content = html_content.replace(tr_block, new_tr_block)

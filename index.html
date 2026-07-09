@@ -292,8 +292,11 @@
             </div>
 
             <!-- Tabla Dinámica de Supletorios -->
-            <div id="contenedor-supletorios" class="hidden m-5 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                <h4 class="font-semibold text-slate-800 mb-4 flex items-center gap-2">
+            <div id="contenedor-supletorios" class="hidden m-5 rounded-lg border border-slate-200 bg-white p-5 shadow-sm relative">
+                <button onclick="document.getElementById('contenedor-supletorios').classList.add('hidden'); document.getElementById('alerta-supletorios').classList.add('hidden');" class="absolute top-4 right-4 text-slate-400 hover:text-rose-600 transition-all p-1" title="Ocultar sección de supletorios">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+                <h4 class="font-semibold text-slate-800 mb-4 flex items-center gap-2 pr-8">
                     <i class="fa-solid fa-square-poll-vertical text-indigo-600"></i> Calificaciones de Exámenes Supletorios
                 </h4>
                 <div class="overflow-x-auto">
@@ -1976,14 +1979,16 @@
                         gradeCells[0].textContent = fmt(data.t1);
                         gradeCells[1].textContent = fmt(data.t2);
                         gradeCells[2].textContent = fmt(data.t3);
-                        gradeCells[3].textContent = fmt(data.promedio_anual || data.nota_final);
+                        const valFinal = (data.nota_final !== null && data.nota_final !== undefined) ? data.nota_final : data.promedio_anual;
+                        gradeCells[3].textContent = fmt(valFinal);
                     } else if (gradeCells.length === 5) {
                         // Trimestres T1, T2, T3 + Supletorio + Promedio Anual
                         gradeCells[0].textContent = fmt(data.t1);
                         gradeCells[1].textContent = fmt(data.t2);
                         gradeCells[2].textContent = fmt(data.t3);
                         gradeCells[3].textContent = fmt(data.supletorio, true);
-                        gradeCells[4].textContent = fmt(data.promedio_anual || data.nota_final);
+                        const valFinal = (data.nota_final !== null && data.nota_final !== undefined) ? data.nota_final : data.promedio_anual;
+                        gradeCells[4].textContent = fmt(valFinal);
                     }
                 }
             });
