@@ -2087,8 +2087,8 @@
                 Object.entries(est.materias || {}).forEach(([subName, mData]) => {
                     const p_anual = mData.promedio_anual;
                     if (p_anual !== null && p_anual >= 4.01 && p_anual <= 6.99) {
-                        const es_egb_media = "MEDIA" in String(curso.datosInstitucion?.gradoCurso || '').toUpperCase() || "MEDIA" in String(curso.datosInstitucion?.nivel || '').toUpperCase();
-                        const nota_su_existente = mData.supletorio !== null ? mData.supletorio : '';
+                        const es_egb_media = String(curso.datosInstitucion?.gradoCurso || '').toUpperCase().includes("MEDIA") || String(curso.datosInstitucion?.nivel || '').toUpperCase().includes("MEDIA");
+                        const nota_su_existente = (mData.supletorio !== null && mData.supletorio !== undefined) ? mData.supletorio : '';
                         supletorios.push({
                             id: est.id_real,
                             nombre: est.nombre,
