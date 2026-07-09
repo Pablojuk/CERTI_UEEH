@@ -1943,14 +1943,14 @@
                 }
             });
 
-            // Actualizar PROMEDIO ANUAL o PROMEDIO GENERAL
+            // Actualizar PROMEDIO ANUAL o PROMEDIO GENERAL (encontrando la celda td del final de la tabla)
             rows.forEach(row => {
                 const cells = Array.from(row.cells);
                 if (cells.length === 0) return;
                 
                 const hasPromedioLabel = cells.some(cell => {
                     const t = cell.textContent.trim().toUpperCase();
-                    return t === 'PROMEDIO ANUAL' || t === 'PROMEDIO GENERAL';
+                    return (t === 'PROMEDIO ANUAL' || t === 'PROMEDIO GENERAL') && cell.tagName.toUpperCase() === 'TD';
                 });
 
                 if (hasPromedioLabel) {
@@ -1960,6 +1960,14 @@
                     }
                 }
             });
+
+            // Cambiar dinámicamente el texto de la cabecera de la columna de "PROMEDIO ANUAL" a "Nota"
+            doc.querySelectorAll('th').forEach(th => {
+                const t = th.textContent.trim().toUpperCase();
+                if (t === 'PROMEDIO ANUAL') {
+                    th.textContent = 'Nota';
+                }
+            });
         }
 
         function _certInjectFirmas(doc, inst) {
@@ -1967,17 +1975,45 @@
                 const t = p.textContent.trim().toUpperCase();
                 if (t === 'TUTOR/A' || t === 'TUTORA' || t === 'TUTOR') {
                     const lineDiv = p.parentElement?.querySelector('.border-b');
-                    if (lineDiv && inst.tutorCurso) {
-                        lineDiv.textContent = inst.tutorCurso;
-                        lineDiv.style.textAlign = 'center';
-                        lineDiv.style.lineHeight = '2rem';
+                    if (lineDiv) {
+                        // Dejar la línea vacía para la firma manuscrita
+                        lineDiv.textContent = '';
+                        // Darle altura para dejar espacio de firma (aprox 4 enters de espacio)
+                        lineDiv.style.height = '3.5rem';
+                        
+                        // Eliminar nombre inyectado anteriormente para evitar duplicados
+                        const prevName = p.parentElement.querySelector('.cert-nombre-firma');
+                        if (prevName) prevName.remove();
+
+                        // Inyectar el nombre del Tutor justo encima de la etiqueta del rol
+                        if (inst.tutorCurso) {
+                            const nameEl = doc.createElement('p');
+                            nameEl.className = 'cert-nombre-firma font-bold text-slate-800 mt-1';
+                            nameEl.style.fontSize = '0.75rem';
+                            nameEl.textContent = inst.tutorCurso;
+                            p.parentNode.insertBefore(nameEl, p);
+                        }
                     }
                 } else if (t === 'RECTOR/A' || t === 'RECTORA' || t === 'RECTOR' || t === 'DIRECTOR') {
                     const lineDiv = p.parentElement?.querySelector('.border-b');
-                    if (lineDiv && inst.rectorDirector) {
-                        lineDiv.textContent = inst.rectorDirector;
-                        lineDiv.style.textAlign = 'center';
-                        lineDiv.style.lineHeight = '2rem';
+                    if (lineDiv) {
+                        // Dejar la línea vacía para la firma manuscrita
+                        lineDiv.textContent = '';
+                        // Darle altura para dejar espacio de firma (aprox 4 enters de espacio)
+                        lineDiv.style.height = '3.5rem';
+                        
+                        // Eliminar nombre inyectado anteriormente para evitar duplicados
+                        const prevName = p.parentElement.querySelector('.cert-nombre-firma');
+                        if (prevName) prevName.remove();
+
+                        // Inyectar el nombre del Rector justo encima de la etiqueta del rol
+                        if (inst.rectorDirector) {
+                            const nameEl = doc.createElement('p');
+                            nameEl.className = 'cert-nombre-firma font-bold text-slate-800 mt-1';
+                            nameEl.style.fontSize = '0.75rem';
+                            nameEl.textContent = inst.rectorDirector;
+                            p.parentNode.insertBefore(nameEl, p);
+                        }
                     }
                 }
             });
@@ -2085,8 +2121,11 @@
                             padding-bottom: 0.4rem !important;
                         }
                         .w-24.h-24 {
-                            width: 4.25rem !important;
-                            height: 4.25rem !important;
+                            width: 5.5rem !important;
+                            height: 5.5rem !important;
+                        }
+                        label:has(#img-logo-2) {
+                            width: 7.8rem !important;
                         }
                         header h1 {
                             font-size: 1.05rem !important;
@@ -2298,8 +2337,11 @@
                             padding-bottom: 0.4rem !important;
                         }
                         .w-24.h-24 {
-                            width: 4.25rem !important;
-                            height: 4.25rem !important;
+                            width: 5.5rem !important;
+                            height: 5.5rem !important;
+                        }
+                        label:has(#img-logo-2) {
+                            width: 7.8rem !important;
                         }
                         header h1 {
                             font-size: 1.05rem !important;
