@@ -1397,10 +1397,10 @@
             curso.estudiantesNoEncontrados = curso.estudiantesNoEncontrados || [];
             curso.alumnosTraslado = curso.alumnosTraslado || [];
 
-            const t1 = curso.periodos.trimestre1 || {};
-            const t2 = curso.periodos.trimestre2 || {};
-            const t3 = curso.periodos.trimestre3 || {};
-            const su = curso.periodos.supletorio || {};
+            const t1 = curso.periodos?.trimestre1 || {};
+            const t2 = curso.periodos?.trimestre2 || {};
+            const t3 = curso.periodos?.trimestre3 || {};
+            const su = curso.periodos?.supletorio || {};
 
             const fuentes = [
                 { key: 'trimestre1', label: 'TRIMESTRE 1', estudiantes: t1.estudiantes || [] },
@@ -1458,18 +1458,18 @@
             const listaConsolidada = base.map(s => {
                 const manual_su_keys = Object.keys(supletoriosManuales[s.cedula] || supletoriosManuales[s.estudianteId] || {});
                 const subjects = new Set([
-                    ...Object.keys(s.notas.trimestre1?.asignaturas || {}),
-                    ...Object.keys(s.notas.trimestre2?.asignaturas || {}),
-                    ...Object.keys(s.notas.trimestre3?.asignaturas || {}),
+                    ...Object.keys(s.notas?.trimestre1?.asignaturas || {}),
+                    ...Object.keys(s.notas?.trimestre2?.asignaturas || {}),
+                    ...Object.keys(s.notas?.trimestre3?.asignaturas || {}),
                     ...Object.keys(s.su_notas || {}),
                     ...manual_su_keys
                 ]);
 
                 const materias = {};
                 subjects.forEach(sub => {
-                    const g1 = s.notas.trimestre1?.asignaturas?.[sub] ?? null;
-                    const g2 = s.notas.trimestre2?.asignaturas?.[sub] ?? null;
-                    const g3 = s.notas.trimestre3?.asignaturas?.[sub] ?? null;
+                    const g1 = s.notas?.trimestre1?.asignaturas?.[sub] ?? null;
+                    const g2 = s.notas?.trimestre2?.asignaturas?.[sub] ?? null;
+                    const g3 = s.notas?.trimestre3?.asignaturas?.[sub] ?? null;
                     
                     const manual_su_grade = supletoriosManuales[s.cedula]?.[sub] ?? supletoriosManuales[s.estudianteId]?.[sub] ?? null;
                     const su_grade = manual_su_grade !== null ? manual_su_grade : (s.su_notas?.[sub] ?? null);
@@ -1501,15 +1501,15 @@
                         nota_final: nota_final,
                         estado: estado,
                         origenRegistro: {
-                            trimestre1: s.notas.trimestre1?.origenRegistro || 'PENDIENTE',
-                            trimestre2: s.notas.trimestre2?.origenRegistro || 'PENDIENTE',
-                            trimestre3: s.notas.trimestre3?.origenRegistro || 'PENDIENTE'
+                            trimestre1: s.notas?.trimestre1?.origenRegistro || 'PENDIENTE',
+                            trimestre2: s.notas?.trimestre2?.origenRegistro || 'PENDIENTE',
+                            trimestre3: s.notas?.trimestre3?.origenRegistro || 'PENDIENTE'
                         }
                     };
                 });
 
                 const materiasList = Object.values(materias);
-                const tienePendiente = materiasList.some(m => m.estado === 'PENDIENTE DE NOTAS EXTERNAS') || ['trimestre1', 'trimestre2', 'trimestre3'].some(periodKey => s.notas[periodKey]?.origenRegistro === 'PENDIENTE');
+                const tienePendiente = materiasList.some(m => m.estado === 'PENDIENTE DE NOTAS EXTERNAS') || ['trimestre1', 'trimestre2', 'trimestre3'].some(periodKey => s.notas?.[periodKey]?.origenRegistro === 'PENDIENTE');
                 const finalesValidos = materiasList.map(m => m.nota_final).filter(v => typeof v === 'number');
                 const prom_general = (!tienePendiente && finalesValidos.length > 0) ? (finalesValidos.reduce((a, b) => a + b, 0) / finalesValidos.length) : null;
                 const tiene_supletorio = materiasList.some(m => m.estado === 'SUPLETORIO');
