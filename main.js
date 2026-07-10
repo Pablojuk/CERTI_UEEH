@@ -231,6 +231,14 @@ ipcMain.handle('generar-certificados', async (event, datos) => {
             fs.mkdirSync(logosDir, { recursive: true });
         }
 
+        // Crear directorio de salida para certificados generados (fuera de assets/certificados)
+        const cursoId = datos.cursoActivoId || 'default';
+        const certOutputDir = path.join(appDataPath, 'certificados_temporales', cursoId);
+        if (!fs.existsSync(certOutputDir)) {
+            fs.mkdirSync(certOutputDir, { recursive: true });
+        }
+        datos.certOutputDir = certOutputDir;
+
         // Guardar logos base64 en archivos si es necesario
         const saveBase64Image = (base64Str, prefix) => {
             if (!base64Str || !base64Str.startsWith('data:image/')) {
@@ -241,7 +249,6 @@ ipcMain.handle('generar-certificados', async (event, datos) => {
                 if (matches && matches.length === 3) {
                     const ext = matches[1].split('/')[1] || 'png';
                     const buffer = Buffer.from(matches[2], 'base64');
-                    const cursoId = datos.cursoActivoId || 'default';
                     const tempPath = path.join(logosDir, `${prefix}_${cursoId}.${ext}`);
                     fs.writeFileSync(tempPath, buffer);
                     return tempPath;
@@ -269,7 +276,25 @@ ipcMain.handle('generar-certificados', async (event, datos) => {
 // IPC: Actualizar certificados con notas manuales de supletorio
 ipcMain.handle('actualizar-supletorios', async (event, datos) => {
     try {
-        const payloadString = JSON.stringify(datos);
+        let updates = [];
+        let cursoId = 'default';
+        if (datos && datos.updates && datos.cursoId) {
+            updates = datos.updates;
+            cursoId = datos.cursoId;
+        } else {
+            updates = datos || [];
+        }
+
+        const appDataPath = app.getPath('userData');
+        const certOutputDir = path.join(appDataPath, 'certificados_temporales', cursoId);
+
+        // Inyectar cert_output_dir en cada update para Python
+        const updatesWithDir = updates.map(u => ({
+            ...u,
+            cert_output_dir: certOutputDir
+        }));
+
+        const payloadString = JSON.stringify(updatesWithDir);
         const result = await runPython(['--supletorios', payloadString]);
         return JSON.parse(result.stdout);
     } catch (error) {
@@ -291,6 +316,22 @@ ipcMain.handle('leer-plantilla', async (event, nombreArchivo) => {
     } catch (error) {
         console.error("Error en leer-plantilla:", error);
         return { error: error.message || "Error al leer la plantilla de certificado." };
+    }
+});
+
+// IPC: Leer certificado generado desde userData/certificados_temporales/
+ipcMain.handle('leer-certificado-generado', async (event, cursoId, nombreArchivo) => {
+    try {
+        const appDataPath = app.getPath('userData');
+        const filePath = path.join(appDataPath, 'certificados_temporales', cursoId, nombreArchivo);
+        if (!fs.existsSync(filePath)) {
+            return { error: `Certificado generado no encontrado: ${nombreArchivo}` };
+        }
+        const content = fs.readFileSync(filePath, 'utf-8');
+        return { content };
+    } catch (error) {
+        console.error("Error en leer-certificado-generado:", error);
+        return { error: error.message || "Error al leer el certificado generado." };
     }
 });
 

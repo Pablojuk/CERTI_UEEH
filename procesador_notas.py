@@ -683,24 +683,77 @@ def extraer_datos_institucionales(file_path: str) -> dict:
 # 4. Inyección de datos en Plantillas HTML de Certificados
 import re
 
+PLANTILLAS_PERMITIDAS = {
+    "FORMATO INICIAL 1.html",
+    "FORMATO INICIAL 2.html",
+    "PRIMERO DE EGB.html",
+    "FORMALO DE ELEMENTAL.html",
+    "FORMATO EGBM.html",
+    "FORMATO EGBS.html",
+    "FORMATO DE 1 Y 2 DE BGU.html",
+    "FORMATO DE 3 DE BGU.html",
+}
+
+def _normalizar_grado(texto: str) -> str:
+    """Normaliza el texto del grado para comparación robusta."""
+    import unicodedata
+    s = str(texto).upper().strip()
+    # Remover tildes
+    s = "".join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
+    # Colapsar espacios múltiples
+    s = " ".join(s.split())
+    return s
+
+def _es_egb(g: str) -> bool:
+    """Verifica si el texto contiene indicador de EGB."""
+    return any(k in g for k in ['EGB', 'EDUCACION GENERAL BASICA', 'EDUCACIÓN GENERAL BÁSICA'])
+
+def _es_bachillerato(g: str) -> bool:
+    """Verifica si el texto contiene indicador de Bachillerato."""
+    return any(k in g for k in ['BACHILLERATO', 'BGU'])
+
 def mapear_plantilla_python(grado_curso: str) -> str | None:
-    g = str(grado_curso).upper()
-    if 'INICIAL 1' in g or 'MINISTERIO INICIAL 1' in g:
+    """
+    Mapea el grado/curso a la plantilla HTML correspondiente.
+    ORDEN: Inicial → 3ro Bachillerato → 1ro/2do Bachillerato → 1ro EGB → EGB Elemental → EGB Media → EGB Superior → None
+    """
+    g = _normalizar_grado(grado_curso)
+    if not g:
+        return None
+
+    # 1. INICIAL 1
+    if 'INICIAL 1' in g or 'INICIAL I' in g and 'INICIAL 2' not in g and 'INICIAL II' not in g:
         return 'FORMATO INICIAL 1.html'
-    if 'INICIAL 2' in g or 'MINISTERIO INICIAL 2' in g or 'INFANTIL' in g:
+
+    # 2. INICIAL 2
+    if 'INICIAL 2' in g or 'INICIAL II' in g:
         return 'FORMATO INICIAL 2.html'
-    if 'PRIMERO DE EGB' in g or '1RO DE EGB' in g or '1ERO DE EGB' in g or '1ER GRADO' in g:
-        return 'PRIMERO DE EGB.html'
-    if any(k in g for k in ['SEGUNDO', 'TERCERO', 'CUARTO', '2DO', '3RO', '4TO', 'ELEMENTAL']):
-        return 'FORMALO DE ELEMENTAL.html'
-    if any(k in g for k in ['QUINTO', 'SEXTO', 'SEPTIMO', '5TO', '6TO', '7MO', 'MEDIA']):
-        return 'FORMATO EGBM.html'
-    if any(k in g for k in ['OCTAVO', 'NOVENO', 'DECIMO', '8VO', '9NO', '10MO', 'SUPERIOR']):
-        return 'FORMATO EGBS.html'
-    if any(k in g for k in ['1RO DE BACHILLERATO', '2DO DE BACHILLERATO', '1ER AÑO DE BACHILLERATO', '2DO AÑO DE BACHILLERATO', '1 BGU', '2 BGU']):
-        return 'FORMATO DE 1 Y 2 DE BGU.html'
-    if any(k in g for k in ['TERCERO DE BACHILLERATO', '3RO DE BACHILLERATO', '3ER AÑO DE BACHILLERATO', '3 BGU', 'TERCER AÑO']):
+
+    # 3. 3RO DE BACHILLERATO (antes del genérico BGU)
+    if _es_bachillerato(g) and any(k in g for k in ['TERCERO', '3RO', '3ER', 'TERCER']):
         return 'FORMATO DE 3 DE BGU.html'
+
+    # 4. 1RO y 2DO DE BACHILLERATO
+    if _es_bachillerato(g):
+        return 'FORMATO DE 1 Y 2 DE BGU.html'
+
+    # 5. 1RO DE EGB / PREPARATORIA
+    if any(k in g for k in ['PRIMERO DE EGB', '1RO DE EGB', '1ERO DE EGB', '1RO EGB', '1ER GRADO', 'PREPARATORIA']):
+        return 'PRIMERO DE EGB.html'
+
+    # 6. 2DO, 3RO y 4TO DE EGB (ELEMENTAL) - requiere contexto EGB
+    if 'ELEMENTAL' in g or (_es_egb(g) and any(k in g for k in ['SEGUNDO', 'TERCERO', 'CUARTO', '2DO', '3RO', '4TO'])):
+        return 'FORMALO DE ELEMENTAL.html'
+
+    # 7. 5TO, 6TO y 7MO DE EGB (MEDIA) - requiere contexto EGB
+    if 'MEDIA' in g or (_es_egb(g) and any(k in g for k in ['QUINTO', 'SEXTO', 'SEPTIMO', '5TO', '6TO', '7MO'])):
+        return 'FORMATO EGBM.html'
+
+    # 8. 8VO, 9NO y 10MO DE EGB (SUPERIOR) - requiere contexto EGB
+    if 'SUPERIOR' in g or (_es_egb(g) and any(k in g for k in ['OCTAVO', 'NOVENO', 'DECIMO', '8VO', '9NO', '10MO'])):
+        return 'FORMATO EGBS.html'
+
+    # Sin coincidencia
     return None
 
 def inject_student_data_html(html_content, student, inst, logos):
@@ -893,10 +946,43 @@ def generar_certificados_inicial(payload):
     inst = payload.get("institucion", {})
     logos = payload.get("logos", {})
     
-    cert_dir = os.path.join(os.path.dirname(__file__), "assets", "certificados")
-    os.makedirs(cert_dir, exist_ok=True)
+    # Directorio de plantillas originales (solo lectura)
+    templates_dir = os.path.join(os.path.dirname(__file__), "assets", "certificados")
+    
+    # Directorio de salida para certificados generados (recibido de Electron o fallback)
+    cert_output_dir = payload.get("certOutputDir", os.path.join(os.path.dirname(__file__), "assets", "certificados_generados"))
+    os.makedirs(cert_output_dir, exist_ok=True)
+    
+    # Plantilla: JS tiene prioridad, luego fallback a mapear_plantilla_python
+    plantilla_name_js = payload.get("plantillaName")
+    grado_canonico = payload.get("gradoCursoCanonico", inst.get("grado", ""))
+    
+    # Validar plantilla del JS contra lista blanca
+    if plantilla_name_js and plantilla_name_js in PLANTILLAS_PERMITIDAS:
+        plantilla_name = plantilla_name_js
+        print(f"[Certificados-PY] Usando plantilla de JS: {plantilla_name}", file=sys.stderr)
+    else:
+        plantilla_name = mapear_plantilla_python(grado_canonico)
+        print(f"[Certificados-PY] Plantilla calculada por Python: {plantilla_name} (grado: {grado_canonico})", file=sys.stderr)
+    
+    if not plantilla_name:
+        return {"error": f"No se encontró plantilla para el grado: {grado_canonico}", "supletorios": []}
+    
+    plantilla_path = os.path.join(templates_dir, plantilla_name)
+    if not os.path.exists(plantilla_path):
+        return {"error": f"Plantilla no encontrada en disco: {plantilla_name} → {plantilla_path}", "supletorios": []}
+    
+    print(f"[Certificados-PY] Plantilla final: {plantilla_name}", file=sys.stderr)
+    print(f"[Certificados-PY] Ruta: {plantilla_path}", file=sys.stderr)
+    print(f"[Certificados-PY] Existe: {os.path.exists(plantilla_path)}", file=sys.stderr)
+    print(f"[Certificados-PY] Estudiantes: {len(estudiantes)}", file=sys.stderr)
+    print(f"[Certificados-PY] Output dir: {cert_output_dir}", file=sys.stderr)
+    
+    with open(plantilla_path, "r", encoding="utf-8") as f:
+        template_html = f.read()
     
     supletorios_detectados = []
+    archivos_generados = []
     
     for est in estudiantes:
         materias = est.get("materias", {})
@@ -921,32 +1007,38 @@ def generar_certificados_inicial(payload):
                     "es_egb_media": es_egb_media
                 })
         
-        plantilla_name = mapear_plantilla_python(inst.get("grado", ""))
-        if not plantilla_name:
-            continue
-            
-        plantilla_path = os.path.join(cert_dir, plantilla_name)
-        if not os.path.exists(plantilla_path):
-            continue
-            
-        with open(plantilla_path, "r", encoding="utf-8") as f:
-            template_html = f.read()
-            
         student_html = inject_student_data_html(template_html, est, inst, logos)
         student_html = inject_subject_grades(student_html, materias)
         
-        output_path = os.path.join(cert_dir, f"certificado_{est['id_real']}.html")
+        # Guardar en directorio de salida, NO en plantillas
+        output_filename = f"certificado_{est['id_real']}.html"
+        output_path = os.path.join(cert_output_dir, output_filename)
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(student_html)
+        
+        archivos_generados.append(output_path)
             
-    return supletorios_detectados
+    return {
+        "supletorios": supletorios_detectados,
+        "archivos": archivos_generados,
+        "plantilla_usada": plantilla_name,
+        "cert_output_dir": cert_output_dir
+    }
 
-def actualizar_certificado_supletorio(student_id, asignatura, nota_supletorio):
-    cert_dir = os.path.join(os.path.dirname(__file__), "assets", "certificados")
-    file_path = os.path.join(cert_dir, f"certificado_{student_id}.html")
+def actualizar_certificado_supletorio(student_id, asignatura, nota_supletorio, cert_output_dir=None):
+    """Actualiza un certificado HTML existente con la nota de supletorio."""
+    # Buscar en el directorio de salida proporcionado, o fallback
+    if cert_output_dir:
+        file_path = os.path.join(cert_output_dir, f"certificado_{student_id}.html")
+    else:
+        # Fallback: buscar en assets/certificados_generados y luego en assets/certificados (legacy)
+        base_dir = os.path.dirname(__file__)
+        file_path = os.path.join(base_dir, "assets", "certificados_generados", f"certificado_{student_id}.html")
+        if not os.path.exists(file_path):
+            file_path = os.path.join(base_dir, "assets", "certificados", f"certificado_{student_id}.html")
     
     if not os.path.exists(file_path):
-        print(f"[actualizar_certificado_supletorio] No existe el certificado para {student_id}", file=sys.stderr)
+        print(f"[actualizar_certificado_supletorio] No existe el certificado para {student_id} en {file_path}", file=sys.stderr)
         return False
         
     with open(file_path, "r", encoding="utf-8") as f:
@@ -1013,13 +1105,17 @@ def main():
         try:
             updates = json.loads(args.supletorios)
             success_count = 0
+            # Extract cert_output_dir from the first entry if provided
+            cert_output_dir = None
+            if isinstance(updates, list) and len(updates) > 0:
+                cert_output_dir = updates[0].get("cert_output_dir")
             if isinstance(updates, list):
                 for up in updates:
                     student_id = up.get("id")
                     asignatura = up.get("asignatura")
                     nota_su = up.get("nota_supletorio")
                     if student_id and asignatura and nota_su is not None:
-                        if actualizar_certificado_supletorio(student_id, asignatura, nota_su):
+                        if actualizar_certificado_supletorio(student_id, asignatura, nota_su, cert_output_dir):
                             success_count += 1
             print(json.dumps({"success": True, "updated": success_count}, ensure_ascii=False))
         except Exception as e:
@@ -1035,8 +1131,13 @@ def main():
                 return
                 
             payload = json.loads(input_data)
-            supletorios = generar_certificados_inicial(payload)
-            print(json.dumps({"success": True, "supletorios": supletorios}, ensure_ascii=False))
+            result = generar_certificados_inicial(payload)
+            
+            # result is now a dict with supletorios, archivos, plantilla_usada, cert_output_dir
+            if isinstance(result, dict) and "error" in result:
+                print(json.dumps({"success": False, "error": result["error"]}, ensure_ascii=False))
+            else:
+                print(json.dumps({"success": True, **result}, ensure_ascii=False))
         except Exception as e:
             print(json.dumps({"success": False, "error": str(e)}, ensure_ascii=False))
         return

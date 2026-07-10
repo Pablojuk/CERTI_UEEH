@@ -1908,48 +1908,46 @@
             return ids;
         }
 
-        // ========== MOTOR DE GENERACIÓN DE CERTIFICADOS HTML ==========
-
-        // Mapear gradoCurso → archivo de plantilla en assets/certificados/
+        // ========== MOTOR DE GENERACIÓN DE CERTIFICADOS HTML ==========        // Mapear gradoCurso → archivo de plantilla en assets/certificados/
         function mapearPlantilla(gradoCurso) {
-            const g = (gradoCurso || '').toUpperCase().trim();
+            if (!gradoCurso) return null;
+            let g = String(gradoCurso)
+                .toUpperCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/\s+/g, ' ')
+                .trim();
 
-            if (g.includes('INICIAL 1') || (g.includes('INICIAL I') && !g.includes('INICIAL 2') && !g.includes('INICIAL II')))
+            const esEgb = g.includes('EGB') || g.includes('EDUCACION GENERAL BASICA') || g.includes('ELEMENTAL') || g.includes('MEDIA') || g.includes('SUPERIOR');
+            const esBachillerato = g.includes('BGU') || g.includes('BACHILLERATO');
+
+            if (g.includes('INICIAL 1') || (g.includes('INICIAL I') && !g.includes('INICIAL 2') && !g.includes('INICIAL II'))) {
                 return 'FORMATO INICIAL 1.html';
-            if (g.includes('INICIAL 2') || g.includes('INICIAL II'))
+            }
+            if (g.includes('INICIAL 2') || g.includes('INICIAL II') || g.includes('INFANTIL')) {
                 return 'FORMATO INICIAL 2.html';
-
-            if (g.includes('1RO DE EGB') || g.includes('1RO EGB') || g.includes('PRIMERO DE EGB') || g.includes('PREPARATORIA'))
-                return 'PRIMERO DE EGB.html';
-
-            if (g.includes('ELEMENTAL') ||
-                (/\b2DO\b/.test(g) && g.includes('EGB')) ||
-                (/\b3RO\b/.test(g) && g.includes('EGB')) ||
-                (/\b4TO\b/.test(g) && g.includes('EGB')))
-                return 'FORMALO DE ELEMENTAL.html';
-
-            if (g.includes('EGBM') || (g.includes('MEDIA') && g.includes('EGB')) ||
-                (/\b5TO\b/.test(g) && g.includes('EGB')) ||
-                (/\b6TO\b/.test(g) && g.includes('EGB')) ||
-                (/\b7MO\b/.test(g) && g.includes('EGB')))
-                return 'FORMATO EGBM.html';
-
-            if (g.includes('EGBS') || (g.includes('SUPERIOR') && g.includes('EGB')) ||
-                (/\b8VO\b/.test(g) && g.includes('EGB')) ||
-                (/\b9NO\b/.test(g) && g.includes('EGB')) ||
-                (/\b10MO\b/.test(g) && g.includes('EGB')))
-                return 'FORMATO EGBS.html';
-
-            // 3ro BGU (antes del genérico BGU)
-            if (/\b3RO\b/.test(g) && (g.includes('BGU') || g.includes('BACHILLERATO')))
+            }
+            if (esBachillerato && (g.includes('TERCERO') || g.includes('3RO') || g.includes('3ER') || g.includes('TERCER'))) {
                 return 'FORMATO DE 3 DE BGU.html';
-
-            // 1ro y 2do BGU
-            if (g.includes('BGU') || g.includes('BACHILLERATO'))
+            }
+            if (esBachillerato) {
                 return 'FORMATO DE 1 Y 2 DE BGU.html';
-
+            }
+            if (g.includes('PRIMERO DE EGB') || g.includes('1RO DE EGB') || g.includes('1ERO DE EGB') || g.includes('1RO EGB') || g.includes('1ER GRADO') || g.includes('PREPARATORIA')) {
+                return 'PRIMERO DE EGB.html';
+            }
+            if (g.includes('ELEMENTAL') || (esEgb && (g.includes('SEGUNDO') || g.includes('TERCERO') || g.includes('CUARTO') || g.includes('2DO') || g.includes('3RO') || g.includes('4TO')))) {
+                return 'FORMALO DE ELEMENTAL.html';
+            }
+            if (g.includes('MEDIA') || (esEgb && (g.includes('QUINTO') || g.includes('SEXTO') || g.includes('SEPTIMO') || g.includes('5TO') || g.includes('6TO') || g.includes('7MO')))) {
+                return 'FORMATO EGBM.html';
+            }
+            if (g.includes('SUPERIOR') || (esEgb && (g.includes('OCTAVO') || g.includes('NOVENO') || g.includes('DECIMO') || g.includes('8VO') || g.includes('9NO') || g.includes('10MO')))) {
+                return 'FORMATO EGBS.html';
+            }
             return null;
         }
+
 
         // --- Helpers de inyección DOM para certificados ---
 
@@ -2280,10 +2278,17 @@
             document.getElementById('loading-overlay').classList.remove('hidden');
             
             try {
-                const res = await window.electronAPI.actualizarSupletorios(updates);
+                const curso = obtenerCursoActivo();
+                if (!curso) {
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                    return;
+                }
+                const res = await window.electronAPI.actualizarSupletorios({
+                    cursoId: curso.id,
+                    updates: updates
+                });
                 
                 if (res.success) {
-                    const curso = obtenerCursoActivo();
                     if (curso) {
                         if (!curso.supletoriosManuales) {
                             curso.supletoriosManuales = {};
@@ -2328,7 +2333,8 @@
             if (!curso) return null;
 
             const inst = curso.datosInstitucion || {};
-            const plantillaName = mapearPlantilla(inst.gradoCurso || '');
+            const gradoCursoCanonico = inst.gradoCurso || curso.nombreVisible || '';
+            const plantillaName = mapearPlantilla(gradoCursoCanonico);
             if (!plantillaName) return null;
 
             const origRes = await window.electronAPI.leerPlantilla(plantillaName);
@@ -2344,7 +2350,7 @@
 
             const pagesHTML = [];
             for (const est of estudiantesData) {
-                const certRes = await window.electronAPI.leerPlantilla(`certificado_${est.id_real}.html`);
+                const certRes = await window.electronAPI.leerCertificadoGenerado(curso.id, `certificado_${est.id_real}.html`);
                 if (certRes.error) continue;
 
                 const parser = new DOMParser();
@@ -2442,22 +2448,49 @@
             if (!curso) return null;
 
             const inst = curso.datosInstitucion || {};
-            const plantillaName = mapearPlantilla(inst.gradoCurso || '');
+            
+            // Fuente canónica de verdad del grado del curso activo
+            const gradoCursoCanonico = curso.datosInstitucion?.gradoCurso || curso.nombreVisible || '';
+            const plantillaName = mapearPlantilla(gradoCursoCanonico);
+
+            // Diagnósticos en consola
+            console.log(`[Certificados] Curso activo: ${curso.nombreVisible}`);
+            console.log(`[Certificados] ID del curso activo: ${curso.id}`);
+            console.log(`[Certificados] gradoCurso original: ${curso.datosInstitucion?.gradoCurso || ''}`);
+            console.log(`[Certificados] gradoCurso normalizado: ${gradoCursoCanonico}`);
+            console.log(`[Certificados] Plantilla seleccionada: ${plantillaName || 'Ninguna'}`);
+            console.log(`[Certificados] Tipo de generación: PDF`);
+            console.log(`[Certificados] Cantidad de estudiantes: ${estudiantesData.length}`);
+
             if (!plantillaName) {
                 document.getElementById('loading-overlay').classList.add('hidden');
                 mostrarAlerta("Sin Plantilla",
-                    `No se encontró una plantilla de certificado para el grado: "${inst.gradoCurso || 'sin especificar'}".<br>Verifique que el campo "Grado/Curso" esté correctamente configurado.`,
+                    `No se encontró una plantilla de certificado para el grado: "${gradoCursoCanonico || 'sin especificar'}".<br>Verifique que el campo "Grado/Curso" esté correctamente configurado.`,
                     "error");
                 return null;
             }
 
+            // Verificar si el archivo de la plantilla existe
+            const checkRes = await window.electronAPI.leerPlantilla(plantillaName);
+            if (checkRes.error) {
+                console.log(`[Certificados] Existe: false`);
+                document.getElementById('loading-overlay').classList.add('hidden');
+                mostrarAlerta("Sin Plantilla",
+                    `No se encontró la plantilla de certificado: "${plantillaName}".<br>Verifique que el archivo exista en la carpeta del sistema.`,
+                    "error");
+                return null;
+            }
+            console.log(`[Certificados] Existe: true`);
+
             const pythonPayload = {
                 cursoActivoId: curso.id,
+                plantillaName: plantillaName,
+                gradoCursoCanonico: gradoCursoCanonico,
                 institucion: {
                     nombre: document.getElementById('inst-nombre').value,
                     anio: document.getElementById('inst-anio').value,
                     amie: document.getElementById('inst-amie').value,
-                    grado: document.getElementById('inst-grado').value,
+                    grado: gradoCursoCanonico,
                     paralelo: document.getElementById('inst-paralelo').value,
                     jornada: document.getElementById('inst-jornada').value,
                     rector: document.getElementById('inst-rector').value,
@@ -2483,6 +2516,9 @@
             if (supletorios.length > 0) {
                 mostrarAlerta("Supletorios Detectados", "Se han generado los certificados iniciales, pero se detectaron estudiantes en supletorio. Complete sus notas abajo para actualizar sus documentos.", "warning");
             }
+
+            // Almacenar el cert_output_dir para saber de dónde leer los HTMLs en la consolidación
+            curso.certOutputDir = pythonRes.cert_output_dir;
 
             return await regenerarPDFConsolidado(estudiantesData);
         }
@@ -2587,14 +2623,30 @@
             const curso = obtenerCursoActivo();
             if (!curso) return;
 
-            const inst = curso.datosInstitucion || {};
+            const inst = { ...curso.datosInstitucion };
             const logos = curso.logos || {};
 
+            // Fuente canónica de verdad del grado del curso activo
+            const gradoCursoCanonico = curso.datosInstitucion?.gradoCurso || curso.nombreVisible || '';
+            // Sobrescribir el campo de grado en inst para que se renderice correctamente en la plantilla
+            inst.gradoCurso = gradoCursoCanonico;
+
             // Determinar la plantilla según el grado
-            const plantillaName = mapearPlantilla(inst.gradoCurso || '');
+            const plantillaName = mapearPlantilla(gradoCursoCanonico);
+
+            // Diagnósticos en consola
+            console.log(`[Certificados] Curso activo: ${curso.nombreVisible}`);
+            console.log(`[Certificados] ID del curso activo: ${curso.id}`);
+            console.log(`[Certificados] gradoCurso original: ${curso.datosInstitucion?.gradoCurso || ''}`);
+            console.log(`[Certificados] gradoCurso normalizado: ${gradoCursoCanonico}`);
+            console.log(`[Certificados] plantillaName seleccionada: ${plantillaName || 'Ninguna'}`);
+            console.log(`[Certificados] Ruta relativa: assets/certificados/${plantillaName || ''}`);
+            console.log(`[Certificados] Tipo de generación: preview`);
+            console.log(`[Certificados] Cantidad de estudiantes: 1`);
+
             if (!plantillaName) {
                 mostrarAlerta("Sin Plantilla",
-                    `No se encontró una plantilla de certificado para el grado: "${inst.gradoCurso || 'sin especificar'}".`,
+                    `No se encontró una plantilla de certificado para el grado: "${gradoCursoCanonico || 'sin especificar'}".`,
                     "error");
                 return;
             }
@@ -2602,9 +2654,11 @@
             // Cargar la plantilla
             const result = await window.electronAPI.leerPlantilla(plantillaName);
             if (result.error) {
+                console.log(`[Certificados] Existe plantilla: false`);
                 mostrarAlerta("Error de Plantilla", result.error, "error");
                 return;
             }
+            console.log(`[Certificados] Existe plantilla: true`);
 
             const templateHTML = result.content;
             const parser = new DOMParser();

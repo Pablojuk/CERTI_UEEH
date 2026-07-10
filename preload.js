@@ -10,5 +10,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     imprimirCertificados: (html) => ipcRenderer.invoke('imprimir-certificados', html),
     abrirVistaPreviaCertificado: (html) => ipcRenderer.invoke('abrir-vista-previa-certificado', html),
     generarCertificados: (datos) => ipcRenderer.invoke('generar-certificados', datos),
-    actualizarSupletorios: (datos) => ipcRenderer.invoke('actualizar-supletorios', datos)
+    actualizarSupletorios: (datos) => ipcRenderer.invoke('actualizar-supletorios', datos),
+    leerCertificadoGenerado: (cursoId, nombre) => ipcRenderer.invoke('leer-certificado-generado', cursoId, nombre)
 });
