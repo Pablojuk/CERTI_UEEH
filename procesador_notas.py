@@ -1046,10 +1046,8 @@ def actualizar_certificado_supletorio(student_id, asignatura, nota_supletorio, c
         
     try:
         val_su = float(nota_supletorio)
-        val_final = 7.00 if val_su >= 7.00 else val_su
     except (ValueError, TypeError):
         val_su = 0.0
-        val_final = 0.0
         
     escaped_sub = re.escape(asignatura)
     tr_pattern = re.compile(rf'<tr[^>]*>\s*<td[^>]*>\s*{escaped_sub}\s*</td>[\s\S]*?</tr>', re.IGNORECASE)
@@ -1060,9 +1058,21 @@ def actualizar_certificado_supletorio(student_id, asignatura, nota_supletorio, c
         td_pattern = re.compile(r'<td[^>]*>([\s\S]*?)</td>', re.IGNORECASE)
         tds = list(td_pattern.finditer(tr_block))
         
+        # Helper para limpiar HTML y normalizar números
+        clean_text = lambda html_str: re.sub(r'<[^>]*>', '', html_str).strip().replace(',', '.')
+        
         if len(tds) == 6:
+            try:
+                t1_val = float(clean_text(tds[1].group(1)) or 0.0)
+                t2_val = float(clean_text(tds[2].group(1)) or 0.0)
+                t3_val = float(clean_text(tds[3].group(1)) or 0.0)
+                prom_anual = truncar_2_decimales((t1_val + t2_val + t3_val) / 3.0)
+            except Exception:
+                prom_anual = 0.0
+
+            val_final = 7.00 if val_su >= 7.00 else prom_anual
+            
             supletorio_td = tds[4]
-            final_td = tds[5]
             new_tr_block = (
                 tr_block[:supletorio_td.start()] +
                 f'<td>{val_su:.2f}</td>' +
@@ -1071,6 +1081,16 @@ def actualizar_certificado_supletorio(student_id, asignatura, nota_supletorio, c
             )
             html_content = html_content.replace(tr_block, new_tr_block)
         elif len(tds) == 5:
+            try:
+                t1_val = float(clean_text(tds[1].group(1)) or 0.0)
+                t2_val = float(clean_text(tds[2].group(1)) or 0.0)
+                t3_val = float(clean_text(tds[3].group(1)) or 0.0)
+                prom_anual = truncar_2_decimales((t1_val + t2_val + t3_val) / 3.0)
+            except Exception:
+                prom_anual = 0.0
+
+            val_final = 7.00 if val_su >= 7.00 else prom_anual
+            
             final_td = tds[4]
             new_tr_block = (
                 tr_block[:final_td.start()] +

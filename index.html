@@ -89,7 +89,7 @@
                     <i class="fa-solid fa-folder-open text-indigo-500"></i>
                     <h3 class="font-semibold text-slate-800">Carga de Notas (Archivos Excel)</h3>
                 </div>
-                <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     
                     <div class="border rounded-lg p-4 flex flex-col justify-between">
                         <div class="flex items-center gap-2 mb-3">
@@ -133,21 +133,6 @@
                         </label>
                         <button id="btn-clear-t3" onclick="clearFile('t3')" class="w-full py-2 text-sm text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-md font-medium transition-all">
                             <i class="fa-regular fa-trash-can mr-1"></i> Limpiar archivo
-                        </button>
-                    </div>
-
-                    <div class="border rounded-lg p-4 flex flex-col justify-between bg-amber-50/20 border-amber-200">
-                        <div class="flex items-center gap-2 mb-3">
-                            <span class="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-1 rounded">SU</span>
-                            <span class="font-semibold text-sm">Supletorio</span>
-                        </div>
-                        <div class="flex flex-col items-center justify-center flex-grow mb-3 p-4 text-center">
-                            <i class="fa-solid fa-square-poll-horizontal text-4xl text-amber-500 mb-3"></i>
-                            <p class="text-sm font-medium text-slate-700 mb-1">Registro Manual de Supletorios</p>
-                            <p class="text-xs text-slate-400 max-w-[180px]">Digita las calificaciones directamente en el sistema.</p>
-                        </div>
-                        <button id="btn-supletorio" onclick="abrirCargaSupletorios()" class="w-full py-2.5 text-sm text-white bg-amber-500 hover:bg-amber-600 rounded-md font-semibold transition-all shadow-sm flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-pen-to-square"></i> Cargar Nota de Supletorio
                         </button>
                     </div>
 
@@ -249,7 +234,7 @@
                     </div>
                     <div>
                         <h3 class="font-semibold text-slate-800">Gestión de Estudiantes</h3>
-                        <p class="text-xs text-slate-500">Seleccione los estudiantes para generar sus boletines</p>
+                        <p class="text-xs text-slate-500">Seleccione los estudiantes para generar sus certificados</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
@@ -278,50 +263,7 @@
                     </div>
                 </div>
                 <div id="no-encontrados-list" class="space-y-2"></div>
-            </div>
-
-            <!-- Contenedor de Alertas de Supletorios -->
-            <div id="alerta-supletorios" class="hidden m-5 rounded-lg border border-rose-200 bg-rose-50 p-4 shadow-sm">
-                <div class="flex items-start gap-3">
-                    <i class="fa-solid fa-triangle-exclamation text-rose-600 text-lg mt-0.5"></i>
-                    <div>
-                        <h4 class="font-semibold text-rose-900">Se han generado los certificados, pero los siguientes estudiantes están en supletorio.</h4>
-                        <p class="text-xs text-rose-700">Por favor, ingrese las calificaciones obtenidas en el examen supletorio para actualizar sus certificados correspondientes.</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tabla Dinámica de Supletorios -->
-            <div id="contenedor-supletorios" class="hidden m-5 rounded-lg border border-slate-200 bg-white p-5 shadow-sm relative">
-                <button onclick="document.getElementById('contenedor-supletorios').classList.add('hidden'); document.getElementById('alerta-supletorios').classList.add('hidden');" class="absolute top-4 right-4 text-slate-400 hover:text-rose-600 transition-all p-1" title="Ocultar sección de supletorios">
-                    <i class="fa-solid fa-xmark text-lg"></i>
-                </button>
-                <h4 class="font-semibold text-slate-800 mb-4 flex items-center gap-2 pr-8">
-                    <i class="fa-solid fa-square-poll-vertical text-indigo-600"></i> Calificaciones de Exámenes Supletorios
-                </h4>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse mb-4">
-                        <thead>
-                            <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                <th class="p-3">Estudiante</th>
-                                <th class="p-3">Curso</th>
-                                <th class="p-3">Asignatura</th>
-                                <th class="p-3 w-48 text-center">Nota Supletorio</th>
-                            </tr>
-                        </thead>
-                        <tbody id="supletorios-body" class="divide-y divide-slate-100 text-sm text-slate-700">
-                            <!-- Filas dinámicas -->
-                        </tbody>
-                    </table>
-                </div>
-                <div class="flex justify-end">
-                    <button onclick="actualizarCertificadosSupletorio()" class="flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-5 py-2.5 rounded-md font-semibold text-sm transition-all shadow-md">
-                        <i class="fa-solid fa-rotate"></i> Actualizar Certificados de Supletorio
-                    </button>
-                </div>
-            </div>
-
-            <div class="overflow-x-auto">
+               <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse" id="students-table">
                     <thead>
                         <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -331,19 +273,50 @@
                             <th class="p-4 w-16">N.º</th>
                             <th class="p-4">Nombre del Estudiante</th>
                             <th class="p-4">Cédula / ID</th>
+                            <th class="p-4 text-center w-28">Supletorio</th>
                             <th class="p-4 text-center w-24">Acción</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 text-sm" id="students-body">
                         <!-- Inicialmente vacío, se carga dinámicamente -->
                         <tr id="empty-row">
-                            <td colspan="5" class="p-8 text-center text-slate-400">
+                            <td colspan="6" class="p-8 text-center text-slate-400">
                                 <i class="fa-solid fa-folder-open text-2xl mb-2 block"></i>
                                 Cargue los archivos de notas de los trimestres para visualizar los estudiantes.
                             </td>
                         </tr>
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Tabla Dinámica de Supletorios (Relocalizada) -->
+            <div id="contenedor-supletorios" class="hidden m-5 rounded-lg border border-slate-200 bg-white p-5 shadow-sm relative">
+                <button onclick="cerrarPanelSupletorio()" class="absolute top-4 right-4 text-slate-400 hover:text-rose-600 transition-all p-1" title="Ocultar sección de supletorios">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+                <h4 id="supletorios-titulo" class="font-semibold text-slate-800 mb-4 flex items-center gap-2 pr-8 text-sm sm:text-base">
+                    <i class="fa-solid fa-square-poll-horizontal text-amber-500"></i> Exámenes supletorios — [NOMBRE DEL ESTUDIANTE]
+                </h4>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse mb-4">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                <th class="p-3">Asignatura</th>
+                                <th class="p-3 text-center">Promedio Anual</th>
+                                <th class="p-3 w-48 text-center">Nota Supletorio</th>
+                                <th class="p-3 text-center">Resultado Estimado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="supletorios-body" class="divide-y divide-slate-100 text-sm text-slate-700">
+                            <!-- Filas dinámicas -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="flex justify-end">
+                    <button onclick="guardarSupletorioEstudiante()" class="flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-5 py-2.5 rounded-md font-semibold text-sm transition-all shadow-md">
+                        <i class="fa-solid fa-floppy-disk"></i> Guardar notas de supletorio
+                    </button>
+                </div>
             </div>
 
             <div class="bg-white border-t border-slate-200 p-5 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -354,9 +327,6 @@
                 <div class="flex items-center gap-3 w-full sm:w-auto">
                     <button onclick="emitirDocumentos('certificados')" class="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-md font-medium text-sm transition-all shadow-sm">
                         <i class="fa-solid fa-certificate"></i> Descargar Certificados (PDF)
-                    </button>
-                    <button onclick="emitirDocumentos('boletines')" class="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-md font-semibold text-sm transition-all shadow-md hover:shadow-lg">
-                        <i class="fa-solid fa-file-pdf"></i> Descargar Boletines (PDF)
                     </button>
                 </div>
             </div>
@@ -1779,12 +1749,13 @@
         function renderEstudiantes(estudiantes = estudiantesCargados) {
             const body = document.getElementById('students-body');
             body.innerHTML = '';
+            const curso = obtenerCursoActivo();
 
             if (estudiantes.length === 0) {
                 const noCourses = appState.cursos.length === 0;
                 body.innerHTML = `
                     <tr id="empty-row">
-                        <td colspan="5" class="p-8 text-center text-slate-400">
+                        <td colspan="6" class="p-8 text-center text-slate-400">
                             <i class="fa-solid fa-folder-open text-2xl mb-2 block"></i>
                             ${noCourses ? 'Primero debe crear un curso antes de cargar las notas.' : 'Cargue los archivos de notas de los trimestres para visualizar los estudiantes.'}
                         </td>
@@ -1830,6 +1801,42 @@
                 tdCedula.className = 'p-4 text-slate-500';
                 tdCedula.textContent = est.cedula;
 
+                const tdSupletorio = document.createElement('td');
+                tdSupletorio.className = 'p-4 text-center';
+                const btnSupletorio = document.createElement('button');
+                btnSupletorio.className = 'px-2.5 py-1 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1 mx-auto shadow-sm';
+                
+                const tieneT3 = cursoTieneTresTrimestres(curso);
+                const tieneNotasComp = estudianteTieneNotasCompletas(est);
+                const elegibles = obtenerMateriasElegiblesSupletorio(est);
+                const esElegible = elegibles.length > 0;
+                
+                if (!tieneT3 || !tieneNotasComp) {
+                    btnSupletorio.disabled = true;
+                    btnSupletorio.className += ' bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed';
+                    btnSupletorio.title = 'Disponible después de cargar T1, T2 y T3.';
+                    btnSupletorio.innerHTML = '<i class="fa-solid fa-lock text-[10px]"></i> Supletorio';
+                } else if (!esElegible) {
+                    btnSupletorio.disabled = true;
+                    btnSupletorio.className += ' bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed';
+                    btnSupletorio.title = 'El estudiante no tiene asignaturas en supletorio.';
+                    btnSupletorio.innerHTML = '<i class="fa-solid fa-ban text-[10px]"></i> No aplica';
+                } else {
+                    const tieneNotas = estudianteTieneSupletorioRegistrado(curso, est);
+                    btnSupletorio.disabled = false;
+                    if (tieneNotas) {
+                        btnSupletorio.className += ' bg-amber-500 hover:bg-amber-600 text-white border border-amber-600 hover:shadow-md';
+                        btnSupletorio.title = 'Editar calificaciones de supletorio.';
+                        btnSupletorio.innerHTML = '<i class="fa-solid fa-pen text-[10px]"></i> Editar';
+                    } else {
+                        btnSupletorio.className += ' bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-300';
+                        btnSupletorio.title = 'Registrar calificaciones de supletorio.';
+                        btnSupletorio.innerHTML = '<i class="fa-solid fa-plus text-[10px]"></i> Supletorio';
+                    }
+                    btnSupletorio.onclick = () => abrirSupletorioEstudiante(est.id_real);
+                }
+                tdSupletorio.appendChild(btnSupletorio);
+
                 const tdAccion = document.createElement('td');
                 tdAccion.className = 'p-4 text-center';
                 const btn = document.createElement('button');
@@ -1845,6 +1852,7 @@
                 tr.appendChild(tdNum);
                 tr.appendChild(tdNombre);
                 tr.appendChild(tdCedula);
+                tr.appendChild(tdSupletorio);
                 tr.appendChild(tdAccion);
                 body.appendChild(tr);
             });
@@ -2159,171 +2167,295 @@
             });
         }
 
-        // --- Función principal: ensamblar certificados HTML ---
-
-        function abrirCargaSupletorios() {
-            const curso = obtenerCursoActivo();
-            if (!curso) {
-                mostrarAlerta("Sin curso", "No hay un curso activo.", "warning");
-                return;
-            }
-            
-            const t1 = curso.periodos?.trimestre1 || {};
-            const t2 = curso.periodos?.trimestre2 || {};
-            const t3 = curso.periodos?.trimestre3 || {};
-            
-            if (!t1.estudiantes?.length || !t2.estudiantes?.length || !t3.estudiantes?.length) {
-                mostrarAlerta("Carga Incompleta", "Por favor cargue los archivos Excel de los 3 trimestres (T1, T2 y T3) antes de cargar calificaciones de supletorio.", "warning");
-                return;
-            }
-            
-            const supletorios = [];
-            estudiantesCargados.forEach(est => {
-                Object.entries(est.materias || {}).forEach(([subName, mData]) => {
-                    const p_anual = mData.promedio_anual;
-                    if (p_anual !== null && p_anual >= 4.01 && p_anual <= 6.99) {
-                        const es_egb_media = String(curso.datosInstitucion?.gradoCurso || '').toUpperCase().includes("MEDIA") || String(curso.datosInstitucion?.nivel || '').toUpperCase().includes("MEDIA");
-                        const nota_su_existente = (mData.supletorio !== null && mData.supletorio !== undefined) ? mData.supletorio : '';
-                        supletorios.push({
-                            id: est.id_real,
-                            nombre: est.nombre,
-                            curso: curso.datosInstitucion?.gradoCurso || '',
-                            asignatura: subName,
-                            nivel: curso.datosInstitucion?.nivel || '',
-                            es_egb_media: es_egb_media,
-                            nota_existente: nota_su_existente
-                        });
-                    }
-                });
-            });
-            
-            if (supletorios.length === 0) {
-                mostrarAlerta("Sin Supletorios", "Ningún estudiante del curso activo se encuentra en situación de supletorio (promedios entre 4.01 y 6.99).", "info");
-                return;
-            }
-            
-            renderSupletoriosTable(supletorios);
-            
-            const element = document.getElementById('contenedor-supletorios');
-            element.classList.remove('hidden');
-            element.scrollIntoView({ behavior: 'smooth' });
+        function esNotaValida(valor) {
+            if (valor === null || valor === undefined || valor === '') return false;
+            const numero = Number(valor);
+            return Number.isFinite(numero) && numero >= 0 && numero <= 10;
         }
 
-        function renderSupletoriosTable(supletorios) {
+        function cursoTieneTresTrimestres(curso) {
+            if (!curso || !curso.periodos) return false;
+            return !!(curso.periodos.trimestre1?.nombreArchivo &&
+                      curso.periodos.trimestre2?.nombreArchivo &&
+                      curso.periodos.trimestre3?.nombreArchivo);
+        }
+
+        function estudianteTieneNotasCompletas(estudiante) {
+            if (!estudiante || !estudiante.materias || Object.keys(estudiante.materias).length === 0) return false;
+            for (const subName in estudiante.materias) {
+                const sub = estudiante.materias[subName];
+                if (!esNotaValida(sub.t1) || !esNotaValida(sub.t2) || !esNotaValida(sub.t3)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function obtenerMateriasElegiblesSupletorio(estudiante) {
+            const elegibles = [];
+            if (!estudiante || !estudiante.materias) return elegibles;
+            for (const subName in estudiante.materias) {
+                const sub = estudiante.materias[subName];
+                const pa = sub.promedio_anual;
+                if (pa !== null && pa !== undefined) {
+                    const numPa = Number(pa);
+                    if (numPa >= 4.01 && numPa <= 6.99) {
+                        elegibles.push(subName);
+                    }
+                }
+            }
+            return elegibles;
+        }
+
+        function estudianteTieneSupletorioRegistrado(curso, estudiante) {
+            if (!curso || !estudiante) return false;
+            const supletoriosManuales = curso.supletoriosManuales || {};
+            const estSupletorios = supletoriosManuales[estudiante.id_real] || supletoriosManuales[estudiante.cedula];
+            if (!estSupletorios) return false;
+            return Object.values(estSupletorios).some(val => val !== null && val !== undefined && val !== '');
+        }
+
+        function puedeRegistrarSupletorio(curso, estudiante) {
+            if (!cursoTieneTresTrimestres(curso)) return false;
+            if (!estudianteTieneNotasCompletas(estudiante)) return false;
+            const elegibles = obtenerMateriasElegiblesSupletorio(estudiante);
+            return elegibles.length > 0;
+        }
+
+        let supletorioEstudianteActivoId = null;
+
+        function abrirSupletorioEstudiante(estudianteId) {
+            const curso = obtenerCursoActivo();
+            if (!curso) return;
+
+            const est = estudiantesCargados.find(e => e.id_real === estudianteId);
+            if (!est) return;
+
+            if (!cursoTieneTresTrimestres(curso)) {
+                mostrarAlerta("Carga incompleta", "Disponible después de cargar T1, T2 y T3.", "warning");
+                return;
+            }
+
+            if (!estudianteTieneNotasCompletas(est)) {
+                mostrarAlerta("Notas incompletas", "El estudiante tiene notas pendientes en los trimestres cargados.", "warning");
+                return;
+            }
+
+            const elegibles = obtenerMateriasElegiblesSupletorio(est);
+            if (elegibles.length === 0) {
+                mostrarAlerta("No elegible", "El estudiante no tiene asignaturas en supletorio.", "warning");
+                return;
+            }
+
+            supletorioEstudianteActivoId = estudianteId;
+
+            // Cambiar título del panel
+            document.getElementById('supletorios-titulo').innerHTML = `
+                <i class="fa-solid fa-square-poll-horizontal text-amber-500"></i> Exámenes supletorios — <strong class="text-indigo-600">${est.nombre}</strong>
+            `;
+
             const tbody = document.getElementById('supletorios-body');
             tbody.innerHTML = '';
-            
-            if (!supletorios || supletorios.length === 0) {
-                document.getElementById('alerta-supletorios').classList.add('hidden');
-                document.getElementById('contenedor-supletorios').classList.add('hidden');
-                return;
-            }
-            
-            document.getElementById('alerta-supletorios').classList.remove('hidden');
-            document.getElementById('contenedor-supletorios').classList.remove('hidden');
-            
-            supletorios.forEach(sup => {
+
+            const supletoriosManuales = curso.supletoriosManuales || {};
+            const estSupletorios = supletoriosManuales[est.id_real] || supletoriosManuales[est.cedula] || {};
+
+            elegibles.forEach(subName => {
+                const subData = est.materias[subName];
+                const pa = subData.promedio_anual;
+                
+                // Buscar nota guardada
+                const savedGrade = estSupletorios[subName] !== undefined ? estSupletorios[subName] : null;
+                const valueStr = (savedGrade !== null && savedGrade !== undefined) ? savedGrade.toFixed(2) : '';
+
                 const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-colors";
+                tr.dataset.subject = subName;
+
+                // Asignatura
+                const tdSub = document.createElement('td');
+                tdSub.className = 'p-3 font-medium text-slate-800';
+                tdSub.textContent = subName;
+
+                // Promedio anual
+                const tdPa = document.createElement('td');
+                tdPa.className = 'p-3 text-center font-semibold text-slate-600 promedio-anual-cell';
+                tdPa.textContent = pa.toFixed(2);
+
+                // Input nota supletorio
+                const tdInput = document.createElement('td');
+                tdInput.className = 'p-3 text-center';
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.min = '0';
+                input.max = '10';
+                input.step = '0.01';
+                input.placeholder = '0.00';
+                input.value = valueStr;
+                input.className = 'w-24 text-center px-2 py-1 border border-slate-300 rounded focus:border-indigo-500 outline-none font-medium';
+                input.oninput = () => actualizarResultadoEstimado(input);
+                tdInput.appendChild(input);
+
+                // Resultado estimado
+                const tdRes = document.createElement('td');
+                tdRes.className = 'p-3 text-center resultado-estimado-cell';
                 
-                const tdNombre = document.createElement('td');
-                tdNombre.className = 'p-3 font-medium text-slate-900';
-                let warningText = '';
-                if (sup.es_egb_media) {
-                    warningText = ` <span class="text-rose-500 text-xs font-semibold block sm:inline mt-1 sm:mt-0 sm:ml-2">(EGB Media: Promoción sujeta a Junta de Docentes si la nota es menor a 7.00)</span>`;
-                }
-                tdNombre.innerHTML = `${sup.nombre}${warningText}`;
-                
-                const tdCurso = document.createElement('td');
-                tdCurso.className = 'p-3 text-slate-600';
-                tdCurso.textContent = sup.curso;
-                
-                const tdAsignatura = document.createElement('td');
-                tdAsignatura.className = 'p-3 text-slate-600 font-medium';
-                tdAsignatura.textContent = sup.asignatura;
-                
-                const tdNota = document.createElement('td');
-                tdNota.className = 'p-3 text-center';
-                const valAttr = sup.nota_existente !== undefined && sup.nota_existente !== '' ? `value="${sup.nota_existente}"` : '';
-                tdNota.innerHTML = `<input type="number" step="0.01" min="0" max="10" placeholder="0.00" ${valAttr} data-id="${sup.id}" data-subject="${sup.asignatura}" class="supletorio-input w-24 px-2 py-1 text-center border border-slate-300 rounded focus:outline-none focus:border-indigo-500 text-sm font-semibold">`;
-                
-                tr.appendChild(tdNombre);
-                tr.appendChild(tdCurso);
-                tr.appendChild(tdAsignatura);
-                tr.appendChild(tdNota);
-                
+                tr.appendChild(tdSub);
+                tr.appendChild(tdPa);
+                tr.appendChild(tdInput);
+                tr.appendChild(tdRes);
                 tbody.appendChild(tr);
+
+                // Disparar primer cálculo
+                actualizarResultadoEstimado(input);
             });
+
+            // Mostrar el contenedor
+            const container = document.getElementById('contenedor-supletorios');
+            container.classList.remove('hidden');
+
+            // Desplazar suavemente
+            container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
-        async function actualizarCertificadosSupletorio() {
-            const inputs = document.querySelectorAll('.supletorio-input');
-            const updates = [];
+        function actualizarResultadoEstimado(input) {
+            const row = input.closest('tr');
+            const paCell = row.querySelector('.promedio-anual-cell');
+            const resCell = row.querySelector('.resultado-estimado-cell');
             
-            inputs.forEach(input => {
-                const val = input.value.trim();
-                if (val) {
-                    updates.push({
-                        id: input.getAttribute('data-id'),
-                        asignatura: input.getAttribute('data-subject'),
-                        nota_supletorio: parseFloat(val)
-                    });
-                }
-            });
-            
-            if (updates.length === 0) {
-                mostrarAlerta("Sin notas", "No ha ingresado ninguna calificación de supletorio.", "warning");
+            const pa = parseFloat(paCell.textContent);
+            const val = input.value.trim();
+            if (val === '') {
+                resCell.innerHTML = '<span class="text-slate-400 font-medium">Pendiente</span>';
                 return;
             }
             
-            document.getElementById('loading-overlay').classList.remove('hidden');
+            const notaSu = parseFloat(val);
+            if (isNaN(notaSu) || notaSu < 0 || notaSu > 10) {
+                resCell.innerHTML = '<span class="text-rose-500 font-semibold">Nota inválida</span>';
+                return;
+            }
             
-            try {
-                const curso = obtenerCursoActivo();
-                if (!curso) {
-                    document.getElementById('loading-overlay').classList.add('hidden');
+            if (notaSu >= 7.0) {
+                resCell.innerHTML = '<span class="text-emerald-600 font-bold"><i class="fa-solid fa-circle-check mr-1"></i> APROBADO — Nota final 7,00</span>';
+            } else {
+                resCell.innerHTML = '<span class="text-rose-600 font-bold"><i class="fa-solid fa-circle-xmark mr-1"></i> REPROBADO — Se conserva promedio anual</span>';
+            }
+        }
+
+        function cerrarPanelSupletorio() {
+            const container = document.getElementById('contenedor-supletorios');
+            if (container) {
+                container.classList.add('hidden');
+            }
+            supletorioEstudianteActivoId = null;
+            const tbody = document.getElementById('supletorios-body');
+            if (tbody) {
+                tbody.innerHTML = '';
+            }
+        }
+
+        async function guardarSupletorioEstudiante() {
+            if (!supletorioEstudianteActivoId) {
+                mostrarAlerta("Error", "No hay un estudiante activo seleccionado.", "error");
+                return;
+            }
+
+            const curso = obtenerCursoActivo();
+            if (!curso) return;
+
+            const est = estudiantesCargados.find(e => e.id_real === supletorioEstudianteActivoId);
+            if (!est) return;
+
+            const tbody = document.getElementById('supletorios-body');
+            const rows = tbody.querySelectorAll('tr');
+            
+            if (!curso.supletoriosManuales) {
+                curso.supletoriosManuales = {};
+            }
+
+            // Inicializar para el estudiante activo si no existe
+            if (!curso.supletoriosManuales[est.id_real]) {
+                curso.supletoriosManuales[est.id_real] = {};
+            }
+
+            // También por compatibilidad con cédula si ya existía
+            const cedulaKey = est.cedula;
+            if (cedulaKey && cedulaKey !== 'S/C' && !curso.supletoriosManuales[cedulaKey]) {
+                curso.supletoriosManuales[cedulaKey] = {};
+            }
+
+            let hasInvalid = false;
+            const updatesToSave = [];
+
+            rows.forEach(row => {
+                const subName = row.dataset.subject;
+                const input = row.querySelector('input');
+                const val = input.value.trim();
+
+                if (val === '') {
+                    return; // Skip updating this subject (keeps whatever was in IndexedDB/curso.supletoriosManuales)
+                }
+
+                const num = parseFloat(val);
+                if (isNaN(num) || num < 0 || num > 10) {
+                    hasInvalid = true;
                     return;
                 }
+
+                updatesToSave.push({
+                    subject: subName,
+                    grade: num
+                });
+            });
+
+            if (hasInvalid) {
+                mostrarAlerta("Nota inválida", "Por favor ingrese notas válidas entre 0 y 10.", "error");
+                return;
+            }
+
+            // Guardar notas válidas
+            updatesToSave.forEach(up => {
+                curso.supletoriosManuales[est.id_real][up.subject] = up.grade;
+                if (cedulaKey && cedulaKey !== 'S/C') {
+                    curso.supletoriosManuales[cedulaKey][up.subject] = up.grade;
+                }
+            });
+
+            document.getElementById('loading-overlay').classList.remove('hidden');
+
+            try {
+                // Preparar las actualizaciones individuales para el backend
+                const updatesPayload = updatesToSave.map(up => ({
+                    id: est.id_real,
+                    asignatura: up.subject,
+                    nota_supletorio: up.grade
+                }));
+
                 const res = await window.electronAPI.actualizarSupletorios({
                     cursoId: curso.id,
-                    updates: updates
+                    updates: updatesPayload
                 });
-                
-                if (res.success) {
-                    if (curso) {
-                        if (!curso.supletoriosManuales) {
-                            curso.supletoriosManuales = {};
-                        }
-                        updates.forEach(up => {
-                            if (!curso.supletoriosManuales[up.id]) {
-                                curso.supletoriosManuales[up.id] = {};
-                            }
-                            curso.supletoriosManuales[up.id][up.asignatura] = up.nota_supletorio;
-                        });
-                        await saveStateToDB();
-                        consolidarYRenderizar();
-                    }
 
-                    const seleccionados = getSelectedStudentIds();
-                    const datosConsolidadosSeleccionados = estudiantesCargados.filter(e =>
-                        seleccionados.includes(e.id_real)
-                    );
+                document.getElementById('loading-overlay').classList.add('hidden');
+
+                if (res.success) {
+                    await saveStateToDB();
+                    consolidarYRenderizar(); // Recalcula promedios y actualiza la tabla de estudiantes
                     
-                    const finalRes = await regenerarPDFConsolidado(datosConsolidadosSeleccionados);
-                    document.getElementById('loading-overlay').classList.add('hidden');
+                    // Mostrar mensaje de éxito
+                    mostrarAlerta("Éxito al guardar", `Se han guardado las notas de supletorio para el estudiante <strong>${est.nombre}</strong>.`, "success");
                     
-                    if (finalRes && finalRes.success) {
-                        mostrarAlerta("Certificados Actualizados", `Se actualizaron los certificados de supletorio y se guardó el PDF consolidado en:<br><strong class="text-xs break-all">${finalRes.path}</strong>`, "success", finalRes.path);
-                        document.getElementById('alerta-supletorios').classList.add('hidden');
-                        document.getElementById('contenedor-supletorios').classList.add('hidden');
-                    } else {
-                        mostrarAlerta("Error al generar PDF", "Se actualizaron los HTMLs individuales, pero falló la generación del PDF.", "error");
-                    }
+                    // Cerrar el panel
+                    cerrarPanelSupletorio();
                 } else {
-                    document.getElementById('loading-overlay').classList.add('hidden');
-                    mostrarAlerta("Error", "Error al actualizar supletorios en el backend: " + res.error, "error");
+                    mostrarAlerta("Error al guardar", "Ocurrió un error en el backend: " + res.error, "error");
                 }
             } catch (err) {
                 document.getElementById('loading-overlay').classList.add('hidden');
+                mostrarAlerta("Error", "Error al comunicarse con el backend: " + err, "error");
+            }
+        }etElementById('loading-overlay').classList.add('hidden');
                 mostrarAlerta("Error", "Error al comunicarse para actualizar supletorios: " + err, "error");
             }
         }
@@ -2509,12 +2641,6 @@
                 document.getElementById('loading-overlay').classList.add('hidden');
                 mostrarAlerta("Error en Generación", pythonRes.error || "No se pudo invocar el procesador de notas.", "error");
                 return null;
-            }
-
-            const supletorios = pythonRes.supletorios || [];
-            renderSupletoriosTable(supletorios);
-            if (supletorios.length > 0) {
-                mostrarAlerta("Supletorios Detectados", "Se han generado los certificados iniciales, pero se detectaron estudiantes en supletorio. Complete sus notas abajo para actualizar sus documentos.", "warning");
             }
 
             // Almacenar el cert_output_dir para saber de dónde leer los HTMLs en la consolidación
