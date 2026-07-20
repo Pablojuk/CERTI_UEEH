@@ -790,12 +790,16 @@ def mapear_plantilla_python(grado_curso: str) -> str | None:
     if 'INICIAL 2' in g or 'INICIAL II' in g:
         return 'FORMATO INICIAL 2.html'
 
-    # 3. 3RO DE BACHILLERATO (antes del genérico BGU)
-    if _es_bachillerato(g) and any(k in g for k in ['TERCERO', '3RO', '3ER', 'TERCER']):
+    es_primero_bachillerato = any(k in g for k in ['PRIMERO', 'PRIMER', '1RO', '1ER', '1ERO'])
+    es_segundo_bachillerato = any(k in g for k in ['SEGUNDO', '2DO'])
+    es_tercero_bachillerato = any(k in g for k in ['TERCERO', '3RO', '3ER', 'TERCER'])
+
+    # 3. 3RO DE BACHILLERATO
+    if _es_bachillerato(g) and es_tercero_bachillerato:
         return 'FORMATO DE 3 DE BGU.html'
 
     # 4. 1RO y 2DO DE BACHILLERATO
-    if _es_bachillerato(g):
+    if _es_bachillerato(g) and (es_primero_bachillerato or es_segundo_bachillerato):
         return 'FORMATO DE 1 Y 2 DE BGU.html'
 
     # 5. 1RO DE EGB / PREPARATORIA
@@ -803,7 +807,7 @@ def mapear_plantilla_python(grado_curso: str) -> str | None:
         return 'PRIMERO DE EGB.html'
 
     # 6. 2DO, 3RO y 4TO DE EGB (ELEMENTAL) - requiere contexto EGB
-    if 'ELEMENTAL' in g or (_es_egb(g) and any(k in g for k in ['SEGUNDO', 'TERCERO', 'CUARTO', '2DO', '3RO', '4TO'])):
+    if 'ELEMENTAL' in g or (_es_egb(g) and any(k in g for k in ['SEGUNDO', 'TERCERO', 'TERCER', 'CUARTO', '2DO', '3RO', '4TO'])):
         return 'FORMALO DE ELEMENTAL.html'
 
     # 7. 5TO, 6TO y 7MO DE EGB (MEDIA) - requiere contexto EGB

@@ -2104,16 +2104,20 @@
             if (g.includes('INICIAL 2') || g.includes('INICIAL II') || g.includes('INFANTIL')) {
                 return 'FORMATO INICIAL 2.html';
             }
-            if (esBachillerato && (g.includes('TERCERO') || g.includes('3RO') || g.includes('3ER') || g.includes('TERCER'))) {
+            const esPrimeroBachillerato = g.includes('PRIMERO') || g.includes('PRIMER') || g.includes('1RO') || g.includes('1ER') || g.includes('1ERO');
+            const esSegundoBachillerato = g.includes('SEGUNDO') || g.includes('2DO');
+            const esTerceroBachillerato = g.includes('TERCERO') || g.includes('3RO') || g.includes('3ER') || g.includes('TERCER');
+
+            if (esBachillerato && esTerceroBachillerato) {
                 return 'FORMATO DE 3 DE BGU.html';
             }
-            if (esBachillerato) {
+            if (esBachillerato && (esPrimeroBachillerato || esSegundoBachillerato)) {
                 return 'FORMATO DE 1 Y 2 DE BGU.html';
             }
             if (g.includes('PRIMERO DE EGB') || g.includes('1RO DE EGB') || g.includes('1ERO DE EGB') || g.includes('1RO EGB') || g.includes('1ER GRADO') || g.includes('PREPARATORIA')) {
                 return 'PRIMERO DE EGB.html';
             }
-            if (g.includes('ELEMENTAL') || (esEgb && (g.includes('SEGUNDO') || g.includes('TERCERO') || g.includes('CUARTO') || g.includes('2DO') || g.includes('3RO') || g.includes('4TO')))) {
+            if (g.includes('ELEMENTAL') || (esEgb && (g.includes('SEGUNDO') || g.includes('TERCERO') || g.includes('TERCER') || g.includes('CUARTO') || g.includes('2DO') || g.includes('3RO') || g.includes('4TO')))) {
                 return 'FORMALO DE ELEMENTAL.html';
             }
             if (g.includes('MEDIA') || (esEgb && (g.includes('QUINTO') || g.includes('SEXTO') || g.includes('SEPTIMO') || g.includes('5TO') || g.includes('6TO') || g.includes('7MO')))) {
