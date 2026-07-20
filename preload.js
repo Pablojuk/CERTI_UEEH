@@ -2,7 +2,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
     verificarLicencia: () => ipcRenderer.invoke('verificar-licencia'),
-    analizarExcel: (rutas) => ipcRenderer.invoke('analizar-excel', rutas),
+    analizarExcel: (solicitud) => ipcRenderer.invoke('analizar-excel', solicitud),
+    obtenerCatalogoAsignaturas: () => ipcRenderer.invoke('obtener-catalogo-asignaturas'),
     generarBoletines: (datos) => ipcRenderer.invoke('generar-boletines', datos),
     seleccionarArchivo: (opciones) => ipcRenderer.invoke('seleccionar-archivo', opciones),
     descargarFormato: () => ipcRenderer.invoke('descargar-formato'),

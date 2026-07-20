@@ -18,6 +18,12 @@ import argparse
 import pandas as pd
 import numpy as np
 from pathlib import Path
+from catalogo_asignaturas import (
+    clasificar_asignatura,
+    grados_equivalentes,
+    normalizar_texto_asignatura,
+    orden_asignatura,
+)
 
 # ReportLab imports
 from reportlab.lib.pagesizes import letter
@@ -54,10 +60,40 @@ def determinar_estado_materia(nota_final: float, nota_supletorio: float | None) 
 
 # 2. Análisis e Importación de Excels
 def normalizar_columna(col_name: str) -> str:
-    import unicodedata
-    s = str(col_name).strip().lower()
-    s = "".join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
-    return s
+    return normalizar_texto_asignatura(col_name).lower()
+
+
+class ErrorGradoExcel(ValueError):
+    """El libro pertenece inequívocamente a otro curso."""
+
+
+def crear_diagnostico_asignaturas() -> dict:
+    return {
+        "asignaturasReconocidas": [],
+        "asignaturasIgnoradasPorCurso": [],
+        "asignaturasNoReconocidas": [],
+    }
+
+
+def _agregar_diagnostico(diagnostico: dict, clasificacion: dict) -> None:
+    estado = clasificacion.get("estado")
+    if estado == "reconocida":
+        diagnostico["asignaturasReconocidas"].append({
+            "original": clasificacion["original"],
+            "canonica": clasificacion["canonica"],
+            "metodo": clasificacion["metodo"],
+        })
+    elif estado == "ignorada_por_curso":
+        diagnostico["asignaturasIgnoradasPorCurso"].append({
+            "original": clasificacion["original"],
+            "canonica": clasificacion["canonica"],
+            "motivo": clasificacion["motivo"],
+        })
+    else:
+        diagnostico["asignaturasNoReconocidas"].append({
+            "original": clasificacion["original"],
+            "motivo": "No coincide de forma confiable con el catálogo oficial",
+        })
 
 def detectar_columnas(df: pd.DataFrame) -> tuple[str | None, str | None, list[str]]:
     id_col = None
@@ -146,7 +182,7 @@ def obtener_valor_celda(sheet, cell_ref, fallback_refs=None):
             return value
     return ""
 
-def cargar_excel_datos(file_path: str) -> dict[str, dict]:
+def cargar_excel_datos(file_path: str, grado_esperado: str | None = None, diagnostico: dict | None = None) -> dict[str, dict]:
     """
     Lee el excel buscando la hoja oficial 'Reporte Periodo'.
     Busca a partir de la fila donde dice 'LISTADO' en la columna A
@@ -154,6 +190,7 @@ def cargar_excel_datos(file_path: str) -> dict[str, dict]:
     Retorna un diccionario indexado por cédula/nombre de los estudiantes,
     con 'notas' vacío por ahora.
     """
+    diagnostico = diagnostico if diagnostico is not None else crear_diagnostico_asignaturas()
     if not file_path or not os.path.exists(file_path):
         print(f"[cargar_excel_datos] Ruta inválida o inexistente: {file_path}", file=sys.stderr)
         return {}
@@ -166,6 +203,15 @@ def cargar_excel_datos(file_path: str) -> dict[str, dict]:
             print(f"[cargar_excel_datos] No existe la hoja 'Reporte Periodo'. Hojas encontradas: {', '.join(wb.sheetnames)}", file=sys.stderr)
             return {}
         print(f"[cargar_excel_datos] Hoja usada: {sheet.title}", file=sys.stderr)
+
+        grado_excel = obtener_valor_celda(sheet, "B3")
+        if grado_esperado:
+            if not grado_excel:
+                raise ErrorGradoExcel("El archivo no indica el grado en la celda B3.")
+            if not grados_equivalentes(grado_excel, grado_esperado):
+                raise ErrorGradoExcel(
+                    f"El archivo corresponde a {grado_excel}, pero el curso seleccionado es {grado_esperado}."
+                )
         
         # Buscar la fila de encabezado
         start_row = None
@@ -203,6 +249,7 @@ def cargar_excel_datos(file_path: str) -> dict[str, dict]:
                 es_materia_unica = True
                 
         subject_columns = []
+        canonicas_agregadas = set()
         if es_materia_unica:
             periodo_detectado = str(sheet.cell(row=6, column=2).value or "").strip().upper()
             col_to_read = 3
@@ -212,7 +259,11 @@ def cargar_excel_datos(file_path: str) -> dict[str, dict]:
                 col_to_read = 7
             
             subject_name = header_c if header_c else "Materia"
-            subject_columns.append((col_to_read, subject_name))
+            clasificacion = clasificar_asignatura(subject_name, grado_esperado)
+            _agregar_diagnostico(diagnostico, clasificacion)
+            if clasificacion["estado"] == "reconocida":
+                subject_columns.append((col_to_read, clasificacion["canonica"]))
+                canonicas_agregadas.add(clasificacion["canonica"])
             print(f"[cargar_excel_datos] Formato materia única: {subject_name}, leyendo columna {col_to_read} ({periodo_detectado})", file=sys.stderr)
         else:
             # Formato estándar multiasignatura
@@ -224,7 +275,15 @@ def cargar_excel_datos(file_path: str) -> dict[str, dict]:
                 subject_norm = normalizar_columna(subject_name)
                 if any(keyword in subject_norm for keyword in ignore_subject_keywords):
                     continue
-                subject_columns.append((col, subject_name))
+                clasificacion = clasificar_asignatura(subject_name, grado_esperado)
+                _agregar_diagnostico(diagnostico, clasificacion)
+                if clasificacion["estado"] != "reconocida":
+                    continue
+                canonica = clasificacion["canonica"]
+                if canonica in canonicas_agregadas:
+                    continue
+                subject_columns.append((col, canonica))
+                canonicas_agregadas.add(canonica)
 
         print(f"[cargar_excel_datos] Asignaturas detectadas: {[name for _, name in subject_columns]}", file=sys.stderr)
 
@@ -241,7 +300,7 @@ def cargar_excel_datos(file_path: str) -> dict[str, dict]:
             nombre = str(val_a).strip()
             cedula = ""
             if val_b is not None:
-                val_b_str = str(val_b).strip()
+                val_b_str = _valor_a_texto(val_b, sheet.cell(row=r, column=2))
                 if val_b_str.endswith('.0'):
                     val_b_str = val_b_str[:-2]
                 if val_b_str.isdigit() and len(val_b_str) == 9:
@@ -268,15 +327,17 @@ def cargar_excel_datos(file_path: str) -> dict[str, dict]:
             }
             
         return records
+    except ErrorGradoExcel:
+        raise
     except Exception as e:
         print(f"Error al cargar excel {file_path}: {e}", file=sys.stderr)
         return {}
 
-def consolidar_estudiantes(t1_path, t2_path, t3_path, su_path) -> list[dict]:
-    t1_data = cargar_excel_datos(t1_path)
-    t2_data = cargar_excel_datos(t2_path)
-    t3_data = cargar_excel_datos(t3_path)
-    su_data = cargar_excel_datos(su_path)
+def consolidar_estudiantes(t1_path, t2_path, t3_path, su_path, grado_esperado=None) -> list[dict]:
+    t1_data = cargar_excel_datos(t1_path, grado_esperado)
+    t2_data = cargar_excel_datos(t2_path, grado_esperado)
+    t3_data = cargar_excel_datos(t3_path, grado_esperado)
+    su_data = cargar_excel_datos(su_path, grado_esperado)
     
     # Unir todas las cédulas/estudiantes únicos
     all_keys = set(t1_data.keys()) | set(t2_data.keys()) | set(t3_data.keys()) | set(su_data.keys())
@@ -298,7 +359,7 @@ def consolidar_estudiantes(t1_path, t2_path, t3_path, su_path) -> list[dict]:
                 all_subjects.update(src[key]["notas"].keys())
                 
         subjects_grades = {}
-        for sub in all_subjects:
+        for sub in sorted(all_subjects, key=orden_asignatura):
             g1 = t1_data.get(key, {}).get("notas", {}).get(sub, 0.0)
             g2 = t2_data.get(key, {}).get("notas", {}).get(sub, 0.0)
             g3 = t3_data.get(key, {}).get("notas", {}).get(sub, 0.0)
@@ -1118,6 +1179,7 @@ def main():
     parser.add_argument('--t2', type=str, help='Ruta Excel Trimestre 2')
     parser.add_argument('--t3', type=str, help='Ruta Excel Trimestre 3')
     parser.add_argument('--su', type=str, help='Ruta Excel Supletorio')
+    parser.add_argument('--grado', type=str, help='Grado activo que autoriza las asignaturas del análisis')
     
     args = parser.parse_args()
     
@@ -1164,17 +1226,32 @@ def main():
 
     elif args.analizar:
         try:
+            if not args.grado or not args.grado.strip():
+                raise ValueError("No se recibió el grado del curso seleccionado.")
             first_path = args.t1 or args.t2 or args.t3 or args.su
             datos_inst = extraer_datos_institucionales(first_path)
+            diagnostico = crear_diagnostico_asignaturas()
             
             # Cargar datos del excel específico
-            records = cargar_excel_datos(first_path)
+            records = cargar_excel_datos(first_path, args.grado, diagnostico)
             
             # Obtener asignaturas
-            asignaturas = []
-            if records:
-                first_student = next(iter(records.values()))
-                asignaturas = list(first_student["notas"].keys())
+            asignaturas = list(dict.fromkeys(
+                item["canonica"] for item in diagnostico["asignaturasReconocidas"]
+            ))
+            if not asignaturas:
+                partes_error = [f"No se reconoció ninguna asignatura válida para {args.grado}."]
+                ignoradas = [item["original"] for item in diagnostico["asignaturasIgnoradasPorCurso"]]
+                desconocidas = [item["original"] for item in diagnostico["asignaturasNoReconocidas"]]
+                if ignoradas:
+                    partes_error.append("No corresponden al curso: " + ", ".join(ignoradas) + ".")
+                if desconocidas:
+                    partes_error.append("No están en el catálogo oficial: " + ", ".join(desconocidas) + ".")
+                print(json.dumps({
+                    "error": " ".join(partes_error),
+                    **diagnostico,
+                }, ensure_ascii=False))
+                return
                 
             estudiantes = list(records.values())
             
@@ -1195,7 +1272,8 @@ def main():
                 "periodoExcel": datos_inst.get("periodoExcel", ""),
                 "asignaturas": asignaturas,
                 "estudiantes": estudiantes,
-                "estudiantes_tabla": estudiantes_tabla
+                "estudiantes_tabla": estudiantes_tabla,
+                **diagnostico,
             }
             print(json.dumps(output_data, ensure_ascii=False))
         except Exception as e:
@@ -1221,7 +1299,7 @@ def main():
                 seleccionados_data = payload.get("datos_consolidados")
             else:
                 datos_completos = consolidar_estudiantes(
-                    excels.get("t1"), excels.get("t2"), excels.get("t3"), excels.get("su")
+                    excels.get("t1"), excels.get("t2"), excels.get("t3"), excels.get("su"), inst.get("grado")
                 )
                 seleccionados_data = [est for est in datos_completos if est["id_real"] in estudiantes_seleccionados]
             

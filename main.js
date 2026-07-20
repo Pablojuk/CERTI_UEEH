@@ -139,14 +139,19 @@ function runPython(args, inputData = null) {
 }
 
 // IPC: Analizar archivos Excel para listar estudiantes
-ipcMain.handle('analizar-excel', async (event, rutas = {}) => {
+ipcMain.handle('analizar-excel', async (event, solicitud = {}) => {
     try {
-        const args = ['--analizar'];
+        const grado = typeof solicitud.grado === 'string' ? solicitud.grado.trim() : '';
+        if (!grado || grado.length > 120) {
+            return { error: "No se recibió un grado válido del curso seleccionado." };
+        }
+
+        const args = ['--analizar', '--grado', grado];
         const periodos = ['t1', 't2', 't3', 'su'];
         const rutasValidas = {};
 
         for (const periodo of periodos) {
-            const ruta = typeof rutas[periodo] === 'string' ? rutas[periodo].trim() : '';
+            const ruta = typeof solicitud[periodo] === 'string' ? solicitud[periodo].trim() : '';
             if (!ruta) continue;
             if (!fs.existsSync(ruta)) {
                 return { error: `Ruta inválida: el archivo seleccionado para ${periodo.toUpperCase()} no existe o no es accesible: ${ruta}` };
@@ -174,7 +179,18 @@ ipcMain.handle('analizar-excel', async (event, rutas = {}) => {
         return parsed;
     } catch (error) {
         console.error("Error en analizar-excel:", error);
-        return { error: error.stderr || error.error || "Error al ejecutar el procesador de notas" };
+        return { error: "No se pudo procesar el archivo de notas. Verifique que use el formato oficial." };
+    }
+});
+
+// Catálogo de solo lectura compartido con la migración segura de datos locales.
+ipcMain.handle('obtener-catalogo-asignaturas', async () => {
+    try {
+        const catalogoPath = path.join(__dirname, 'catalogo_asignaturas.json');
+        return JSON.parse(fs.readFileSync(catalogoPath, 'utf-8'));
+    } catch (error) {
+        console.error("Error al leer el catálogo de asignaturas:", error);
+        return [];
     }
 });
 

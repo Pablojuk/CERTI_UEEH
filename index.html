@@ -459,6 +459,7 @@
         let estudiantesCargados = []; // Consolidado de la tabla para buscar/filtrar
         let trasladoPendienteActual = null;
         let licenciaActiva = false;
+        let catalogoAsignaturas = [];
 
         // Inicializar IndexedDB
         function initDB() {
@@ -578,8 +579,22 @@
                 console.error("Error al verificar licencia:", err);
             }
 
+            // Cargar el catálogo central antes de migrar/consolidar datos locales.
+            try {
+                const catalogo = await window.electronAPI.obtenerCatalogoAsignaturas();
+                catalogoAsignaturas = Array.isArray(catalogo) ? catalogo : [];
+            } catch (err) {
+                console.error("No se pudo cargar el catálogo de asignaturas:", err);
+                catalogoAsignaturas = [];
+            }
+
             // Cargar base de datos local
             await loadStateFromDB();
+            let huboNormalizacion = false;
+            appState.cursos.forEach(curso => {
+                if (normalizarAsignaturasPersistidasCurso(curso)) huboNormalizacion = true;
+            });
+            if (huboNormalizacion) await saveStateToDB();
             actualizarSelectorCursosUI();
             cargarCursoActivoEnPantalla();
         };
@@ -591,6 +606,134 @@
                 .toUpperCase()
                 .replace(/\s+/g, ' ')
                 .trim();
+        }
+
+        function normalizarTextoAsignatura(txt) {
+            return String(txt || '')
+                .trim()
+                .toUpperCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[–—]/g, '-')
+                .replace(/[-_/|;:,]+/g, ' ')
+                .replace(/[^A-Z0-9\s]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function codigoGradoCatalogo(grado) {
+            const g = normalizarTextoAsignatura(grado);
+            if (!g) return null;
+            if (g.includes('INICIAL')) {
+                if (/(^|\s)(2|II)(\s|$)/.test(g)) return 'INICIAL_2';
+                if (/(^|\s)(1|I)(\s|$)/.test(g)) return 'INICIAL_1';
+            }
+            const esBgu = g.includes('BACHILLERATO') || /(^|\s)BGU(\s|$)/.test(g);
+            if (esBgu) {
+                if (/(^|\s)(3RO|3ER|3|TERCERO|TERCER)(\s|$)/.test(g)) return 'BGU_3';
+                if (/(^|\s)(2DO|2|SEGUNDO)(\s|$)/.test(g)) return 'BGU_2';
+                if (/(^|\s)(1RO|1ER|1|PRIMERO|PRIMER)(\s|$)/.test(g)) return 'BGU_1';
+            }
+            const esEgb = g.includes('EGB') || g.includes('EDUCACION GENERAL BASICA');
+            if (g.includes('PREPARATORIA') || (esEgb && /(^|\s)(1RO|1ER|1|PRIMERO|PRIMER)(\s|$)/.test(g))) return 'EGB_1';
+            if (g.includes('ELEMENTAL') || (esEgb && /(^|\s)(2DO|3RO|4TO|2|3|4|SEGUNDO|TERCERO|CUARTO)(\s|$)/.test(g))) return 'EGB_ELEMENTAL';
+            if (g.includes('MEDIA') || (esEgb && /(^|\s)(5TO|6TO|7MO|5|6|7|QUINTO|SEXTO|SEPTIMO)(\s|$)/.test(g))) return 'EGB_MEDIA';
+            if (g.includes('SUPERIOR') || (esEgb && /(^|\s)(8VO|9NO|10MO|8|9|10|OCTAVO|NOVENO|DECIMO)(\s|$)/.test(g))) return 'EGB_SUPERIOR';
+            return null;
+        }
+
+        function reconocerAsignaturaCatalogo(nombre) {
+            const original = String(nombre || '').trim();
+            const normalizada = normalizarTextoAsignatura(original);
+            if (!normalizada || catalogoAsignaturas.length === 0) return null;
+
+            for (const entrada of catalogoAsignaturas) {
+                const variantes = [entrada.nombre, ...(entrada.aliases || [])];
+                if (variantes.some(v => normalizarTextoAsignatura(v) === normalizada)) return entrada;
+            }
+
+            const similitudSecuencia = (a, b) => {
+                const anterior = new Array(b.length + 1).fill(0);
+                const actual = new Array(b.length + 1).fill(0);
+                for (let i = 1; i <= a.length; i++) {
+                    for (let j = 1; j <= b.length; j++) {
+                        actual[j] = a[i - 1] === b[j - 1] ? anterior[j - 1] + 1 : Math.max(anterior[j], actual[j - 1]);
+                    }
+                    for (let j = 0; j <= b.length; j++) { anterior[j] = actual[j]; actual[j] = 0; }
+                }
+                return a.length + b.length ? (2 * anterior[b.length]) / (a.length + b.length) : 1;
+            };
+
+            const puntajes = catalogoAsignaturas.map(entrada => {
+                let mejor = 0;
+                for (const variante of [entrada.nombre, ...(entrada.aliases || [])]) {
+                    const candidata = normalizarTextoAsignatura(variante);
+                    const palabrasEntrada = normalizada.split(' ');
+                    const palabrasCandidata = candidata.split(' ');
+                    const esExtension = palabrasEntrada.length > palabrasCandidata.length && palabrasCandidata.every(p => palabrasEntrada.includes(p));
+                    if (esExtension || Math.abs(palabrasEntrada.length - palabrasCandidata.length) > 1) continue;
+                    const similitud = similitudSecuencia(normalizada, candidata);
+                    mejor = Math.max(mejor, similitud);
+                }
+                return { entrada, puntaje: mejor };
+            }).sort((a, b) => b.puntaje - a.puntaje);
+
+            const longitud = normalizada.replace(/\s/g, '').length;
+            const umbral = longitud <= 5 ? 0.96 : longitud <= 8 ? 0.88 : longitud <= 14 ? 0.86 : 0.84;
+            if (!puntajes[0] || puntajes[0].puntaje < umbral) return null;
+            if (puntajes[1] && puntajes[0].puntaje - puntajes[1].puntaje < 0.06) return null;
+            return puntajes[0].entrada;
+        }
+
+        function canonicalizarAsignaturaPersistida(nombre, grado) {
+            const entrada = reconocerAsignaturaCatalogo(nombre);
+            const codigoGrado = codigoGradoCatalogo(grado);
+            if (!entrada || !codigoGrado || !(entrada.grados || []).includes(codigoGrado)) return String(nombre);
+            return entrada.nombre;
+        }
+
+        function normalizarMapaAsignaturasPersistido(mapa, grado) {
+            if (!mapa || typeof mapa !== 'object' || Array.isArray(mapa)) return { mapa, cambio: false };
+            const salida = {};
+            let cambio = false;
+            Object.entries(mapa).forEach(([nombre, valor]) => {
+                const canonica = canonicalizarAsignaturaPersistida(nombre, grado);
+                cambio = cambio || canonica !== nombre;
+                if (!(canonica in salida) || salida[canonica] === null || salida[canonica] === '') salida[canonica] = valor;
+            });
+            return { mapa: salida, cambio };
+        }
+
+        function normalizarAsignaturasPersistidasCurso(curso) {
+            if (!curso) return false;
+            const grado = curso.datosInstitucion?.gradoCurso || curso.nombreVisible || '';
+            let cambio = false;
+            Object.values(curso.periodos || {}).forEach(periodo => {
+                if (Array.isArray(periodo.asignaturas)) {
+                    const nuevas = Array.from(new Set(periodo.asignaturas.map(nombre => canonicalizarAsignaturaPersistida(nombre, grado))));
+                    if (JSON.stringify(nuevas) !== JSON.stringify(periodo.asignaturas)) { periodo.asignaturas = nuevas; cambio = true; }
+                }
+                (periodo.estudiantes || []).forEach(estudiante => {
+                    const normalizado = normalizarMapaAsignaturasPersistido(estudiante.notas, grado);
+                    if (normalizado.cambio) { estudiante.notas = normalizado.mapa; cambio = true; }
+                });
+            });
+            (curso.alumnosTraslado || []).forEach(alumno => {
+                Object.values(alumno.notas || {}).forEach(periodo => {
+                    const normalizado = normalizarMapaAsignaturasPersistido(periodo.asignaturas, grado);
+                    if (normalizado.cambio) { periodo.asignaturas = normalizado.mapa; cambio = true; }
+                });
+                const su = normalizarMapaAsignaturasPersistido(alumno.su_notas, grado);
+                if (su.cambio) { alumno.su_notas = su.mapa; cambio = true; }
+            });
+            Object.entries(curso.supletoriosManuales || {}).forEach(([clave, mapa]) => {
+                const normalizado = normalizarMapaAsignaturasPersistido(mapa, grado);
+                if (normalizado.cambio) {
+                    curso.supletoriosManuales[clave] = normalizado.mapa;
+                    cambio = true;
+                }
+            });
+            return cambio;
         }
 
         function generarCursoKey(curso) {
@@ -1387,6 +1530,29 @@
             console.log('[T3] Guardado en curso:', cursoEncontrado.periodos.trimestre3);
         }
 
+        function escaparHTMLDiagnostico(valor) {
+            return String(valor ?? '').replace(/[&<>"']/g, caracter => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+            })[caracter]);
+        }
+
+        function resumenCargaAsignaturas(result, grado) {
+            const lineas = [
+                'Archivo procesado correctamente.',
+                `Se reconocieron ${Array.isArray(result.asignaturas) ? result.asignaturas.length : 0} asignaturas.`
+            ];
+            (result.asignaturasReconocidas || [])
+                .filter(item => item.metodo !== 'coincidencia_exacta' && normalizarTextoAsignatura(item.original) !== normalizarTextoAsignatura(item.canonica))
+                .forEach(item => lineas.push(`Se corrigió “${escaparHTMLDiagnostico(item.original)}” a “${escaparHTMLDiagnostico(item.canonica)}”.`));
+            (result.asignaturasIgnoradasPorCurso || []).forEach(item => {
+                lineas.push(`Se ignoró “${escaparHTMLDiagnostico(item.original)}” porque no corresponde a ${escaparHTMLDiagnostico(grado)}.`);
+            });
+            (result.asignaturasNoReconocidas || []).forEach(item => {
+                lineas.push(`No se reconoció “${escaparHTMLDiagnostico(item.original)}” y se omitió.`);
+            });
+            return lineas.join('<br>');
+        }
+
         function consolidarYRenderizar() {
             const curso = obtenerCursoActivo();
             if (!curso) {
@@ -1395,6 +1561,8 @@
                 renderEstudiantesNoEncontrados();
                 return;
             }
+
+            normalizarAsignaturasPersistidasCurso(curso);
 
             curso.estudiantesNoEncontrados = curso.estudiantesNoEncontrados || [];
             curso.alumnosTraslado = curso.alumnosTraslado || [];
@@ -1573,7 +1741,7 @@
 
             try {
                 // Analizar un solo archivo a la vez
-                const filePathsPayload = {};
+                const filePathsPayload = { grado: cursoActivo.datosInstitucion?.gradoCurso || '' };
                 filePathsPayload[id] = absolutePath;
 
                 console.log("[handleFileSelect] Payload enviado a analizarExcel:", filePathsPayload);
@@ -1583,7 +1751,7 @@
                 document.getElementById('loading-overlay').classList.add('hidden');
 
                 if (result.error) {
-                    mostrarAlerta("Error de formato", "No se pudo leer el archivo. Asegúrese de que sea el formato oficial obtenido desde 'Descargar Formato'.<br><small class='text-rose-500'>" + result.error + "</small>", "error");
+                    mostrarAlerta("Error de formato", escaparHTMLDiagnostico(result.error), "error");
                     return;
                 }
 
@@ -1657,8 +1825,7 @@
                 const activoParalelo = normalizarTextoComparacion(cursoActivo.datosInstitucion?.paralelo);
                 const activoAnio = normalizarTextoComparacion(cursoActivo.datosInstitucion?.anioLectivo);
 
-                const coinciden = (excelGrado === activoGrado) &&
-                                  (excelParalelo === activoParalelo) &&
+                const coinciden = (excelParalelo === activoParalelo) &&
                                   (excelAnio === activoAnio);
 
                 if (!coinciden) {
@@ -1715,7 +1882,7 @@
                 await saveStateToDB();
                 actualizarSelectorCursosUI();
                 cargarCursoActivoEnPantalla();
-                mostrarAlerta("Éxito al cargar", `Notas importadas correctamente para el curso:<br><strong>${cursoActivo.nombreVisible}</strong><br>Período: <strong>${periodoDetectadoStr}</strong>`, "success");
+                mostrarAlerta("Carga completada", resumenCargaAsignaturas(result, cursoActivo.datosInstitucion?.gradoCurso || cursoActivo.nombreVisible), "success");
 
             } catch (err) {
                 document.getElementById('loading-overlay').classList.add('hidden');
