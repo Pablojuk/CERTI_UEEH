@@ -2862,7 +2862,7 @@
                     if (!res) return; // Error ya mostrado o usuario canceló
                     if (res.cancelled) return;
                     if (res.success) {
-                        mostrarAlerta("Éxito", `Certificados generados con éxito en la ruta:<br><strong class="text-xs break-all">${res.path}</strong>`, "success", res.path);
+                        mostrarAlerta("Éxito", `Certificados generados correctamente en la ruta:<br><strong class="text-xs break-all">${res.path}</strong>`, "success");
                     } else {
                         mostrarAlerta("Error", "Ocurrió un error al generar los certificados: " + (res.error || ''), "error");
                     }
