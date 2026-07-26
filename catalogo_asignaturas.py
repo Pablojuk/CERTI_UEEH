@@ -163,3 +163,13 @@ def orden_asignatura(nombre: str) -> tuple[int, str]:
         if normalizar_texto_asignatura(entrada["nombre"]) == normalizado:
             return int(entrada.get("orden", 999)), entrada["nombre"]
     return 999, str(nombre)
+
+
+def tipo_asignatura(nombre: str) -> str:
+    """Obtiene el tipo declarado para un nombre canónico o alias del catálogo."""
+    normalizado = normalizar_texto_asignatura(nombre)
+    for entrada in CATALOGO_ASIGNATURAS:
+        variantes = [entrada["nombre"], *entrada.get("aliases", [])]
+        if any(normalizar_texto_asignatura(variante) == normalizado for variante in variantes):
+            return entrada.get("tipo", "cuantitativa")
+    return "cuantitativa"

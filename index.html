@@ -334,7 +334,198 @@
             </div>
         </div>
 
+        <!-- Opción del módulo, ubicada inmediatamente después de Gestión de Estudiantes -->
+        <section id="asistencia-modulo" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <button id="asistencia-menu-btn" type="button" onclick="abrirModuloAsistencia()"
+                class="w-full bg-slate-50 border-b border-slate-200 px-5 py-4 flex items-center justify-between gap-4 text-left hover:bg-indigo-50 transition-all">
+                <div class="flex items-center gap-3">
+                    <div class="bg-indigo-100 text-indigo-600 w-9 h-9 rounded-lg flex items-center justify-center">
+                        <i class="fa-solid fa-calendar-check"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-slate-800">Registrar asistencia</h3>
+                        <p class="text-xs text-slate-500">Configure los trimestres y gestione las faltas de los estudiantes</p>
+                    </div>
+                </div>
+                <i id="asistencia-menu-icon" class="fa-solid fa-chevron-down text-slate-400"></i>
+            </button>
+
+            <div id="asistencia-view" class="hidden p-5 space-y-5">
+                <div id="asistencia-sin-curso" class="hidden rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
+                    <i class="fa-solid fa-circle-info mr-2"></i>
+                    Seleccione un curso para registrar la asistencia de sus estudiantes.
+                </div>
+
+                <div id="asistencia-con-curso" class="space-y-5">
+                    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider text-indigo-600">Curso activo</p>
+                            <h4 id="asistencia-curso-nombre" class="text-xl font-bold text-slate-900"></h4>
+                            <p id="asistencia-anio-lectivo" class="text-sm text-slate-500"></p>
+                        </div>
+                        <label class="text-sm font-semibold text-slate-700">
+                            Trimestre
+                            <select id="asistencia-trimestre" onchange="cambiarTrimestreAsistencia()"
+                                class="ml-2 bg-white border border-slate-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <option value="T1">Primer trimestre</option>
+                                <option value="T2">Segundo trimestre</option>
+                                <option value="T3">Tercer trimestre</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <div class="flex items-center gap-2 mb-4">
+                            <i class="fa-solid fa-calendar-days text-indigo-500"></i>
+                            <h4 class="font-semibold text-slate-800">Configuración del trimestre</h4>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-end">
+                            <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                Fecha de inicio
+                                <input id="asistencia-fecha-inicio" type="date"
+                                    class="mt-1 w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                Fecha de finalización
+                                <input id="asistencia-fecha-fin" type="date"
+                                    class="mt-1 w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                            </label>
+                            <button type="button" onclick="guardarPeriodoAsistencia()"
+                                class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-semibold transition-all">
+                                <i class="fa-solid fa-floppy-disk mr-1"></i> Guardar periodo
+                            </button>
+                            <div class="text-xs text-slate-500">
+                                <span class="font-semibold">Rango guardado:</span>
+                                <span id="asistencia-rango-guardado">Sin configurar</span>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 pt-4 border-t border-slate-200">
+                            <div class="flex flex-col md:flex-row md:items-end gap-3">
+                                <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                    Días sin clases
+                                    <input id="asistencia-dia-sin-clase" type="date"
+                                        class="mt-1 block bg-white border border-slate-300 rounded-md px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                                </label>
+                                <button type="button" onclick="agregarDiaSinClase()"
+                                    class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-md text-sm font-semibold transition-all">
+                                    <i class="fa-solid fa-calendar-xmark mr-1"></i> Agregar día sin clases
+                                </button>
+                            </div>
+                            <div id="asistencia-dias-sin-clases-lista" class="mt-3 flex flex-wrap gap-2"></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                        <div class="rounded-lg border border-slate-200 p-3"><p class="text-xs text-slate-500">Estudiantes</p><p id="asistencia-resumen-estudiantes" class="text-xl font-bold">0</p></div>
+                        <div class="rounded-lg border border-slate-200 p-3"><p class="text-xs text-slate-500">Días lectivos</p><p id="asistencia-resumen-dias" class="text-xl font-bold">0</p></div>
+                        <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3"><p class="text-xs text-emerald-700">Justificadas</p><p id="asistencia-resumen-justificadas" class="text-xl font-bold text-emerald-800">0</p></div>
+                        <div class="rounded-lg border border-rose-200 bg-rose-50 p-3"><p class="text-xs text-rose-700">Injustificadas</p><p id="asistencia-resumen-injustificadas" class="text-xl font-bold text-rose-800">0</p></div>
+                        <div class="rounded-lg border border-amber-200 bg-amber-50 p-3"><p class="text-xs text-amber-700">Total faltas</p><p id="asistencia-resumen-total" class="text-xl font-bold text-amber-800">0</p></div>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row justify-between gap-3">
+                        <div class="relative max-w-md w-full">
+                            <i class="fa-solid fa-search absolute left-3 top-2.5 text-slate-400 text-sm"></i>
+                            <input id="asistencia-buscar" type="text" oninput="renderTablaAsistencia()" placeholder="Buscar estudiante"
+                                class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-md text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto max-h-[32rem] border border-slate-200 rounded-lg">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="sticky top-0 bg-slate-100 z-10 text-xs uppercase tracking-wider text-slate-600">
+                                <tr>
+                                    <th class="p-3">N.º</th>
+                                    <th class="p-3">Apellidos y nombres</th>
+                                    <th class="p-3">Identificación / código</th>
+                                    <th class="p-3 text-center">Justificadas</th>
+                                    <th class="p-3 text-center">Injustificadas</th>
+                                    <th class="p-3 text-center">Total faltas</th>
+                                    <th class="p-3 text-center">Días de asistencia</th>
+                                    <th class="p-3 text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="asistencia-estudiantes-body" class="divide-y divide-slate-100 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
     </main>
+
+    <!-- Modal único para gestionar faltas -->
+    <div id="asistencia-modal" class="hidden fixed inset-0 z-[70] overflow-y-auto bg-slate-900/60 p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-slate-200 max-w-5xl w-full mx-auto my-4 overflow-hidden">
+            <div class="p-5 border-b border-slate-200 flex justify-between gap-4">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-900">Gestionar faltas</h3>
+                    <p id="asistencia-modal-estudiante" class="text-sm font-semibold text-indigo-700"></p>
+                    <p id="asistencia-modal-contexto" class="text-xs text-slate-500 mt-1"></p>
+                </div>
+                <button type="button" onclick="cerrarModalAsistencia()" class="text-slate-400 hover:text-rose-600 p-2" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <div class="p-5 grid grid-cols-1 lg:grid-cols-5 gap-5">
+                <div class="lg:col-span-3">
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="moverMesAsistencia(-1)" class="border border-slate-300 rounded px-3 py-2" aria-label="Mes anterior"><i class="fa-solid fa-chevron-left"></i></button>
+                            <select id="asistencia-cal-mes" onchange="cambiarMesCalendario()" class="border border-slate-300 rounded px-3 py-2 text-sm"></select>
+                            <select id="asistencia-cal-anio" onchange="cambiarMesCalendario()" class="border border-slate-300 rounded px-3 py-2 text-sm"></select>
+                            <button type="button" onclick="moverMesAsistencia(1)" class="border border-slate-300 rounded px-3 py-2" aria-label="Mes siguiente"><i class="fa-solid fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2 mb-4" role="group" aria-label="Modo de selección">
+                        <button id="asistencia-modo-justificada" type="button" onclick="seleccionarModoAsistencia('justificada')" class="px-3 py-2 rounded border text-sm font-semibold">
+                            <i class="fa-solid fa-circle-check mr-1"></i> Marcar justificada
+                        </button>
+                        <button id="asistencia-modo-injustificada" type="button" onclick="seleccionarModoAsistencia('injustificada')" class="px-3 py-2 rounded border text-sm font-semibold">
+                            <i class="fa-solid fa-circle-xmark mr-1"></i> Marcar injustificada
+                        </button>
+                        <button id="asistencia-modo-borrar" type="button" onclick="seleccionarModoAsistencia('borrar')" class="px-3 py-2 rounded border text-sm font-semibold">
+                            <i class="fa-solid fa-eraser mr-1"></i> Borrar registro
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-7 text-center text-xs font-bold text-slate-500 mb-1">
+                        <span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span>
+                    </div>
+                    <div id="asistencia-calendario" class="grid grid-cols-7 gap-1"></div>
+
+                    <div class="mt-4 flex flex-wrap gap-3 text-xs">
+                        <span class="border border-emerald-300 bg-emerald-50 text-emerald-800 rounded px-2 py-1"><i class="fa-solid fa-circle-check mr-1"></i>Justificada</span>
+                        <span class="border border-rose-300 bg-rose-50 text-rose-800 rounded px-2 py-1"><i class="fa-solid fa-circle-xmark mr-1"></i>Injustificada</span>
+                        <span class="border border-slate-300 bg-white text-slate-700 rounded px-2 py-1">Sin falta</span>
+                        <span class="border border-slate-200 bg-slate-100 text-slate-400 rounded px-2 py-1"><i class="fa-solid fa-ban mr-1"></i>No habilitado</span>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-2">
+                    <h4 class="font-semibold text-slate-800 mb-3">Fechas registradas</h4>
+                    <div class="max-h-[28rem] overflow-y-auto border border-slate-200 rounded-lg">
+                        <table class="w-full text-left text-xs">
+                            <thead class="sticky top-0 bg-slate-100">
+                                <tr><th class="p-2">Fecha / día</th><th class="p-2">Tipo y observación</th><th class="p-2"></th></tr>
+                            </thead>
+                            <tbody id="asistencia-faltas-lista" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-5 border-t border-slate-200 flex justify-end gap-3">
+                <button type="button" onclick="cerrarModalAsistencia()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-md text-sm font-semibold">Cancelar</button>
+                <button type="button" onclick="guardarCambiosAsistencia()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm font-semibold">
+                    <i class="fa-solid fa-floppy-disk mr-1"></i> Guardar cambios
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Modal de Vista Previa / Estado -->
     <div id="status-modal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 flex items-center justify-center p-4">
@@ -445,6 +636,7 @@
         </div>
     </div>
 
+    <script src="./asistencia.js"></script>
     <script>
         // DB Configuración (IndexedDB)
         const DB_NAME = 'SistemaAcademicoDB';
@@ -460,6 +652,8 @@
         let trasladoPendienteActual = null;
         let licenciaActiva = false;
         let catalogoAsignaturas = [];
+        let trimestreAsistenciaActivo = 'T1';
+        let asistenciaModalEstado = null;
 
         // Inicializar IndexedDB
         function initDB() {
@@ -692,6 +886,23 @@
             return entrada.nombre;
         }
 
+        function tipoAsignaturaCatalogo(nombre) {
+            return reconocerAsignaturaCatalogo(nombre)?.tipo || 'cuantitativa';
+        }
+
+        function ordenarAsignaturasCatalogo(nombres) {
+            const entradasPorNombre = new Map(
+                catalogoAsignaturas.map(entrada => [normalizarTextoAsignatura(entrada.nombre), entrada])
+            );
+            return Array.from(new Set(nombres)).sort((a, b) => {
+                const entradaA = entradasPorNombre.get(normalizarTextoAsignatura(a));
+                const entradaB = entradasPorNombre.get(normalizarTextoAsignatura(b));
+                const ordenA = Number(entradaA?.orden ?? 999);
+                const ordenB = Number(entradaB?.orden ?? 999);
+                return ordenA - ordenB || String(a).localeCompare(String(b), 'es');
+            });
+        }
+
         function normalizarMapaAsignaturasPersistido(mapa, grado) {
             if (!mapa || typeof mapa !== 'object' || Array.isArray(mapa)) return { mapa, cambio: false };
             const salida = {};
@@ -863,6 +1074,7 @@
                 estudiantesCargados = [];
                 renderEstudiantes();
                 renderEstudiantesNoEncontrados();
+                renderModuloAsistencia();
                 return;
             }
 
@@ -890,6 +1102,7 @@
 
             // Consolidar notas y renderizar estudiantes
             consolidarYRenderizar();
+            renderModuloAsistencia();
         }
 
         function updateFileLabel(id, periodData) {
@@ -1005,7 +1218,8 @@
                         trimestre2: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] },
                         trimestre3: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] },
                         supletorio: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] }
-                    }
+                    },
+                    asistencia: AsistenciaUtils.crearAsistenciaVacia()
                 };
                 nuevoCurso.cursoKey = generarCursoKey(nuevoCurso);
 
@@ -1072,7 +1286,14 @@
 
         // Cambiar curso activo
         async function cambiarCursoActivo() {
-            const val = document.getElementById('selector-curso').value;
+            const selector = document.getElementById('selector-curso');
+            if (asistenciaModalEstado?.cambios && !confirm('Existen cambios de asistencia sin guardar. ¿Desea descartarlos y cambiar de curso?')) {
+                selector.value = appState.cursoActivoId || '';
+                return;
+            }
+            document.getElementById('asistencia-modal').classList.add('hidden');
+            asistenciaModalEstado = null;
+            const val = selector.value;
             appState.cursoActivoId = val || null;
             await saveStateToDB();
             cargarCursoActivoEnPantalla();
@@ -1126,7 +1347,16 @@
 
         // Truncar decimales en JS
         function truncar2Decimales(valor) {
-            return Math.trunc(valor * 100) / 100;
+            const numero = Number(valor);
+            const normalizado = Number(numero.toFixed(10));
+            return Math.trunc(normalizado * 100) / 100;
+        }
+
+        function mostrarValorSeguro(valor) {
+            if (valor === null || valor === undefined) return '';
+            if (typeof valor === 'number' && Number.isNaN(valor)) return '';
+            const texto = String(valor).trim();
+            return ['', 'nan', 'none', 'null', 'undefined'].includes(texto.toLowerCase()) ? '' : texto;
         }
 
         // Consolidación de estudiantes localmente (IndexedDB)
@@ -1199,9 +1429,9 @@
 
         function crearEstructuraNotasInicial() {
             return {
-                trimestre1: { origenRegistro: 'PENDIENTE', asignaturas: {} },
-                trimestre2: { origenRegistro: 'PENDIENTE', asignaturas: {} },
-                trimestre3: { origenRegistro: 'PENDIENTE', asignaturas: {} }
+                trimestre1: { origenRegistro: 'PENDIENTE', asignaturas: {}, tiposAsignaturas: {}, evaluacionComportamental: '' },
+                trimestre2: { origenRegistro: 'PENDIENTE', asignaturas: {}, tiposAsignaturas: {}, evaluacionComportamental: '' },
+                trimestre3: { origenRegistro: 'PENDIENTE', asignaturas: {}, tiposAsignaturas: {}, evaluacionComportamental: '' }
             };
         }
 
@@ -1265,7 +1495,9 @@
             if (nombreExcel && !(estudianteBase.aliases || []).includes(nombreExcel)) estudianteBase.aliases.push(nombreExcel);
             estudianteBase.notas[periodKey] = {
                 origenRegistro,
-                asignaturas: estudianteExcel.notas || {}
+                asignaturas: estudianteExcel.notas || {},
+                tiposAsignaturas: estudianteExcel.tipos_asignaturas || {},
+                evaluacionComportamental: mostrarValorSeguro(estudianteExcel.evaluacion_comportamental)
             };
             estudianteBase.coincidencias[periodKey] = coincidencia;
         }
@@ -1316,13 +1548,14 @@
                 });
             });
             Object.keys(pendiente?.estudianteExcel?.notas || {}).forEach(asig => asignaturas.add(asig));
-            return Array.from(asignaturas);
+            return ordenarAsignaturasCatalogo(asignaturas);
         }
 
         function validarNotasManuales(notas) {
             for (const [periodKey, asignaturas] of Object.entries(notas)) {
                 for (const [asignatura, valor] of Object.entries(asignaturas)) {
                     if (valor === null || valor === '') return `Falta nota de ${asignatura} en ${obtenerPeriodoNombre(periodKey)}.`;
+                    if (tipoAsignaturaCatalogo(asignatura) === 'cualitativa') continue;
                     const numero = Number(valor);
                     if (Number.isNaN(numero) || numero < 0 || numero > 10) {
                         return `La nota de ${asignatura} en ${obtenerPeriodoNombre(periodKey)} debe estar entre 0 y 10.`;
@@ -1334,9 +1567,18 @@
 
         function guardarNotasManualExterno(alumno, notasManuales) {
             Object.entries(notasManuales).forEach(([periodKey, asignaturas]) => {
+                const tiposAsignaturas = Object.fromEntries(
+                    Object.keys(asignaturas).map(asig => [asig, tipoAsignaturaCatalogo(asig)])
+                );
                 alumno.notas[periodKey] = {
                     origenRegistro: 'MANUAL_EXTERNO',
-                    asignaturas: Object.fromEntries(Object.entries(asignaturas).map(([asig, valor]) => [asig, truncar2Decimales(Number(valor))]))
+                    asignaturas: Object.fromEntries(Object.entries(asignaturas).map(([asig, valor]) => [
+                        asig,
+                        tiposAsignaturas[asig] === 'cualitativa'
+                            ? mostrarValorSeguro(valor)
+                            : truncar2Decimales(Number(valor))
+                    ])),
+                    tiposAsignaturas
                 };
                 alumno.coincidencias[periodKey] = 'MANUAL';
             });
@@ -1456,10 +1698,15 @@
                     label.className = 'text-sm text-slate-600';
                     label.textContent = asig;
                     const input = document.createElement('input');
-                    input.type = 'number';
-                    input.min = '0';
-                    input.max = '10';
-                    input.step = '0.01';
+                    if (tipoAsignaturaCatalogo(asig) === 'cualitativa') {
+                        input.type = 'text';
+                        input.placeholder = 'Ej.: B+';
+                    } else {
+                        input.type = 'number';
+                        input.min = '0';
+                        input.max = '10';
+                        input.step = '0.01';
+                    }
                     input.dataset.periodKey = periodKey;
                     input.dataset.asignatura = asig;
                     input.className = 'bg-white border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all';
@@ -1559,6 +1806,7 @@
                 estudiantesCargados = [];
                 renderEstudiantes();
                 renderEstudiantesNoEncontrados();
+                renderModuloAsistencia();
                 return;
             }
 
@@ -1583,6 +1831,7 @@
                 estudiantesCargados = [];
                 renderEstudiantes();
                 renderEstudiantesNoEncontrados();
+                renderModuloAsistencia();
                 return;
             }
 
@@ -1628,6 +1877,9 @@
             const listaConsolidada = base.map(s => {
                 const manual_su_keys = Object.keys(supletoriosManuales[s.cedula] || supletoriosManuales[s.estudianteId] || {});
                 const subjects = new Set([
+                    ...(t1.asignaturas || []),
+                    ...(t2.asignaturas || []),
+                    ...(t3.asignaturas || []),
                     ...Object.keys(s.notas?.trimestre1?.asignaturas || {}),
                     ...Object.keys(s.notas?.trimestre2?.asignaturas || {}),
                     ...Object.keys(s.notas?.trimestre3?.asignaturas || {}),
@@ -1636,13 +1888,38 @@
                 ]);
 
                 const materias = {};
-                subjects.forEach(sub => {
+                ordenarAsignaturasCatalogo(subjects).forEach(sub => {
                     const g1 = s.notas?.trimestre1?.asignaturas?.[sub] ?? null;
                     const g2 = s.notas?.trimestre2?.asignaturas?.[sub] ?? null;
                     const g3 = s.notas?.trimestre3?.asignaturas?.[sub] ?? null;
+                    const tipo = s.notas?.trimestre1?.tiposAsignaturas?.[sub]
+                        || s.notas?.trimestre2?.tiposAsignaturas?.[sub]
+                        || s.notas?.trimestre3?.tiposAsignaturas?.[sub]
+                        || tipoAsignaturaCatalogo(sub);
                     
                     const manual_su_grade = supletoriosManuales[s.cedula]?.[sub] ?? supletoriosManuales[s.estudianteId]?.[sub] ?? null;
-                    const su_grade = manual_su_grade !== null ? manual_su_grade : (s.su_notas?.[sub] ?? null);
+                    const su_grade = tipo === 'cualitativa'
+                        ? null
+                        : (manual_su_grade !== null ? manual_su_grade : (s.su_notas?.[sub] ?? null));
+
+                    if (tipo === 'cualitativa') {
+                        materias[sub] = {
+                            tipo,
+                            t1: mostrarValorSeguro(g1),
+                            t2: mostrarValorSeguro(g2),
+                            t3: mostrarValorSeguro(g3),
+                            promedio_anual: null,
+                            supletorio: null,
+                            nota_final: null,
+                            estado: null,
+                            origenRegistro: {
+                                trimestre1: s.notas?.trimestre1?.origenRegistro || 'PENDIENTE',
+                                trimestre2: s.notas?.trimestre2?.origenRegistro || 'PENDIENTE',
+                                trimestre3: s.notas?.trimestre3?.origenRegistro || 'PENDIENTE'
+                            }
+                        };
+                        return;
+                    }
                     
                     const pendiente = g1 === null || g2 === null || g3 === null;
 
@@ -1663,6 +1940,7 @@
                     }
 
                     materias[sub] = {
+                        tipo,
                         t1: g1,
                         t2: g2,
                         t3: g3,
@@ -1678,7 +1956,7 @@
                     };
                 });
 
-                const materiasList = Object.values(materias);
+                const materiasList = Object.values(materias).filter(m => m.tipo !== 'cualitativa');
                 const tienePendiente = materiasList.some(m => m.estado === 'PENDIENTE DE NOTAS EXTERNAS') || ['trimestre1', 'trimestre2', 'trimestre3'].some(periodKey => s.notas?.[periodKey]?.origenRegistro === 'PENDIENTE');
                 const finalesValidos = materiasList.map(m => m.nota_final).filter(v => typeof v === 'number');
                 const prom_general = (!tienePendiente && finalesValidos.length > 0) ? (finalesValidos.reduce((a, b) => a + b, 0) / finalesValidos.length) : null;
@@ -1686,7 +1964,7 @@
                 const tiene_reprobado = materiasList.some(m => m.estado === 'REPROBADO');
 
                 let estado_general = 'APROBADO';
-                if (tienePendiente) estado_general = 'PENDIENTE DE NOTAS EXTERNAS';
+                if (materiasList.length === 0 || tienePendiente) estado_general = 'PENDIENTE DE NOTAS EXTERNAS';
                 else if (tiene_reprobado) estado_general = 'REPROBADO';
                 else if (tiene_supletorio) estado_general = 'SUPLETORIO';
 
@@ -1699,7 +1977,12 @@
                     estado: estado_general,
                     tipoIngreso: s.tipoIngreso,
                     periodoIngreso: s.periodoIngreso,
-                    materias: materias
+                    materias: materias,
+                    evaluacion_comportamental: {
+                        T1: mostrarValorSeguro(s.notas?.trimestre1?.evaluacionComportamental),
+                        T2: mostrarValorSeguro(s.notas?.trimestre2?.evaluacionComportamental),
+                        T3: mostrarValorSeguro(s.notas?.trimestre3?.evaluacionComportamental)
+                    }
                 };
             });
 
@@ -1708,6 +1991,7 @@
             console.log('[consolidarYRenderizar] T3 estudiantes integrados:', t3.estudiantes?.length || 0);
             renderEstudiantes();
             renderEstudiantesNoEncontrados();
+            renderModuloAsistencia();
         }
 
         // Carga de Excel e Importación de datos
@@ -2232,13 +2516,20 @@
                 if (matchedSubjectNorm !== null && subjectCellIndex !== -1) {
                     const data = materiasMap[matchedSubjectNorm];
                     const gradeCells = cells.slice(subjectCellIndex + 1);
+                    const esCualitativa = (data.tipo || tipoAsignaturaCatalogo(matchedSubjectNorm)) === 'cualitativa';
 
                     const fmt = (val, isSupletorio = false) => {
-                        if (val === null || val === undefined) {
-                            return isSupletorio ? '0' : '-';
-                        }
-                        return val;
+                        return mostrarValorSeguro(val);
                     };
+
+                    if (esCualitativa) {
+                        gradeCells.forEach((cell, indice) => {
+                            cell.textContent = indice < 3
+                                ? mostrarValorSeguro([data.t1, data.t2, data.t3][indice])
+                                : '';
+                        });
+                        return;
+                    }
 
                     if (gradeCells.length === 3) {
                         // Trimestres T1, T2, T3
@@ -2277,7 +2568,7 @@
                 if (hasPromedioLabel) {
                     const lastCell = cells[cells.length - 1];
                     if (lastCell) {
-                        lastCell.textContent = (est.promedio !== null && est.promedio !== undefined) ? est.promedio : '-';
+                        lastCell.textContent = mostrarValorSeguro(est.promedio);
                     }
                 }
             });
@@ -2288,6 +2579,24 @@
                 if (t === 'PROMEDIO ANUAL') {
                     th.textContent = 'Nota';
                 }
+            });
+        }
+
+        function _certInjectEvaluacionComportamental(doc, est, gradoCurso) {
+            if (['INICIAL_1', 'INICIAL_2', 'EGB_1'].includes(codigoGradoCatalogo(gradoCurso))) return;
+            const evaluacion = est.evaluacion_comportamental || {};
+            const fila = Array.from(doc.querySelectorAll('tr')).find(row => {
+                const primeraCelda = row.cells?.[0];
+                return primeraCelda && normalizarTextoAsignatura(primeraCelda.textContent) === 'EVALUACION COMPORTAMENTAL';
+            });
+            if (!fila || fila.cells.length < 4) return;
+
+            ['T1', 'T2', 'T3'].forEach((periodo, indice) => {
+                const celda = fila.cells[indice + 1];
+                celda.textContent = mostrarValorSeguro(evaluacion[periodo]);
+                celda.style.whiteSpace = 'normal';
+                celda.style.overflowWrap = 'anywhere';
+                celda.style.verticalAlign = 'top';
             });
         }
 
@@ -2355,13 +2664,16 @@
 
         function estudianteTieneNotasCompletas(estudiante) {
             if (!estudiante || !estudiante.materias || Object.keys(estudiante.materias).length === 0) return false;
+            let tieneCuantitativas = false;
             for (const subName in estudiante.materias) {
                 const sub = estudiante.materias[subName];
+                if (sub.tipo === 'cualitativa') continue;
+                tieneCuantitativas = true;
                 if (!esNotaValida(sub.t1) || !esNotaValida(sub.t2) || !esNotaValida(sub.t3)) {
                     return false;
                 }
             }
-            return true;
+            return tieneCuantitativas;
         }
 
         function obtenerMateriasElegiblesSupletorio(estudiante) {
@@ -2369,6 +2681,7 @@
             if (!estudiante || !estudiante.materias) return elegibles;
             for (const subName in estudiante.materias) {
                 const sub = estudiante.materias[subName];
+                if (sub.tipo === 'cualitativa') continue;
                 const pa = sub.promedio_anual;
                 if (pa !== null && pa !== undefined) {
                     const numPa = Number(pa);
@@ -2850,8 +3163,9 @@
             document.getElementById('loading-overlay').classList.remove('hidden');
 
             // Filtrar los datos consolidados de los estudiantes seleccionados
-            const datosConsolidadosSeleccionados = estudiantesCargados.filter(e =>
-                seleccionados.includes(e.id_real)
+            const datosConsolidadosSeleccionados = enriquecerEstudiantesConAsistencia(
+                curso,
+                estudiantesCargados.filter(e => seleccionados.includes(e.id_real))
             );
 
             // ===== RUTA A: CERTIFICADOS (Motor HTML local) =====
@@ -2913,11 +3227,15 @@
 
         // Vista previa del certificado con plantilla HTML
         async function vistaPrevia(idReal) {
-            const est = estudiantesCargados.find(e => e.id_real === idReal);
-            if (!est) return;
+            const estBase = estudiantesCargados.find(e => e.id_real === idReal);
+            if (!estBase) return;
 
             const curso = obtenerCursoActivo();
             if (!curso) return;
+            const est = {
+                ...estBase,
+                asistencia: resumenAsistenciaAnualCurso(curso, obtenerEstudianteIdAsistencia(estBase))
+            };
 
             const inst = { ...curso.datosInstitucion };
             const logos = curso.logos || {};
@@ -2965,6 +3283,8 @@
             _certInjectInstitucion(doc, inst);
             _certInjectEstudiante(doc, est, inst);
             _certInjectNotas(doc, est);
+            _certInjectEvaluacionComportamental(doc, est, gradoCursoCanonico);
+            inyectarAsistenciaDocumento(doc, est);
             _certInjectFirmas(doc, inst);
 
             // Limpiar inputs de archivo (no necesarios en preview)
@@ -3076,5 +3396,6 @@
             document.getElementById('status-modal').classList.add('hidden');
         }
     </script>
+    <script src="./asistencia_ui.js"></script>
 </body>
 </html>

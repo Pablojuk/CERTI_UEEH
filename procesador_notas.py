@@ -15,14 +15,20 @@ try:
 except Exception:
     pass
 import argparse
+import math
+from decimal import Decimal, InvalidOperation, ROUND_DOWN
 import pandas as pd
 import numpy as np
 from pathlib import Path
+from html import escape as escapar_html
+from openpyxl.utils import column_index_from_string
 from catalogo_asignaturas import (
     clasificar_asignatura,
     grados_equivalentes,
+    normalizar_grado,
     normalizar_texto_asignatura,
     orden_asignatura,
+    tipo_asignatura,
 )
 
 # ReportLab imports
@@ -32,12 +38,39 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 
+COLUMNA_MAXIMA_ACADEMICA = column_index_from_string("X")
+ENCABEZADO_EVALUACION_COMPORTAMENTAL = "EVALUACION COMPORTAMENTAL"
+GRADOS_SIN_EVALUACION_COMPORTAMENTAL = {"INICIAL_1", "INICIAL_2", "EGB_1"}
+VALORES_VACIOS_TEXTO = {"", "nan", "none", "null", "undefined"}
+
+
+def mostrar_valor(valor) -> str:
+    """Representa vacíos sin convertirlos en cero ni exponer marcadores técnicos."""
+    if valor is None:
+        return ""
+    if isinstance(valor, (float, np.floating)) and math.isnan(float(valor)):
+        return ""
+    texto = str(valor).strip()
+    if texto.lower() in VALORES_VACIOS_TEXTO:
+        return ""
+    return texto
+
+
+def es_encabezado_evaluacion_comportamental(valor) -> bool:
+    return normalizar_texto_asignatura(valor) == ENCABEZADO_EVALUACION_COMPORTAMENTAL
+
+
+def curso_admite_evaluacion_comportamental(grado) -> bool:
+    codigo = normalizar_grado(grado)
+    return codigo not in GRADOS_SIN_EVALUACION_COMPORTAMENTAL
+
+
 # 1. Funciones de cálculo académico
 def truncar_2_decimales(valor: float) -> float:
     try:
-        # Usar truncamiento simple a 2 decimales para replicar el comportamiento de TRUNC de Excel
-        return int(valor * 100) / 100.0
-    except (ValueError, TypeError):
+        # Decimal evita que 9.20 se convierta accidentalmente en 9.19 por representación binaria.
+        return float(Decimal(str(valor)).quantize(Decimal("0.01"), rounding=ROUND_DOWN))
+    except (InvalidOperation, ValueError, TypeError):
         return 0.0
 
 def calcular_promedio_anual(t1: float, t2: float, t3: float) -> float:
@@ -82,6 +115,7 @@ def _agregar_diagnostico(diagnostico: dict, clasificacion: dict) -> None:
             "original": clasificacion["original"],
             "canonica": clasificacion["canonica"],
             "metodo": clasificacion["metodo"],
+            "tipo": clasificacion.get("tipo", "cuantitativa"),
         })
     elif estado == "ignorada_por_curso":
         diagnostico["asignaturasIgnoradasPorCurso"].append({
@@ -262,16 +296,25 @@ def cargar_excel_datos(file_path: str, grado_esperado: str | None = None, diagno
             clasificacion = clasificar_asignatura(subject_name, grado_esperado)
             _agregar_diagnostico(diagnostico, clasificacion)
             if clasificacion["estado"] == "reconocida":
-                subject_columns.append((col_to_read, clasificacion["canonica"]))
+                subject_columns.append({
+                    "columna": col_to_read,
+                    "nombre": clasificacion["canonica"],
+                    "tipo": clasificacion.get("tipo", "cuantitativa"),
+                })
                 canonicas_agregadas.add(clasificacion["canonica"])
             print(f"[cargar_excel_datos] Formato materia única: {subject_name}, leyendo columna {col_to_read} ({periodo_detectado})", file=sys.stderr)
         else:
-            # Formato estándar multiasignatura
-            for col in range(3, sheet.max_column + 1):
+            # Formato estándar multiasignatura. La zona académica oficial termina en X.
+            comportamiento_col = None
+            columna_final = min(sheet.max_column, COLUMNA_MAXIMA_ACADEMICA)
+            for col in range(3, columna_final + 1):
                 header_value = sheet.cell(row=start_row, column=col).value
                 if header_value is None or str(header_value).strip() == "":
                     continue
                 subject_name = str(header_value).strip()
+                if es_encabezado_evaluacion_comportamental(subject_name):
+                    comportamiento_col = col
+                    continue
                 subject_norm = normalizar_columna(subject_name)
                 if any(keyword in subject_norm for keyword in ignore_subject_keywords):
                     continue
@@ -282,10 +325,18 @@ def cargar_excel_datos(file_path: str, grado_esperado: str | None = None, diagno
                 canonica = clasificacion["canonica"]
                 if canonica in canonicas_agregadas:
                     continue
-                subject_columns.append((col, canonica))
+                subject_columns.append({
+                    "columna": col,
+                    "nombre": canonica,
+                    "tipo": clasificacion.get("tipo", "cuantitativa"),
+                })
                 canonicas_agregadas.add(canonica)
 
-        print(f"[cargar_excel_datos] Asignaturas detectadas: {[name for _, name in subject_columns]}", file=sys.stderr)
+        print(
+            f"[cargar_excel_datos] Asignaturas detectadas: "
+            f"{[subject['nombre'] for subject in subject_columns]}",
+            file=sys.stderr,
+        )
 
         records = {}
         # Leer a partir de la fila siguiente
@@ -311,19 +362,35 @@ def cargar_excel_datos(file_path: str, grado_esperado: str | None = None, diagno
                 cedula = nombre
 
             notas = {}
-            for col, subject_name in subject_columns:
+            tipos_asignaturas = {}
+            for subject in subject_columns:
+                col = subject["columna"]
+                subject_name = subject["nombre"]
+                subject_type = subject["tipo"]
+                tipos_asignaturas[subject_name] = subject_type
                 grade_value = sheet.cell(row=r, column=col).value
-                if grade_value is None or str(grade_value).strip() == "":
+                if not mostrar_valor(grade_value):
+                    notas[subject_name] = None
+                    continue
+                if subject_type == "cualitativa":
+                    notas[subject_name] = str(grade_value).strip()
                     continue
                 try:
-                    notas[subject_name] = truncar_2_decimales(float(grade_value))
+                    grade_number = float(grade_value)
+                    notas[subject_name] = None if math.isnan(grade_number) else truncar_2_decimales(grade_number)
                 except (TypeError, ValueError):
-                    continue
+                    notas[subject_name] = None
+
+            evaluacion_comportamental = ""
+            if not es_materia_unica and comportamiento_col is not None:
+                evaluacion_comportamental = mostrar_valor(sheet.cell(row=r, column=comportamiento_col).value)
                 
             records[cedula] = {
                 "nombre": nombre,
                 "cedula": cedula,
-                "notas": notas
+                "notas": notas,
+                "tipos_asignaturas": tipos_asignaturas,
+                "evaluacion_comportamental": evaluacion_comportamental,
             }
             
         return records
@@ -360,16 +427,43 @@ def consolidar_estudiantes(t1_path, t2_path, t3_path, su_path, grado_esperado=No
                 
         subjects_grades = {}
         for sub in sorted(all_subjects, key=orden_asignatura):
-            g1 = t1_data.get(key, {}).get("notas", {}).get(sub, 0.0)
-            g2 = t2_data.get(key, {}).get("notas", {}).get(sub, 0.0)
-            g3 = t3_data.get(key, {}).get("notas", {}).get(sub, 0.0)
+            g1 = t1_data.get(key, {}).get("notas", {}).get(sub)
+            g2 = t2_data.get(key, {}).get("notas", {}).get(sub)
+            g3 = t3_data.get(key, {}).get("notas", {}).get(sub)
+            tipo = next(
+                (
+                    src[key].get("tipos_asignaturas", {}).get(sub)
+                    for src in [t1_data, t2_data, t3_data, su_data]
+                    if key in src and src[key].get("tipos_asignaturas", {}).get(sub)
+                ),
+                tipo_asignatura(sub),
+            )
+
+            if tipo == "cualitativa":
+                subjects_grades[sub] = {
+                    "tipo": tipo,
+                    "t1": mostrar_valor(g1),
+                    "t2": mostrar_valor(g2),
+                    "t3": mostrar_valor(g3),
+                    "promedio_anual": None,
+                    "supletorio": None,
+                    "nota_final": None,
+                    "estado": None,
+                }
+                continue
+
             su_grade = su_data.get(key, {}).get("notas", {}).get(sub, None) if su_path else None
-            
-            p_anual = calcular_promedio_anual(g1, g2, g3)
-            nota_final = calcular_resultado_con_supletorio(p_anual, su_grade)
-            estado = determinar_estado_materia(nota_final, su_grade)
+            if any(nota is None for nota in (g1, g2, g3)):
+                p_anual = None
+                nota_final = None
+                estado = "PENDIENTE DE NOTAS EXTERNAS"
+            else:
+                p_anual = calcular_promedio_anual(g1, g2, g3)
+                nota_final = calcular_resultado_con_supletorio(p_anual, su_grade)
+                estado = determinar_estado_materia(nota_final, su_grade)
             
             subjects_grades[sub] = {
+                "tipo": tipo,
                 "t1": g1,
                 "t2": g2,
                 "t3": g3,
@@ -380,17 +474,30 @@ def consolidar_estudiantes(t1_path, t2_path, t3_path, su_path, grado_esperado=No
             }
             
         # Calcular promedio general
-        if subjects_grades:
-            final_grades_list = [val["nota_final"] for val in subjects_grades.values()]
+        materias_cuantitativas = [
+            val for val in subjects_grades.values()
+            if val.get("tipo", "cuantitativa") != "cualitativa"
+        ]
+        tiene_pendiente = any(
+            val["estado"] == "PENDIENTE DE NOTAS EXTERNAS"
+            for val in materias_cuantitativas
+        )
+        if materias_cuantitativas and not tiene_pendiente:
+            final_grades_list = [
+                val["nota_final"] for val in materias_cuantitativas
+                if val["nota_final"] is not None
+            ]
             prom_general = sum(final_grades_list) / len(final_grades_list)
         else:
-            prom_general = 0.0
+            prom_general = None
             
         # Determinar estado general del estudiante
-        tiene_supletorio = any(val["estado"] == "SUPLETORIO" for val in subjects_grades.values())
-        tiene_reprobado = any(val["estado"] == "REPROBADO" for val in subjects_grades.values())
+        tiene_supletorio = any(val["estado"] == "SUPLETORIO" for val in materias_cuantitativas)
+        tiene_reprobado = any(val["estado"] == "REPROBADO" for val in materias_cuantitativas)
         
-        if tiene_reprobado:
+        if not materias_cuantitativas or tiene_pendiente:
+            estado_general = "PENDIENTE DE NOTAS EXTERNAS"
+        elif tiene_reprobado:
             estado_general = "REPROBADO"
         elif tiene_supletorio:
             estado_general = "SUPLETORIO"
@@ -403,7 +510,12 @@ def consolidar_estudiantes(t1_path, t2_path, t3_path, su_path, grado_esperado=No
             "nombre": nombre,
             "promedio": prom_general,
             "estado": estado_general,
-            "materias": subjects_grades
+            "materias": subjects_grades,
+            "evaluacion_comportamental": {
+                "T1": mostrar_valor(t1_data.get(key, {}).get("evaluacion_comportamental")),
+                "T2": mostrar_valor(t2_data.get(key, {}).get("evaluacion_comportamental")),
+                "T3": mostrar_valor(t3_data.get(key, {}).get("evaluacion_comportamental")),
+            },
         })
         
     # Ordenar por nombre
@@ -463,6 +575,14 @@ def generar_boletin_pdf(datos_consolidados, institucion_info, logos_paths, outpu
         fontSize=8,
         leading=10,
         textColor=c_text
+    ))
+
+    styles.add(ParagraphStyle(
+        name='TableHeader',
+        fontName='Helvetica-Bold',
+        fontSize=8,
+        leading=10,
+        textColor=colors.white
     ))
 
     story = []
@@ -538,43 +658,51 @@ def generar_boletin_pdf(datos_consolidados, institucion_info, logos_paths, outpu
         
         # 3. Tabla de Calificaciones
         table_headers = [
-            Paragraph("<b>Asignatura / Área</b>", styles['TableTextBold']),
-            Paragraph("<b>Trim 1</b>", styles['TableTextBold']),
-            Paragraph("<b>Trim 2</b>", styles['TableTextBold']),
-            Paragraph("<b>Trim 3</b>", styles['TableTextBold']),
-            Paragraph("<b>Prom Anual</b>", styles['TableTextBold']),
-            Paragraph("<b>Supletorio</b>", styles['TableTextBold']),
-            Paragraph("<b>Nota Final</b>", styles['TableTextBold']),
-            Paragraph("<b>Estado</b>", styles['TableTextBold'])
+            Paragraph("Asignatura / Área", styles['TableHeader']),
+            Paragraph("Trim 1", styles['TableHeader']),
+            Paragraph("Trim 2", styles['TableHeader']),
+            Paragraph("Trim 3", styles['TableHeader']),
+            Paragraph("Prom Anual", styles['TableHeader']),
+            Paragraph("Supletorio", styles['TableHeader']),
+            Paragraph("Nota Final", styles['TableHeader']),
+            Paragraph("Estado", styles['TableHeader'])
         ]
         
         grades_data = [table_headers]
         
         def nota_pdf(valor):
-            if valor is None or str(valor).strip() in ["", "PENDIENTE"]:
+            if not mostrar_valor(valor) or str(valor).strip() == "PENDIENTE":
                 return None
             try:
-                return float(valor)
+                numero = float(valor)
+                return None if math.isnan(numero) else numero
             except (TypeError, ValueError):
                 return None
 
         for sub, grades in est["materias"].items():
-            t1_val = nota_pdf(grades.get('t1'))
-            t2_val = nota_pdf(grades.get('t2'))
-            t3_val = nota_pdf(grades.get('t3'))
-            pa_val = nota_pdf(grades.get('promedio_anual'))
-            su_val = nota_pdf(grades.get('supletorio'))
-            nf_val = nota_pdf(grades.get('nota_final'))
-                
-            t1_str = f"{t1_val:.2f}" if t1_val is not None else "PEND."
-            t2_str = f"{t2_val:.2f}" if t2_val is not None else "PEND."
-            t3_str = f"{t3_val:.2f}" if t3_val is not None else "PEND."
-            pa_str = f"{pa_val:.2f}" if pa_val is not None else "PEND."
-            su_str = f"{su_val:.2f}" if su_val is not None else "-"
-            nf_str = f"{nf_val:.2f}" if nf_val is not None else "PEND."
+            es_cualitativa = grades.get("tipo", tipo_asignatura(sub)) == "cualitativa"
+            if es_cualitativa:
+                t1_str = escapar_html(mostrar_valor(grades.get("t1")))
+                t2_str = escapar_html(mostrar_valor(grades.get("t2")))
+                t3_str = escapar_html(mostrar_valor(grades.get("t3")))
+                pa_str = su_str = nf_str = ""
+            else:
+                t1_val = nota_pdf(grades.get('t1'))
+                t2_val = nota_pdf(grades.get('t2'))
+                t3_val = nota_pdf(grades.get('t3'))
+                pa_val = nota_pdf(grades.get('promedio_anual'))
+                su_val = nota_pdf(grades.get('supletorio'))
+                nf_val = nota_pdf(grades.get('nota_final'))
+
+                t1_str = f"{t1_val:.2f}" if t1_val is not None else ""
+                t2_str = f"{t2_val:.2f}" if t2_val is not None else ""
+                t3_str = f"{t3_val:.2f}" if t3_val is not None else ""
+                pa_str = f"{pa_val:.2f}" if pa_val is not None else ""
+                su_str = f"{su_val:.2f}" if su_val is not None else ""
+                nf_str = f"{nf_val:.2f}" if nf_val is not None else ""
             
             # Estilos de color para el estado
-            est_materia = grades.get('estado', 'APROBADO')
+            est_materia = "" if es_cualitativa else grades.get('estado', 'APROBADO')
             if est_materia == "APROBADO":
                 est_color = colors.HexColor("#065f46") # Emerald oscuro
             elif est_materia == "SUPLETORIO":
@@ -590,7 +718,10 @@ def generar_boletin_pdf(datos_consolidados, institucion_info, logos_paths, outpu
                 Paragraph(pa_str, styles['TableText']),
                 Paragraph(su_str, styles['TableText']),
                 Paragraph(nf_str, styles['TableTextBold']),
-                Paragraph(f"<font color='{est_color}'><b>{est_materia}</b></font>", styles['TableText'])
+                Paragraph(
+                    "" if es_cualitativa else f"<font color='{est_color}'><b>{est_materia}</b></font>",
+                    styles['TableText'],
+                )
             ])
             
         grades_table = Table(grades_data, colWidths=[180, 50, 50, 50, 60, 55, 55, 60])
@@ -607,10 +738,6 @@ def generar_boletin_pdf(datos_consolidados, institucion_info, logos_paths, outpu
             ('BOTTOMPADDING', (0,0), (-1,-1), 5),
         ]
         
-        # Pintar cabecera de blanco para el texto
-        for idx in range(len(table_headers)):
-            table_headers[idx].style.textColor = colors.white
-            
         # Alternar colores de filas
         for r_idx in range(1, len(grades_data)):
             if r_idx % 2 == 0:
@@ -618,6 +745,61 @@ def generar_boletin_pdf(datos_consolidados, institucion_info, logos_paths, outpu
                 
         grades_table.setStyle(TableStyle(t_style))
         story.append(grades_table)
+        story.append(Spacer(1, 10))
+
+        if curso_admite_evaluacion_comportamental(institucion_info.get("grado")):
+            evaluacion = est.get("evaluacion_comportamental") or {}
+            comportamiento_data = [[
+                Paragraph("<b>EVALUACIÓN COMPORTAMENTAL</b>", styles["TableTextBold"]),
+                Paragraph(escapar_html(mostrar_valor(evaluacion.get("T1"))), styles["TableText"]),
+                Paragraph(escapar_html(mostrar_valor(evaluacion.get("T2"))), styles["TableText"]),
+                Paragraph(escapar_html(mostrar_valor(evaluacion.get("T3"))), styles["TableText"]),
+            ]]
+            comportamiento_table = Table(comportamiento_data, colWidths=[135, 135, 135, 135])
+            comportamiento_table.setStyle(TableStyle([
+                ("GRID", (0, 0), (-1, -1), 0.5, c_border),
+                ("BACKGROUND", (0, 0), (0, 0), c_light),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 5),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ]))
+            story.append(comportamiento_table)
+            story.append(Spacer(1, 10))
+
+        asistencia = est.get("asistencia") if isinstance(est.get("asistencia"), dict) else {}
+        asistencia_configurada = bool(asistencia.get("configurada"))
+        def valor_asistencia(campo):
+            return mostrar_valor(asistencia.get(campo)) if asistencia_configurada else ""
+
+        asistencia_data = [
+            [
+                Paragraph("REGISTRO", styles["TableHeader"]),
+                Paragraph("JUSTIFICACI\u00d3N", styles["TableHeader"]),
+                Paragraph("INJUSTIFICADO", styles["TableHeader"]),
+                Paragraph("TOTAL ASISTENCIA", styles["TableHeader"]),
+            ],
+            [
+                Paragraph(valor_asistencia("totalFaltas"), styles["TableText"]),
+                Paragraph(valor_asistencia("justificadas"), styles["TableText"]),
+                Paragraph(valor_asistencia("injustificadas"), styles["TableText"]),
+                Paragraph(valor_asistencia("totalAsistencia"), styles["TableTextBold"]),
+            ],
+        ]
+        asistencia_table = Table(asistencia_data, colWidths=[135, 135, 135, 135])
+        asistencia_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), c_primary),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("GRID", (0, 0), (-1, -1), 0.5, c_border),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ]))
+        story.append(Paragraph("<b>ASISTENCIA ANUAL</b>", styles["TableTextBold"]))
+        story.append(Spacer(1, 3))
+        story.append(asistencia_table)
         story.append(Spacer(1, 10))
         
         # 4. Resumen Final
@@ -627,7 +809,7 @@ def generar_boletin_pdf(datos_consolidados, institucion_info, logos_paths, outpu
             prom_val = float(prom_raw) if prom_raw is not None else None
         except:
             prom_val = None
-        prom_txt = f"{prom_val:.2f}" if prom_val is not None else "PENDIENTE"
+        prom_txt = f"{prom_val:.2f}" if prom_val is not None else ""
             
         summary_data = [
             [
@@ -698,7 +880,7 @@ def extraer_datos_institucionales(file_path: str) -> dict:
 
     valores_log = {
         "A1": obtener_valor_celda(sheet, "A1"),
-        "D1/D2": obtener_valor_celda(sheet, "D1", ["D2"]),
+        "D1/D2": obtener_valor_celda(sheet, "D2", ["D1"]),
         "B7": obtener_valor_celda(sheet, "B7"),
         "B3": obtener_valor_celda(sheet, "B3"),
         "B5": obtener_valor_celda(sheet, "B5"),
@@ -946,7 +1128,10 @@ def inject_student_data_html(html_content, student, inst, logos):
 def inject_subject_grades(html_content, materias_data):
     for sub_name, data in materias_data.items():
         escaped_sub = re.escape(sub_name)
-        tr_pattern = re.compile(rf'<tr[^>]*>\s*<td[^>]*>\s*{escaped_sub}\s*</td>[\s\S]*?</tr>', re.IGNORECASE)
+        tr_pattern = re.compile(
+            rf'<tr[^>]*>\s*<td[^>]*>\s*{escaped_sub}[\s\S]*?</td>[\s\S]*?</tr>',
+            re.IGNORECASE,
+        )
         
         match = tr_pattern.search(html_content)
         if match:
@@ -956,26 +1141,52 @@ def inject_subject_grades(html_content, materias_data):
             
             if len(tds) >= 2:
                 grade_tds = tds[1:]
-                fmt = lambda val, is_supletorio=False: f"{float(val):.2f}" if val is not None else ('0.00' if is_supletorio else '-')
+                es_cualitativa = data.get("tipo", tipo_asignatura(sub_name)) == "cualitativa"
+
+                def fmt_cualitativo(valor):
+                    return escapar_html(mostrar_valor(valor))
+
+                def fmt(valor, _es_supletorio=False):
+                    texto = mostrar_valor(valor)
+                    if not texto:
+                        return ""
+                    try:
+                        numero = float(valor)
+                        return "" if math.isnan(numero) else f"{numero:.2f}"
+                    except (TypeError, ValueError):
+                        return escapar_html(texto)
                 
                 new_tds = []
+                if es_cualitativa:
+                    valores = [
+                        fmt_cualitativo(data.get("t1")),
+                        fmt_cualitativo(data.get("t2")),
+                        fmt_cualitativo(data.get("t3")),
+                    ]
+                    for indice, td in enumerate(grade_tds):
+                        apertura = re.match(r"<td[^>]*>", td.group(0), re.IGNORECASE).group(0)
+                        valor = valores[indice] if indice < 3 else ""
+                        new_tds.append(f"{apertura}{valor}</td>")
                 if len(grade_tds) == 3:
-                    new_tds.append(f'<td>{fmt(data.get("t1"))}</td>')
-                    new_tds.append(f'<td>{fmt(data.get("t2"))}</td>')
-                    new_tds.append(f'<td>{fmt(data.get("t3"))}</td>')
+                    if not es_cualitativa:
+                        new_tds.append(f'<td>{fmt(data.get("t1"))}</td>')
+                        new_tds.append(f'<td>{fmt(data.get("t2"))}</td>')
+                        new_tds.append(f'<td>{fmt(data.get("t3"))}</td>')
                 elif len(grade_tds) == 4:
-                    new_tds.append(f'<td>{fmt(data.get("t1"))}</td>')
-                    new_tds.append(f'<td>{fmt(data.get("t2"))}</td>')
-                    new_tds.append(f'<td>{fmt(data.get("t3"))}</td>')
-                    val_final = data.get("nota_final") if data.get("nota_final") is not None else data.get("promedio_anual")
-                    new_tds.append(f'<td class="font-bold bg-slate-50">{fmt(val_final)}</td>')
+                    if not es_cualitativa:
+                        new_tds.append(f'<td>{fmt(data.get("t1"))}</td>')
+                        new_tds.append(f'<td>{fmt(data.get("t2"))}</td>')
+                        new_tds.append(f'<td>{fmt(data.get("t3"))}</td>')
+                        val_final = data.get("nota_final") if data.get("nota_final") is not None else data.get("promedio_anual")
+                        new_tds.append(f'<td class="font-bold bg-slate-50">{fmt(val_final)}</td>')
                 elif len(grade_tds) == 5:
-                    new_tds.append(f'<td>{fmt(data.get("t1"))}</td>')
-                    new_tds.append(f'<td>{fmt(data.get("t2"))}</td>')
-                    new_tds.append(f'<td>{fmt(data.get("t3"))}</td>')
-                    new_tds.append(f'<td>{fmt(data.get("supletorio"), True)}</td>')
-                    val_final = data.get("nota_final") if data.get("nota_final") is not None else data.get("promedio_anual")
-                    new_tds.append(f'<td class="font-bold bg-slate-50">{fmt(val_final)}</td>')
+                    if not es_cualitativa:
+                        new_tds.append(f'<td>{fmt(data.get("t1"))}</td>')
+                        new_tds.append(f'<td>{fmt(data.get("t2"))}</td>')
+                        new_tds.append(f'<td>{fmt(data.get("t3"))}</td>')
+                        new_tds.append(f'<td>{fmt(data.get("supletorio"), True)}</td>')
+                        val_final = data.get("nota_final") if data.get("nota_final") is not None else data.get("promedio_anual")
+                        new_tds.append(f'<td class="font-bold bg-slate-50">{fmt(val_final)}</td>')
                     
                 new_tr_block = tr_block[:tds[1].start()] + "".join(new_tds) + "</tr>"
                 html_content = html_content.replace(tr_block, new_tr_block)
@@ -988,7 +1199,12 @@ def inject_subject_grades(html_content, materias_data):
         tds = list(td_pattern.finditer(tr_block))
         if tds:
             try:
-                grades = [float(v.get("nota_final", 0.0) or v.get("promedio_anual", 0.0)) for v in materias_data.values() if v.get("nota_final") is not None or v.get("promedio_anual") is not None]
+                grades = [
+                    float(v.get("nota_final", 0.0) or v.get("promedio_anual", 0.0))
+                    for v in materias_data.values()
+                    if v.get("tipo", "cuantitativa") != "cualitativa"
+                    and (v.get("nota_final") is not None or v.get("promedio_anual") is not None)
+                ]
                 promedio_val = f"{(sum(grades) / len(grades)):.2f}" if grades else "-"
             except Exception:
                 promedio_val = "-"
@@ -1005,6 +1221,62 @@ def inject_subject_grades(html_content, materias_data):
         flags=re.IGNORECASE
     )
     return html_content
+
+
+def inject_evaluacion_comportamental(html_content, evaluacion):
+    """Inyecta T1/T2/T3 en la fila especial, sin tratarla como asignatura."""
+    valores = evaluacion if isinstance(evaluacion, dict) else {}
+    tr_pattern = re.compile(r"<tr[^>]*>[\s\S]*?</tr>", re.IGNORECASE)
+    td_pattern = re.compile(r"<td[^>]*>[\s\S]*?</td>", re.IGNORECASE)
+
+    for tr_match in tr_pattern.finditer(html_content):
+        tr_block = tr_match.group(0)
+        tds = list(td_pattern.finditer(tr_block))
+        if len(tds) < 4:
+            continue
+        etiqueta = re.sub(r"<[^>]*>", " ", tds[0].group(0))
+        if not es_encabezado_evaluacion_comportamental(etiqueta):
+            continue
+
+        celdas_nuevas = []
+        for indice, periodo in enumerate(("T1", "T2", "T3"), start=1):
+            celda_original = tds[indice].group(0)
+            apertura = re.match(r"<td[^>]*>", celda_original, re.IGNORECASE).group(0)
+            if "style=" not in apertura.lower():
+                apertura = apertura[:-1] + ' style="white-space: normal; overflow-wrap: anywhere; vertical-align: top;">'
+            celdas_nuevas.append(
+                f"{apertura}{escapar_html(mostrar_valor(valores.get(periodo)))}</td>"
+            )
+
+        nuevo_bloque = (
+            tr_block[:tds[1].start()]
+            + "".join(celdas_nuevas)
+            + tr_block[tds[3].end():]
+        )
+        return html_content.replace(tr_block, nuevo_bloque, 1)
+
+    return html_content
+
+
+def inject_asistencia_anual(html_content, asistencia):
+    """Completa las celdas identificadas de asistencia sin inventar valores."""
+    datos = asistencia if isinstance(asistencia, dict) else {}
+    configurada = bool(datos.get("configurada"))
+    valores = {
+        "registro": datos.get("totalFaltas") if configurada else "",
+        "justificadas": datos.get("justificadas") if configurada else "",
+        "injustificadas": datos.get("injustificadas") if configurada else "",
+        "total": datos.get("totalAsistencia") if configurada else "",
+    }
+    for clave, valor in valores.items():
+        patron = re.compile(
+            rf'(<td[^>]*\bdata-asistencia=["\']{clave}["\'][^>]*>)[\s\S]*?(</td>)',
+            re.IGNORECASE,
+        )
+        texto = escapar_html(mostrar_valor(valor))
+        html_content = patron.sub(rf"\g<1>{texto}\g<2>", html_content)
+    return html_content
+
 
 def generar_certificados_inicial(payload):
     estudiantes = payload.get("datos_consolidados", [])
@@ -1052,9 +1324,25 @@ def generar_certificados_inicial(payload):
     for est in estudiantes:
         materias = est.get("materias", {})
         for sub_name, m_data in list(materias.items()):
-            g1 = float(m_data.get("t1") or 0.0)
-            g2 = float(m_data.get("t2") or 0.0)
-            g3 = float(m_data.get("t3") or 0.0)
+            tipo = m_data.get("tipo", tipo_asignatura(sub_name))
+            m_data["tipo"] = tipo
+            if tipo == "cualitativa":
+                m_data["t1"] = mostrar_valor(m_data.get("t1"))
+                m_data["t2"] = mostrar_valor(m_data.get("t2"))
+                m_data["t3"] = mostrar_valor(m_data.get("t3"))
+                m_data["promedio_anual"] = None
+                m_data["supletorio"] = None
+                m_data["nota_final"] = None
+                m_data["estado"] = None
+                continue
+
+            notas_trimestrales = [m_data.get("t1"), m_data.get("t2"), m_data.get("t3")]
+            if any(not mostrar_valor(nota) for nota in notas_trimestrales):
+                m_data["promedio_anual"] = None
+                m_data["nota_final"] = None
+                continue
+
+            g1, g2, g3 = (float(nota) for nota in notas_trimestrales)
             p_anual = calcular_promedio_anual(g1, g2, g3)
             m_data["promedio_anual"] = p_anual
             if m_data.get("nota_final") is None:
@@ -1074,6 +1362,12 @@ def generar_certificados_inicial(payload):
         
         student_html = inject_student_data_html(template_html, est, inst, logos)
         student_html = inject_subject_grades(student_html, materias)
+        if curso_admite_evaluacion_comportamental(grado_canonico):
+            student_html = inject_evaluacion_comportamental(
+                student_html,
+                est.get("evaluacion_comportamental", {}),
+            )
+        student_html = inject_asistencia_anual(student_html, est.get("asistencia"))
         
         # Guardar en directorio de salida, NO en plantillas
         output_filename = f"certificado_{est['id_real']}.html"
@@ -1092,6 +1386,8 @@ def generar_certificados_inicial(payload):
 
 def actualizar_certificado_supletorio(student_id, asignatura, nota_supletorio, cert_output_dir=None):
     """Actualiza un certificado HTML existente con la nota de supletorio."""
+    if tipo_asignatura(asignatura) == "cualitativa":
+        return False
     # Buscar en el directorio de salida proporcionado, o fallback
     if cert_output_dir:
         file_path = os.path.join(cert_output_dir, f"certificado_{student_id}.html")
@@ -1240,9 +1536,10 @@ def main():
             records = cargar_excel_datos(first_path, args.grado, diagnostico)
             
             # Obtener asignaturas
-            asignaturas = list(dict.fromkeys(
-                item["canonica"] for item in diagnostico["asignaturasReconocidas"]
-            ))
+            asignaturas = sorted(
+                dict.fromkeys(item["canonica"] for item in diagnostico["asignaturasReconocidas"]),
+                key=orden_asignatura,
+            )
             if not asignaturas:
                 partes_error = [f"No se reconoció ninguna asignatura válida para {args.grado}."]
                 ignoradas = [item["original"] for item in diagnostico["asignaturasIgnoradasPorCurso"]]
@@ -1263,12 +1560,14 @@ def main():
             estudiantes_tabla = []
             for est in estudiantes:
                 grades_list = [v for v in est["notas"].values() if isinstance(v, (int, float))]
-                prom = sum(grades_list) / len(grades_list) if grades_list else 0.0
+                prom = sum(grades_list) / len(grades_list) if grades_list else None
                 estudiantes_tabla.append({
                     "cedula": est["cedula"],
                     "nombre": est["nombre"],
-                    "promedio": truncar_2_decimales(prom),
-                    "estado": "APROBADO" if prom >= 7.0 else "SUPLETORIO"
+                    "promedio": truncar_2_decimales(prom) if prom is not None else None,
+                    "estado": "APROBADO" if prom is not None and prom >= 7.0 else (
+                        "SUPLETORIO" if prom is not None else "PENDIENTE DE NOTAS EXTERNAS"
+                    ),
                 })
             
             output_data = {

@@ -21,5 +21,5 @@
   {"nombre": "QUÍMICA SUPERIOR", "grados": ["BGU_3"], "aliases": ["QUIMICA SUPERIOR"], "tipo": "cuantitativa", "orden": 140},
   {"nombre": "INVESTIGACIÓN EN CIENCIA Y TECNOLOGÍA", "grados": ["BGU_3"], "aliases": ["INVESTIGACION EN CIENCIA Y TECNOLOGIA"], "tipo": "cuantitativa", "orden": 150},
   {"nombre": "SOCIOLOGÍA", "grados": ["BGU_3"], "aliases": ["SOCIOLOGIA"], "tipo": "cuantitativa", "orden": 160},
-  {"nombre": "CÍVICA Y ACOMPAÑAMIENTO INTEGRAL EN EL AULA", "grados": ["EGB_1", "EGB_ELEMENTAL", "EGB_MEDIA", "EGB_SUPERIOR", "BGU_1", "BGU_2", "BGU_3"], "aliases": ["CIVICA Y ACOMPANAMIENTO INTEGRAL EN EL AULA", "CIVICA Y ACOMPAÑAMIENTO INTEGRAL EN EL AULA"], "tipo": "cuantitativa", "orden": 170}
+  {"nombre": "CÍVICA Y ACOMPAÑAMIENTO INTEGRAL EN EL AULA", "grados": ["EGB_1", "EGB_ELEMENTAL", "EGB_MEDIA", "EGB_SUPERIOR", "BGU_1", "BGU_2", "BGU_3"], "aliases": ["CIVICA Y ACOMPANAMIENTO INTEGRAL EN EL AULA", "CIVICA Y ACOMPAÑAMIENTO INTEGRAL EN EL AULA"], "tipo": "cualitativa", "orden": 170}
 ]
