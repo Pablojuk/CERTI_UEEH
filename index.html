@@ -2530,6 +2530,74 @@
             });
         }
 
+        function _certConvertirNotaOptativa(valor) {
+            if (valor === null || valor === undefined || valor === '') return '';
+            if (typeof valor === 'string') {
+                const texto = valor.trim();
+                if (!texto || ['none', 'null', 'undefined', 'nan'].includes(texto.toLowerCase())) {
+                    return '';
+                }
+            }
+
+            const nota = Number(valor);
+            if (!Number.isFinite(nota) || nota < 1 || nota > 10) return '';
+            if (nota < 1.5) return 'E-';
+            if (nota < 2.5) return 'E+';
+            if (nota < 3.5) return 'D-';
+            if (nota < 4.5) return 'D+';
+            if (nota < 5.5) return 'C-';
+            if (nota < 6.5) return 'C+';
+            if (nota < 7.5) return 'B-';
+            if (nota < 8.5) return 'B+';
+            if (nota < 9.5) return 'A-';
+            return 'A+';
+        }
+
+        function _certInjectOptativasBGU3(doc, est) {
+            const tbody = doc.querySelector('#optativas-bgu3');
+            if (!tbody) return;
+
+            // El marcador pertenece exclusivamente a las optativas; Cívica está en otro tbody.
+            tbody.replaceChildren();
+
+            const materias = est && est.materias && typeof est.materias === 'object'
+                ? est.materias
+                : {};
+            const optativas = Object.entries(materias)
+                .filter(([, datos]) => (
+                    datos
+                    && datos.es_optativa_bgu3 === true
+                    && datos.presentacion_certificado === 'escala_cualitativa'
+                ))
+                .sort(([nombreA, datosA], [nombreB, datosB]) => {
+                    const ordenA = Number.isFinite(Number(datosA.orden)) ? Number(datosA.orden) : 999;
+                    const ordenB = Number.isFinite(Number(datosB.orden)) ? Number(datosB.orden) : 999;
+                    if (ordenA !== ordenB) return ordenA - ordenB;
+                    if (nombreA === nombreB) return 0;
+                    return nombreA < nombreB ? -1 : 1;
+                });
+
+            optativas.forEach(([nombre, datos], indice) => {
+                const fila = doc.createElement('tr');
+                fila.dataset.optativaBgu3 = 'true';
+
+                const celdaNombre = doc.createElement('td');
+                celdaNombre.className = `text-left-cell font-semibold${indice === 0 ? ' w-1/3' : ''}`;
+                celdaNombre.style.whiteSpace = 'normal';
+                celdaNombre.style.overflowWrap = 'anywhere';
+                celdaNombre.textContent = nombre;
+                fila.appendChild(celdaNombre);
+
+                [datos.t1, datos.t2, datos.t3].forEach(valor => {
+                    const celdaNota = doc.createElement('td');
+                    celdaNota.textContent = _certConvertirNotaOptativa(valor);
+                    fila.appendChild(celdaNota);
+                });
+
+                tbody.appendChild(fila);
+            });
+        }
+
         function _certInjectNotas(doc, est) {
             if (!est.materias || Object.keys(est.materias).length === 0) return;
 
@@ -2570,6 +2638,12 @@
 
                 if (matchedSubjectNorm !== null && subjectCellIndex !== -1) {
                     const data = materiasMap[matchedSubjectNorm];
+                    if (
+                        data.es_optativa_bgu3 === true
+                        && data.presentacion_certificado === 'escala_cualitativa'
+                    ) {
+                        return;
+                    }
                     const gradeCells = cells.slice(subjectCellIndex + 1);
                     const esCualitativa = (data.tipo || tipoAsignaturaCatalogo(matchedSubjectNorm)) === 'cualitativa';
 
@@ -3338,6 +3412,7 @@
             _certInjectLogos(doc, logos);
             _certInjectInstitucion(doc, inst);
             _certInjectEstudiante(doc, est, inst);
+            _certInjectOptativasBGU3(doc, est);
             _certInjectNotas(doc, est);
             _certInjectEvaluacionComportamental(doc, est, gradoCursoCanonico);
             inyectarAsistenciaDocumento(doc, est);
