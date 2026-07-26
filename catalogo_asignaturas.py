@@ -74,6 +74,17 @@ def _variantes(entrada: dict) -> list[tuple[str, str]]:
     return valores
 
 
+def _metadatos_entrada(entrada: dict) -> dict:
+    return {
+        "tipo": entrada.get("tipo", "cuantitativa"),
+        "categoria": entrada.get("categoria"),
+        "es_optativa_bgu3": bool(entrada.get("es_optativa_bgu3", False)),
+        "presentacion_certificado": entrada.get("presentacion_certificado"),
+        "permite_supletorio": entrada.get("permite_supletorio", True) is not False,
+        "orden": int(entrada.get("orden", 999)),
+    }
+
+
 def _umbral_conservador(texto_normalizado: str) -> float:
     longitud = len(texto_normalizado.replace(" ", ""))
     if longitud <= 5:
@@ -98,10 +109,27 @@ def reconocer_asignatura_global(texto) -> dict | None:
     if not normalizado:
         return None
 
+    # Los nombres canónicos tienen prioridad absoluta sobre alias y aproximaciones.
     for entrada in CATALOGO_ASIGNATURAS:
-        for variante, metodo in _variantes(entrada):
-            if normalizado == normalizar_texto_asignatura(variante):
-                return {"original": original, "canonica": entrada["nombre"], "metodo": metodo, "entrada": entrada, "similitud": 1.0}
+        if normalizado == normalizar_texto_asignatura(entrada["nombre"]):
+            return {
+                "original": original,
+                "canonica": entrada["nombre"],
+                "metodo": "coincidencia_exacta",
+                "entrada": entrada,
+                "similitud": 1.0,
+            }
+
+    for entrada in CATALOGO_ASIGNATURAS:
+        for alias in entrada.get("aliases", []):
+            if normalizado == normalizar_texto_asignatura(alias):
+                return {
+                    "original": original,
+                    "canonica": entrada["nombre"],
+                    "metodo": "alias",
+                    "entrada": entrada,
+                    "similitud": 1.0,
+                }
 
     puntuaciones = []
     for entrada in CATALOGO_ASIGNATURAS:
@@ -152,8 +180,28 @@ def clasificar_asignatura(texto, grado_activo) -> dict:
         "original": reconocimiento["original"],
         "canonica": reconocimiento["canonica"],
         "metodo": reconocimiento["metodo"],
-        "tipo": reconocimiento["entrada"].get("tipo", "cuantitativa"),
-        "orden": reconocimiento["entrada"].get("orden", 999),
+        **_metadatos_entrada(reconocimiento["entrada"]),
+    }
+
+
+def metadatos_asignatura(nombre: str) -> dict:
+    """Devuelve los metadatos del catálogo sin crear listas paralelas por nombre."""
+    normalizado = normalizar_texto_asignatura(nombre)
+    for entrada in CATALOGO_ASIGNATURAS:
+        variantes = [entrada["nombre"], *entrada.get("aliases", [])]
+        if any(normalizar_texto_asignatura(variante) == normalizado for variante in variantes):
+            return {
+                "nombre": entrada["nombre"],
+                **_metadatos_entrada(entrada),
+            }
+    return {
+        "nombre": str(nombre),
+        "tipo": "cuantitativa",
+        "categoria": None,
+        "es_optativa_bgu3": False,
+        "presentacion_certificado": None,
+        "permite_supletorio": True,
+        "orden": 999,
     }
 
 
@@ -167,9 +215,4 @@ def orden_asignatura(nombre: str) -> tuple[int, str]:
 
 def tipo_asignatura(nombre: str) -> str:
     """Obtiene el tipo declarado para un nombre canónico o alias del catálogo."""
-    normalizado = normalizar_texto_asignatura(nombre)
-    for entrada in CATALOGO_ASIGNATURAS:
-        variantes = [entrada["nombre"], *entrada.get("aliases", [])]
-        if any(normalizar_texto_asignatura(variante) == normalizado for variante in variantes):
-            return entrada.get("tipo", "cuantitativa")
-    return "cuantitativa"
+    return metadatos_asignatura(nombre)["tipo"]

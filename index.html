@@ -861,9 +861,12 @@
             const normalizada = normalizarTextoAsignatura(original);
             if (!normalizada || catalogoAsignaturas.length === 0) return null;
 
+            // Prioridad absoluta: nombre canónico, luego alias y finalmente aproximación.
             for (const entrada of catalogoAsignaturas) {
-                const variantes = [entrada.nombre, ...(entrada.aliases || [])];
-                if (variantes.some(v => normalizarTextoAsignatura(v) === normalizada)) return entrada;
+                if (normalizarTextoAsignatura(entrada.nombre) === normalizada) return entrada;
+            }
+            for (const entrada of catalogoAsignaturas) {
+                if ((entrada.aliases || []).some(v => normalizarTextoAsignatura(v) === normalizada)) return entrada;
             }
 
             const similitudSecuencia = (a, b) => {
@@ -907,7 +910,20 @@
         }
 
         function tipoAsignaturaCatalogo(nombre) {
-            return reconocerAsignaturaCatalogo(nombre)?.tipo || 'cuantitativa';
+            return metadatosAsignaturaCatalogo(nombre).tipo;
+        }
+
+        function metadatosAsignaturaCatalogo(nombre, propagados = null) {
+            const entrada = reconocerAsignaturaCatalogo(nombre) || {};
+            const fuente = propagados && typeof propagados === 'object' ? propagados : {};
+            return {
+                tipo: fuente.tipo ?? entrada.tipo ?? 'cuantitativa',
+                categoria: fuente.categoria ?? entrada.categoria ?? null,
+                es_optativa_bgu3: fuente.es_optativa_bgu3 ?? entrada.es_optativa_bgu3 ?? false,
+                presentacion_certificado: fuente.presentacion_certificado ?? entrada.presentacion_certificado ?? null,
+                permite_supletorio: fuente.permite_supletorio ?? entrada.permite_supletorio ?? true,
+                orden: Number(fuente.orden ?? entrada.orden ?? 999)
+            };
         }
 
         function ordenarAsignaturasCatalogo(nombres) {
@@ -945,14 +961,18 @@
                     if (JSON.stringify(nuevas) !== JSON.stringify(periodo.asignaturas)) { periodo.asignaturas = nuevas; cambio = true; }
                 }
                 (periodo.estudiantes || []).forEach(estudiante => {
-                    const normalizado = normalizarMapaAsignaturasPersistido(estudiante.notas, grado);
-                    if (normalizado.cambio) { estudiante.notas = normalizado.mapa; cambio = true; }
+                    ['notas', 'tipos_asignaturas', 'metadatos_asignaturas'].forEach(campo => {
+                        const normalizado = normalizarMapaAsignaturasPersistido(estudiante[campo], grado);
+                        if (normalizado.cambio) { estudiante[campo] = normalizado.mapa; cambio = true; }
+                    });
                 });
             });
             (curso.alumnosTraslado || []).forEach(alumno => {
                 Object.values(alumno.notas || {}).forEach(periodo => {
-                    const normalizado = normalizarMapaAsignaturasPersistido(periodo.asignaturas, grado);
-                    if (normalizado.cambio) { periodo.asignaturas = normalizado.mapa; cambio = true; }
+                    ['asignaturas', 'tiposAsignaturas', 'metadatosAsignaturas'].forEach(campo => {
+                        const normalizado = normalizarMapaAsignaturasPersistido(periodo[campo], grado);
+                        if (normalizado.cambio) { periodo[campo] = normalizado.mapa; cambio = true; }
+                    });
                 });
                 const su = normalizarMapaAsignaturasPersistido(alumno.su_notas, grado);
                 if (su.cambio) { alumno.su_notas = su.mapa; cambio = true; }
@@ -1449,9 +1469,9 @@
 
         function crearEstructuraNotasInicial() {
             return {
-                trimestre1: { origenRegistro: 'PENDIENTE', asignaturas: {}, tiposAsignaturas: {}, evaluacionComportamental: '' },
-                trimestre2: { origenRegistro: 'PENDIENTE', asignaturas: {}, tiposAsignaturas: {}, evaluacionComportamental: '' },
-                trimestre3: { origenRegistro: 'PENDIENTE', asignaturas: {}, tiposAsignaturas: {}, evaluacionComportamental: '' }
+                trimestre1: { origenRegistro: 'PENDIENTE', asignaturas: {}, tiposAsignaturas: {}, metadatosAsignaturas: {}, evaluacionComportamental: '' },
+                trimestre2: { origenRegistro: 'PENDIENTE', asignaturas: {}, tiposAsignaturas: {}, metadatosAsignaturas: {}, evaluacionComportamental: '' },
+                trimestre3: { origenRegistro: 'PENDIENTE', asignaturas: {}, tiposAsignaturas: {}, metadatosAsignaturas: {}, evaluacionComportamental: '' }
             };
         }
 
@@ -1517,6 +1537,7 @@
                 origenRegistro,
                 asignaturas: estudianteExcel.notas || {},
                 tiposAsignaturas: estudianteExcel.tipos_asignaturas || {},
+                metadatosAsignaturas: estudianteExcel.metadatos_asignaturas || {},
                 evaluacionComportamental: mostrarValorSeguro(estudianteExcel.evaluacion_comportamental)
             };
             estudianteBase.coincidencias[periodKey] = coincidencia;
@@ -1590,6 +1611,9 @@
                 const tiposAsignaturas = Object.fromEntries(
                     Object.keys(asignaturas).map(asig => [asig, tipoAsignaturaCatalogo(asig)])
                 );
+                const metadatosAsignaturas = Object.fromEntries(
+                    Object.keys(asignaturas).map(asig => [asig, metadatosAsignaturaCatalogo(asig)])
+                );
                 alumno.notas[periodKey] = {
                     origenRegistro: 'MANUAL_EXTERNO',
                     asignaturas: Object.fromEntries(Object.entries(asignaturas).map(([asig, valor]) => [
@@ -1598,7 +1622,8 @@
                             ? mostrarValorSeguro(valor)
                             : truncar2Decimales(Number(valor))
                     ])),
-                    tiposAsignaturas
+                    tiposAsignaturas,
+                    metadatosAsignaturas
                 };
                 alumno.coincidencias[periodKey] = 'MANUAL';
             });
@@ -1804,9 +1829,13 @@
         }
 
         function resumenCargaAsignaturas(result, grado) {
+            const optativas = Array.isArray(result.optativasDetectadas)
+                ? new Set(result.optativasDetectadas.map(item => item.canonica)).size
+                : 0;
+            const total = Array.isArray(result.asignaturas) ? result.asignaturas.length : 0;
             const lineas = [
                 'Archivo procesado correctamente.',
-                `Se reconocieron ${Array.isArray(result.asignaturas) ? result.asignaturas.length : 0} asignaturas.`
+                `Se reconocieron ${Math.max(0, total - optativas)} asignaturas generales y ${optativas} asignaturas optativas.`
             ];
             (result.asignaturasReconocidas || [])
                 .filter(item => item.metodo !== 'coincidencia_exacta' && normalizarTextoAsignatura(item.original) !== normalizarTextoAsignatura(item.canonica))
@@ -1912,19 +1941,21 @@
                     const g1 = s.notas?.trimestre1?.asignaturas?.[sub] ?? null;
                     const g2 = s.notas?.trimestre2?.asignaturas?.[sub] ?? null;
                     const g3 = s.notas?.trimestre3?.asignaturas?.[sub] ?? null;
-                    const tipo = s.notas?.trimestre1?.tiposAsignaturas?.[sub]
-                        || s.notas?.trimestre2?.tiposAsignaturas?.[sub]
-                        || s.notas?.trimestre3?.tiposAsignaturas?.[sub]
-                        || tipoAsignaturaCatalogo(sub);
+                    const metadatosPropagados = s.notas?.trimestre1?.metadatosAsignaturas?.[sub]
+                        || s.notas?.trimestre2?.metadatosAsignaturas?.[sub]
+                        || s.notas?.trimestre3?.metadatosAsignaturas?.[sub]
+                        || null;
+                    const metadatos = metadatosAsignaturaCatalogo(sub, metadatosPropagados);
+                    const tipo = metadatos.tipo;
                     
                     const manual_su_grade = supletoriosManuales[s.cedula]?.[sub] ?? supletoriosManuales[s.estudianteId]?.[sub] ?? null;
-                    const su_grade = tipo === 'cualitativa'
+                    const su_grade = tipo === 'cualitativa' || !metadatos.permite_supletorio
                         ? null
                         : (manual_su_grade !== null ? manual_su_grade : (s.su_notas?.[sub] ?? null));
 
                     if (tipo === 'cualitativa') {
                         materias[sub] = {
-                            tipo,
+                            ...metadatos,
                             t1: mostrarValorSeguro(g1),
                             t2: mostrarValorSeguro(g2),
                             t3: mostrarValorSeguro(g3),
@@ -1945,11 +1976,13 @@
 
                     let p_anual = null;
                     let nota_final = null;
-                    let estado = 'PENDIENTE DE NOTAS EXTERNAS';
+                    let estado = metadatos.permite_supletorio ? 'PENDIENTE DE NOTAS EXTERNAS' : null;
                     if (!pendiente) {
                         p_anual = truncar2Decimales((Number(g1) + Number(g2) + Number(g3)) / 3.0);
                         nota_final = p_anual;
-                        if (p_anual >= 7.0) {
+                        if (!metadatos.permite_supletorio) {
+                            estado = null;
+                        } else if (p_anual >= 7.0) {
                             estado = 'APROBADO';
                         } else if (su_grade !== null) {
                             estado = su_grade >= 7.0 ? 'APROBADO' : 'REPROBADO';
@@ -1960,7 +1993,7 @@
                     }
 
                     materias[sub] = {
-                        tipo,
+                        ...metadatos,
                         t1: g1,
                         t2: g2,
                         t3: g3,
@@ -1976,7 +2009,9 @@
                     };
                 });
 
-                const materiasList = Object.values(materias).filter(m => m.tipo !== 'cualitativa');
+                const materiasList = Object.values(materias).filter(
+                    m => m.tipo !== 'cualitativa' && m.permite_supletorio !== false
+                );
                 const tienePendiente = materiasList.some(m => m.estado === 'PENDIENTE DE NOTAS EXTERNAS') || ['trimestre1', 'trimestre2', 'trimestre3'].some(periodKey => s.notas?.[periodKey]?.origenRegistro === 'PENDIENTE');
                 const finalesValidos = materiasList.map(m => m.nota_final).filter(v => typeof v === 'number');
                 const prom_general = (!tienePendiente && finalesValidos.length > 0) ? (finalesValidos.reduce((a, b) => a + b, 0) / finalesValidos.length) : null;
@@ -2687,7 +2722,7 @@
             let tieneCuantitativas = false;
             for (const subName in estudiante.materias) {
                 const sub = estudiante.materias[subName];
-                if (sub.tipo === 'cualitativa') continue;
+                if (sub.tipo === 'cualitativa' || sub.permite_supletorio === false) continue;
                 tieneCuantitativas = true;
                 if (!esNotaValida(sub.t1) || !esNotaValida(sub.t2) || !esNotaValida(sub.t3)) {
                     return false;
@@ -2701,7 +2736,7 @@
             if (!estudiante || !estudiante.materias) return elegibles;
             for (const subName in estudiante.materias) {
                 const sub = estudiante.materias[subName];
-                if (sub.tipo === 'cualitativa') continue;
+                if (sub.tipo === 'cualitativa' || sub.permite_supletorio === false) continue;
                 const pa = sub.promedio_anual;
                 if (pa !== null && pa !== undefined) {
                     const numPa = Number(pa);
@@ -2896,6 +2931,7 @@
 
             rows.forEach(row => {
                 const subName = row.dataset.subject;
+                if (!metadatosAsignaturaCatalogo(subName).permite_supletorio) return;
                 const input = row.querySelector('input');
                 const val = input.value.trim();
 

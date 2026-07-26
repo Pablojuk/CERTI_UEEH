@@ -314,6 +314,15 @@ test('la persistencia reutiliza el store actual y agrega asistencia dentro del c
     assert.match(ui, /curso\.asistencia = AsistenciaUtils\.normalizarAsistencia/);
 });
 
+test('el renderer propaga metadatos y excluye materias no elegibles de supletorios', () => {
+    const html = fs.readFileSync(path.join(raiz, 'index.html'), 'utf8');
+    assert.match(html, /metadatosAsignaturas:\s*estudianteExcel\.metadatos_asignaturas/);
+    assert.match(html, /m\.tipo !== 'cualitativa' && m\.permite_supletorio !== false/);
+    assert.match(html, /sub\.tipo === 'cualitativa' \|\| sub\.permite_supletorio === false/);
+    assert.match(html, /!metadatosAsignaturaCatalogo\(subName\)\.permite_supletorio/);
+    assert.match(html, /asignaturas generales y \$\{optativas\} asignaturas optativas/);
+});
+
 test('Electron mantiene aislamiento de contexto y no expone APIs peligrosas', () => {
     const main = fs.readFileSync(path.join(raiz, 'main.js'), 'utf8');
     const preload = fs.readFileSync(path.join(raiz, 'preload.js'), 'utf8');

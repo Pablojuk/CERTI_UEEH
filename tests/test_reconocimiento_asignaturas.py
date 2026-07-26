@@ -11,22 +11,47 @@ from unittest.mock import patch
 from openpyxl import Workbook
 
 from catalogo_asignaturas import (
+    CATALOGO_ASIGNATURAS,
     clasificar_asignatura,
     grados_equivalentes,
+    metadatos_asignatura,
     normalizar_texto_asignatura,
     tipo_asignatura,
 )
 from procesador_notas import (
     ErrorGradoExcel,
+    actualizar_certificado_supletorio,
     cargar_excel_datos,
     consolidar_estudiantes,
+    convertir_nota_optativa_a_escala_cualitativa,
     crear_diagnostico_asignaturas,
     curso_admite_evaluacion_comportamental,
     generar_certificados_inicial,
     inject_evaluacion_comportamental,
+    inject_optativas_bgu3,
     inject_subject_grades,
     truncar_2_decimales,
 )
+
+
+OPTATIVAS_BGU3 = [
+    "APRECIACIÓN MUSICAL",
+    "CORRIENTES FILOSÓFICAS",
+    "INVESTIGACIÓN EN CIENCIA Y TECNOLOGÍA",
+    "LECTURA CRÍTICA DE MENSAJES",
+    "LENGUA KICHWA",
+    "REDACCIÓN CREATIVA",
+    "SOCIOLOGÍA",
+    "TEATRO",
+    "PROBLEMAS DEL MUNDO CONTEMPORÁNEO",
+    "PSICOLOGÍA",
+    "LENGUA EXTRANJERA: FRANCÉS",
+    "FÍSICA SUPERIOR",
+    "QUÍMICA SUPERIOR",
+    "MATEMÁTICA SUPERIOR",
+    "BIOLOGÍA SUPERIOR",
+    "LENGUA Y CULTURA ANCESTRAL",
+]
 
 
 class ReconocimientoAsignaturasTests(unittest.TestCase):
@@ -92,6 +117,16 @@ class ReconocimientoAsignaturasTests(unittest.TestCase):
         ws.cell(row=9, column=columna, value=encabezado)
         ws.cell(row=10, column=columna, value=valor)
         wb.save(ruta)
+
+    def contenido_optativas(self, html):
+        import re
+        coincidencia = re.search(
+            r'<tbody[^>]*id="optativas-bgu3"[^>]*>([\s\S]*?)</tbody>',
+            html,
+            re.IGNORECASE,
+        )
+        self.assertIsNotNone(coincidencia)
+        return coincidencia.group(1)
 
     def test_normaliza_tildes_espacios_mayusculas_y_separadores(self):
         self.assertEqual(normalizar_texto_asignatura("  Biología --  "), "BIOLOGIA")
@@ -547,6 +582,264 @@ class ReconocimientoAsignaturasTests(unittest.TestCase):
         )
         respuesta = json.loads(proceso.stdout)
         self.assertEqual(respuesta["error"], "El archivo corresponde a 3RO BGU, pero el curso seleccionado es 1RO BGU.")
+
+    def test_catalogo_declara_las_16_optativas_con_metadatos_y_solo_para_bgu3(self):
+        self.assertEqual(
+            [entrada["nombre"] for entrada in CATALOGO_ASIGNATURAS if entrada.get("es_optativa_bgu3")],
+            OPTATIVAS_BGU3,
+        )
+        for orden, materia in enumerate(OPTATIVAS_BGU3, start=12):
+            with self.subTest(materia=materia):
+                clasificacion = clasificar_asignatura(materia, "3RO BGU")
+                self.assertEqual(clasificacion["estado"], "reconocida")
+                self.assertEqual(clasificacion["tipo"], "cuantitativa")
+                self.assertEqual(clasificacion["categoria"], "optativa")
+                self.assertTrue(clasificacion["es_optativa_bgu3"])
+                self.assertEqual(clasificacion["presentacion_certificado"], "escala_cualitativa")
+                self.assertFalse(clasificacion["permite_supletorio"])
+                self.assertEqual(clasificacion["orden"], orden * 10)
+                self.assertEqual(clasificar_asignatura(materia, "1RO BGU")["estado"], "ignorada_por_curso")
+
+        matematica = metadatos_asignatura("MATEMÁTICA")
+        self.assertFalse(matematica["es_optativa_bgu3"])
+        self.assertTrue(matematica["permite_supletorio"])
+        self.assertNotEqual(matematica["presentacion_certificado"], "escala_cualitativa")
+        superior = next(e for e in CATALOGO_ASIGNATURAS if e["nombre"] == "MATEMÁTICA SUPERIOR")
+        self.assertNotIn("MATEMÁTICA", superior["aliases"])
+        self.assertNotIn("MATEMATICA", superior["aliases"])
+
+    def test_aliases_oficiales_se_resuelven_a_sus_nombres_canonicos(self):
+        casos = {
+            "APRECIACION MUSICAL": "APRECIACIÓN MUSICAL",
+            "CORRIENTES FILOSOFICAS": "CORRIENTES FILOSÓFICAS",
+            "INVESTIGACION EN CIENCIA Y TECNOLOGIA": "INVESTIGACIÓN EN CIENCIA Y TECNOLOGÍA",
+            "LECTURA CRITICA DE MENSAJES": "LECTURA CRÍTICA DE MENSAJES",
+            "KICHWA": "LENGUA KICHWA",
+            "REDACCION CREATIVA": "REDACCIÓN CREATIVA",
+            "SOCIOLOGIA": "SOCIOLOGÍA",
+            "ARTE TEATRAL": "TEATRO",
+            "PROBLEMAS DEL MUNDO CONTEMPORANEO": "PROBLEMAS DEL MUNDO CONTEMPORÁNEO",
+            "PSICOLOGIA": "PSICOLOGÍA",
+            "LENGUA EXTRANJERA FRANCES": "LENGUA EXTRANJERA: FRANCÉS",
+            "FISICA SUPERIOR": "FÍSICA SUPERIOR",
+            "QUIMICA SUPERIOR": "QUÍMICA SUPERIOR",
+            "MATEMATICA SUPERIOR": "MATEMÁTICA SUPERIOR",
+            "MATEMATICAS SUPERIORES": "MATEMÁTICA SUPERIOR",
+            "BIOLOGIA SUPERIOR": "BIOLOGÍA SUPERIOR",
+            "LENGUA Y CULTURA ANCESTRAL": "LENGUA Y CULTURA ANCESTRAL",
+        }
+        for alias, canonica in casos.items():
+            with self.subTest(alias=alias):
+                resultado = clasificar_asignatura(alias, "3RO BGU")
+                self.assertEqual(resultado["estado"], "reconocida")
+                self.assertEqual(resultado["canonica"], canonica)
+
+    def test_nombres_obligatorios_no_se_confunden_con_optativas_parecidas(self):
+        casos = {
+            "FÍSICA": "FÍSICA",
+            "QUÍMICA": "QUÍMICA",
+            "BIOLOGÍA": "BIOLOGÍA",
+            "MATEMÁTICA": "MATEMÁTICA",
+            "MATEMATICA": "MATEMÁTICA",
+            "MATEMÁTICA SUPERIOR": "MATEMÁTICA SUPERIOR",
+            "LENGUA Y LITERATURA": "LENGUA Y LITERATURA",
+            "INGLÉS": "INGLÉS",
+            "LECTURA CRÍTICA": "LECTURA CRÍTICA DE MENSAJES",
+        }
+        for original, canonica in casos.items():
+            with self.subTest(original=original):
+                self.assertEqual(clasificar_asignatura(original, "3RO BGU")["canonica"], canonica)
+
+        filosofia = clasificar_asignatura("FILOSOFÍA", "3RO BGU")
+        self.assertEqual(filosofia["canonica"], "FILOSOFÍA")
+        self.assertEqual(filosofia["estado"], "ignorada_por_curso")
+        self.assertNotEqual(filosofia["canonica"], "CORRIENTES FILOSÓFICAS")
+
+    def test_escala_cualitativa_respeta_todos_los_limites_y_vacios(self):
+        casos = [
+            (1.00, "E-"), (1.49, "E-"), (1.50, "E+"), (2.49, "E+"),
+            (2.50, "D-"), (3.49, "D-"), (3.50, "D+"), (4.49, "D+"),
+            (4.50, "C-"), (5.49, "C-"), (5.50, "C+"), (6.49, "C+"),
+            (6.50, "B-"), (7.49, "B-"), (7.50, "B+"), (8.49, "B+"),
+            (8.50, "A-"), (9.49, "A-"), (9.50, "A+"), (10.00, "A+"),
+            (None, ""), ("", ""), (float("nan"), ""), (0.99, ""), (10.01, ""),
+        ]
+        for nota, esperado in casos:
+            with self.subTest(nota=nota):
+                self.assertEqual(convertir_nota_optativa_a_escala_cualitativa(nota), esperado)
+
+    def test_metadatos_viajan_desde_encabezado_hasta_materia_consolidada(self):
+        rutas = [
+            self.crear_excel(f"meta_t{periodo}.xlsx", "3RO BGU", [("APRECIACION MUSICAL", 9 + periodo / 10)])
+            for periodo in range(1, 4)
+        ]
+        registro = next(iter(cargar_excel_datos(rutas[0], "3RO BGU").values()))
+        metadata_excel = registro["metadatos_asignaturas"]["APRECIACIÓN MUSICAL"]
+        self.assertTrue(metadata_excel["es_optativa_bgu3"])
+        self.assertFalse(metadata_excel["permite_supletorio"])
+
+        materia = consolidar_estudiantes(*rutas, None, "3RO BGU")[0]["materias"]["APRECIACIÓN MUSICAL"]
+        for campo in ("tipo", "categoria", "es_optativa_bgu3", "presentacion_certificado", "permite_supletorio", "orden"):
+            self.assertEqual(materia[campo], metadata_excel[campo])
+        self.assertEqual((materia["t1"], materia["t2"], materia["t3"]), (9.1, 9.2, 9.3))
+        self.assertIsNone(materia["estado"])
+
+    def test_matematica_y_matematica_superior_coexisten_sin_mezclar_notas_ni_estado(self):
+        rutas = [
+            self.crear_excel(
+                f"coexistencia_t{periodo}.xlsx",
+                "3RO BGU",
+                [("MATEMÁTICA", 6.0), ("MATEMÁTICA SUPERIOR", 9.55)],
+            )
+            for periodo in range(1, 4)
+        ]
+        estudiante = consolidar_estudiantes(*rutas, None, "3RO BGU")[0]
+        self.assertEqual(list(estudiante["materias"])[:2], ["MATEMÁTICA", "MATEMÁTICA SUPERIOR"])
+        matematica = estudiante["materias"]["MATEMÁTICA"]
+        superior = estudiante["materias"]["MATEMÁTICA SUPERIOR"]
+        self.assertEqual((matematica["t1"], matematica["t2"], matematica["t3"]), (6.0, 6.0, 6.0))
+        self.assertEqual(matematica["estado"], "SUPLETORIO")
+        self.assertTrue(matematica["permite_supletorio"])
+        self.assertEqual((superior["t1"], superior["t2"], superior["t3"]), (9.55, 9.55, 9.55))
+        self.assertIsNone(superior["estado"])
+        self.assertFalse(superior["permite_supletorio"])
+        self.assertEqual(estudiante["estado"], "SUPLETORIO")
+        self.assertEqual(estudiante["promedio"], 6.0)
+
+        plantilla = (Path(__file__).parents[1] / "assets" / "certificados" / "FORMATO DE 3 DE BGU.html").read_text(encoding="utf-8")
+        html = inject_subject_grades(plantilla, estudiante["materias"])
+        optativas = self.contenido_optativas(html)
+        self.assertIn("MATEMÁTICA SUPERIOR", optativas)
+        self.assertIn(">A+</td>", optativas)
+        self.assertNotRegex(optativas, r">MATEMÁTICA</td>")
+
+    def test_union_de_optativas_t1_t2_t3_no_copia_ni_desplaza_valores(self):
+        t1 = self.crear_excel("union_t1.xlsx", "3RO BGU", [("TEATRO", 8.1), ("PSICOLOGÍA", 6.8)])
+        t2 = self.crear_excel("union_t2.xlsx", "3RO BGU", [("TEATRO", 8.2), ("PSICOLOGÍA", 6.9), ("APRECIACIÓN MUSICAL", 9.7)])
+        t3 = self.crear_excel("union_t3.xlsx", "3RO BGU", [("TEATRO", 8.3), ("APRECIACIÓN MUSICAL", 9.6)])
+        estudiante = consolidar_estudiantes(t1, t2, t3, None, "3RO BGU")[0]
+        self.assertEqual(
+            [nombre for nombre, datos in estudiante["materias"].items() if datos["es_optativa_bgu3"]],
+            ["APRECIACIÓN MUSICAL", "TEATRO", "PSICOLOGÍA"],
+        )
+        self.assertEqual(
+            (estudiante["materias"]["PSICOLOGÍA"]["t1"], estudiante["materias"]["PSICOLOGÍA"]["t2"], estudiante["materias"]["PSICOLOGÍA"]["t3"]),
+            (6.8, 6.9, None),
+        )
+        self.assertEqual(
+            (estudiante["materias"]["APRECIACIÓN MUSICAL"]["t1"], estudiante["materias"]["APRECIACIÓN MUSICAL"]["t2"], estudiante["materias"]["APRECIACIÓN MUSICAL"]["t3"]),
+            (None, 9.7, 9.6),
+        )
+        plantilla = (Path(__file__).parents[1] / "assets" / "certificados" / "FORMATO DE 3 DE BGU.html").read_text(encoding="utf-8")
+        optativas = self.contenido_optativas(inject_subject_grades(plantilla, estudiante["materias"]))
+        self.assertRegex(optativas, r"PSICOLOGÍA[\s\S]*?<td>B-</td>[\s\S]*?<td>B-</td>[\s\S]*?<td></td>")
+        self.assertRegex(optativas, r"APRECIACIÓN MUSICAL[\s\S]*?<td></td>[\s\S]*?<td>A\+</td>[\s\S]*?<td>A\+</td>")
+
+    def test_tres_combinaciones_institucionales_generan_solo_sus_optativas(self):
+        instituciones = [
+            {
+                "MATEMÁTICA SUPERIOR": (9.55, "A+"),
+                "REDACCIÓN CREATIVA": (7.76, "B+"),
+                "QUÍMICA SUPERIOR": (8.40, "B+"),
+                "INVESTIGACIÓN EN CIENCIA Y TECNOLOGÍA": (8.18, "B+"),
+                "SOCIOLOGÍA": (9.41, "A-"),
+            },
+            {
+                "APRECIACIÓN MUSICAL": (9.60, "A+"),
+                "TEATRO": (8.30, "B+"),
+                "PSICOLOGÍA": (6.70, "B-"),
+                "LECTURA CRÍTICA DE MENSAJES": (5.80, "C+"),
+            },
+            {
+                "LENGUA KICHWA": (7.50, "B+"),
+                "LENGUA Y CULTURA ANCESTRAL": (8.50, "A-"),
+                "PROBLEMAS DEL MUNDO CONTEMPORÁNEO": (4.50, "C-"),
+                "CORRIENTES FILOSÓFICAS": (2.50, "D-"),
+            },
+        ]
+        plantilla = (Path(__file__).parents[1] / "assets" / "certificados" / "FORMATO DE 3 DE BGU.html").read_text(encoding="utf-8")
+        for indice, institucion in enumerate(instituciones, start=1):
+            with self.subTest(institucion=indice):
+                materias = {
+                    nombre: {"tipo": "cuantitativa", "t1": nota, "t2": None, "t3": None}
+                    for nombre, (nota, _) in institucion.items()
+                }
+                optativas = self.contenido_optativas(inject_optativas_bgu3(plantilla, materias))
+                for nombre, (_, escala) in institucion.items():
+                    self.assertIn(nombre, optativas)
+                    self.assertIn(f"<td>{escala}</td>", optativas)
+                for ausente in set(OPTATIVAS_BGU3) - set(institucion):
+                    self.assertNotIn(ausente, optativas)
+
+    def test_optativas_bajas_no_generan_supletorio_reprobacion_ni_registro(self):
+        materias_bajas = [(nombre, 2.0 + (indice % 3)) for indice, nombre in enumerate(OPTATIVAS_BGU3)]
+        rutas = [
+            self.crear_excel(f"bajas_t{periodo}.xlsx", "3RO BGU", [("MATEMÁTICA", 6.0), *materias_bajas])
+            for periodo in range(1, 4)
+        ]
+        estudiante = consolidar_estudiantes(*rutas, None, "3RO BGU")[0]
+        for nombre in OPTATIVAS_BGU3:
+            with self.subTest(materia=nombre):
+                materia = estudiante["materias"][nombre]
+                self.assertIsNone(materia["estado"])
+                self.assertIsNone(materia["supletorio"])
+                self.assertFalse(materia["permite_supletorio"])
+                self.assertFalse(actualizar_certificado_supletorio("sin_archivo", nombre, 10, self.directorio))
+        self.assertEqual(estudiante["materias"]["MATEMÁTICA"]["estado"], "SUPLETORIO")
+        self.assertEqual(estudiante["estado"], "SUPLETORIO")
+
+        resultado = generar_certificados_inicial({
+            "datos_consolidados": [estudiante],
+            "institucion": {"grado": "3RO BGU", "nivel": "BGU"},
+            "logos": {},
+            "gradoCursoCanonico": "3RO BGU",
+            "plantillaName": "FORMATO DE 3 DE BGU.html",
+            "certOutputDir": str(self.directorio / "certificados_optativas_bajas"),
+        })
+        self.assertEqual([item["asignatura"] for item in resultado["supletorios"]], ["MATEMÁTICA"])
+        html = Path(resultado["archivos"][0]).read_text(encoding="utf-8")
+        optativas = self.contenido_optativas(html)
+        self.assertEqual(optativas.count("<tr>"), 16)
+        self.assertNotIn(">2.00</td>", optativas)
+
+    def test_una_futura_optativa_funciona_agregando_solo_una_entrada_al_catalogo(self):
+        nueva = {
+            "nombre": "NUEVA OPTATIVA OFICIAL",
+            "grados": ["BGU_3"],
+            "aliases": ["NUEVA OPTATIVA"],
+            "tipo": "cuantitativa",
+            "categoria": "optativa",
+            "es_optativa_bgu3": True,
+            "presentacion_certificado": "escala_cualitativa",
+            "permite_supletorio": False,
+            "orden": 400,
+        }
+        CATALOGO_ASIGNATURAS.append(nueva)
+        try:
+            clasificacion = clasificar_asignatura("NUEVA OPTATIVA", "3RO BGU")
+            self.assertEqual(clasificacion["canonica"], "NUEVA OPTATIVA OFICIAL")
+            plantilla = (Path(__file__).parents[1] / "assets" / "certificados" / "FORMATO DE 3 DE BGU.html").read_text(encoding="utf-8")
+            optativas = self.contenido_optativas(inject_optativas_bgu3(
+                plantilla,
+                {"NUEVA OPTATIVA OFICIAL": {"t1": 9.8, "t2": 8.8, "t3": 7.8}},
+            ))
+            self.assertIn("NUEVA OPTATIVA OFICIAL", optativas)
+            self.assertRegex(optativas, r"<td>A\+</td>[\s\S]*<td>A-</td>[\s\S]*<td>B\+</td>")
+        finally:
+            CATALOGO_ASIGNATURAS.remove(nueva)
+
+    def test_diagnostico_separa_conteo_de_optativas_sin_duplicarlas(self):
+        ruta = self.crear_excel(
+            "diagnostico_optativas.xlsx",
+            "3RO BGU",
+            [("MATEMÁTICA", 8), ("APRECIACION MUSICAL", 9), ("TEATRO", 8)],
+        )
+        diagnostico = crear_diagnostico_asignaturas()
+        cargar_excel_datos(ruta, "3RO BGU", diagnostico)
+        self.assertEqual(
+            [item["canonica"] for item in diagnostico["optativasDetectadas"]],
+            ["APRECIACIÓN MUSICAL", "TEATRO"],
+        )
 
 
 if __name__ == "__main__":

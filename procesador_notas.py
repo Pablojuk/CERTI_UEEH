@@ -25,6 +25,7 @@ from openpyxl.utils import column_index_from_string
 from catalogo_asignaturas import (
     clasificar_asignatura,
     grados_equivalentes,
+    metadatos_asignatura,
     normalizar_grado,
     normalizar_texto_asignatura,
     orden_asignatura,
@@ -42,6 +43,14 @@ COLUMNA_MAXIMA_ACADEMICA = column_index_from_string("X")
 ENCABEZADO_EVALUACION_COMPORTAMENTAL = "EVALUACION COMPORTAMENTAL"
 GRADOS_SIN_EVALUACION_COMPORTAMENTAL = {"INICIAL_1", "INICIAL_2", "EGB_1"}
 VALORES_VACIOS_TEXTO = {"", "nan", "none", "null", "undefined"}
+CAMPOS_METADATOS_ASIGNATURA = (
+    "tipo",
+    "categoria",
+    "es_optativa_bgu3",
+    "presentacion_certificado",
+    "permite_supletorio",
+    "orden",
+)
 
 
 def mostrar_valor(valor) -> str:
@@ -54,6 +63,44 @@ def mostrar_valor(valor) -> str:
     if texto.lower() in VALORES_VACIOS_TEXTO:
         return ""
     return texto
+
+
+def completar_metadatos_asignatura(nombre: str, datos: dict | None = None) -> dict:
+    """Combina la fuente de verdad del catálogo con metadatos ya propagados."""
+    metadatos = metadatos_asignatura(nombre)
+    if isinstance(datos, dict):
+        for campo in CAMPOS_METADATOS_ASIGNATURA:
+            if campo in datos and datos[campo] is not None:
+                metadatos[campo] = datos[campo]
+    return metadatos
+
+
+def convertir_nota_optativa_a_escala_cualitativa(valor) -> str:
+    """Convierte una nota numérica sin redondearla; los vacíos o fuera de rango quedan vacíos."""
+    if not mostrar_valor(valor):
+        return ""
+    try:
+        nota = Decimal(str(valor))
+    except (InvalidOperation, ValueError, TypeError):
+        return ""
+    if not nota.is_finite() or nota < Decimal("1.00") or nota > Decimal("10.00"):
+        return ""
+    intervalos = (
+        (Decimal("1.50"), "E-"),
+        (Decimal("2.50"), "E+"),
+        (Decimal("3.50"), "D-"),
+        (Decimal("4.50"), "D+"),
+        (Decimal("5.50"), "C-"),
+        (Decimal("6.50"), "C+"),
+        (Decimal("7.50"), "B-"),
+        (Decimal("8.50"), "B+"),
+        (Decimal("9.50"), "A-"),
+        (Decimal("10.01"), "A+"),
+    )
+    for limite_superior, escala in intervalos:
+        if nota < limite_superior:
+            return escala
+    return ""
 
 
 def es_encabezado_evaluacion_comportamental(valor) -> bool:
@@ -105,18 +152,39 @@ def crear_diagnostico_asignaturas() -> dict:
         "asignaturasReconocidas": [],
         "asignaturasIgnoradasPorCurso": [],
         "asignaturasNoReconocidas": [],
+        "optativasDetectadas": [],
     }
 
 
 def _agregar_diagnostico(diagnostico: dict, clasificacion: dict) -> None:
     estado = clasificacion.get("estado")
     if estado == "reconocida":
-        diagnostico["asignaturasReconocidas"].append({
+        reconocida = {
             "original": clasificacion["original"],
             "canonica": clasificacion["canonica"],
             "metodo": clasificacion["metodo"],
             "tipo": clasificacion.get("tipo", "cuantitativa"),
-        })
+            "categoria": clasificacion.get("categoria"),
+            "es_optativa_bgu3": clasificacion.get("es_optativa_bgu3", False),
+            "presentacion_certificado": clasificacion.get("presentacion_certificado"),
+            "permite_supletorio": clasificacion.get("permite_supletorio", True),
+            "orden": clasificacion.get("orden", 999),
+        }
+        diagnostico["asignaturasReconocidas"].append(reconocida)
+        if (
+            clasificacion.get("es_optativa_bgu3")
+            and not any(
+                item["canonica"] == clasificacion["canonica"]
+                for item in diagnostico["optativasDetectadas"]
+            )
+        ):
+            diagnostico["optativasDetectadas"].append({
+                "original": clasificacion["original"],
+                "canonica": clasificacion["canonica"],
+                "metodo": clasificacion["metodo"],
+                "presentacion": clasificacion.get("presentacion_certificado"),
+                "permite_supletorio": clasificacion.get("permite_supletorio", True),
+            })
     elif estado == "ignorada_por_curso":
         diagnostico["asignaturasIgnoradasPorCurso"].append({
             "original": clasificacion["original"],
@@ -300,6 +368,10 @@ def cargar_excel_datos(file_path: str, grado_esperado: str | None = None, diagno
                     "columna": col_to_read,
                     "nombre": clasificacion["canonica"],
                     "tipo": clasificacion.get("tipo", "cuantitativa"),
+                    "metadatos": {
+                        campo: clasificacion.get(campo)
+                        for campo in CAMPOS_METADATOS_ASIGNATURA
+                    },
                 })
                 canonicas_agregadas.add(clasificacion["canonica"])
             print(f"[cargar_excel_datos] Formato materia única: {subject_name}, leyendo columna {col_to_read} ({periodo_detectado})", file=sys.stderr)
@@ -329,6 +401,10 @@ def cargar_excel_datos(file_path: str, grado_esperado: str | None = None, diagno
                     "columna": col,
                     "nombre": canonica,
                     "tipo": clasificacion.get("tipo", "cuantitativa"),
+                    "metadatos": {
+                        campo: clasificacion.get(campo)
+                        for campo in CAMPOS_METADATOS_ASIGNATURA
+                    },
                 })
                 canonicas_agregadas.add(canonica)
 
@@ -363,11 +439,16 @@ def cargar_excel_datos(file_path: str, grado_esperado: str | None = None, diagno
 
             notas = {}
             tipos_asignaturas = {}
+            metadatos_asignaturas = {}
             for subject in subject_columns:
                 col = subject["columna"]
                 subject_name = subject["nombre"]
                 subject_type = subject["tipo"]
                 tipos_asignaturas[subject_name] = subject_type
+                metadatos_asignaturas[subject_name] = completar_metadatos_asignatura(
+                    subject_name,
+                    subject.get("metadatos"),
+                )
                 grade_value = sheet.cell(row=r, column=col).value
                 if not mostrar_valor(grade_value):
                     notas[subject_name] = None
@@ -390,6 +471,7 @@ def cargar_excel_datos(file_path: str, grado_esperado: str | None = None, diagno
                 "cedula": cedula,
                 "notas": notas,
                 "tipos_asignaturas": tipos_asignaturas,
+                "metadatos_asignaturas": metadatos_asignaturas,
                 "evaluacion_comportamental": evaluacion_comportamental,
             }
             
@@ -430,18 +512,20 @@ def consolidar_estudiantes(t1_path, t2_path, t3_path, su_path, grado_esperado=No
             g1 = t1_data.get(key, {}).get("notas", {}).get(sub)
             g2 = t2_data.get(key, {}).get("notas", {}).get(sub)
             g3 = t3_data.get(key, {}).get("notas", {}).get(sub)
-            tipo = next(
+            metadatos = next(
                 (
-                    src[key].get("tipos_asignaturas", {}).get(sub)
+                    src[key].get("metadatos_asignaturas", {}).get(sub)
                     for src in [t1_data, t2_data, t3_data, su_data]
-                    if key in src and src[key].get("tipos_asignaturas", {}).get(sub)
+                    if key in src and src[key].get("metadatos_asignaturas", {}).get(sub)
                 ),
-                tipo_asignatura(sub),
+                None,
             )
+            metadatos = completar_metadatos_asignatura(sub, metadatos)
+            tipo = metadatos["tipo"]
 
             if tipo == "cualitativa":
                 subjects_grades[sub] = {
-                    "tipo": tipo,
+                    **metadatos,
                     "t1": mostrar_valor(g1),
                     "t2": mostrar_valor(g2),
                     "t3": mostrar_valor(g3),
@@ -452,18 +536,27 @@ def consolidar_estudiantes(t1_path, t2_path, t3_path, su_path, grado_esperado=No
                 }
                 continue
 
-            su_grade = su_data.get(key, {}).get("notas", {}).get(sub, None) if su_path else None
+            permite_supletorio = metadatos["permite_supletorio"]
+            su_grade = (
+                su_data.get(key, {}).get("notas", {}).get(sub, None)
+                if su_path and permite_supletorio
+                else None
+            )
             if any(nota is None for nota in (g1, g2, g3)):
                 p_anual = None
                 nota_final = None
-                estado = "PENDIENTE DE NOTAS EXTERNAS"
+                estado = "PENDIENTE DE NOTAS EXTERNAS" if permite_supletorio else None
             else:
                 p_anual = calcular_promedio_anual(g1, g2, g3)
-                nota_final = calcular_resultado_con_supletorio(p_anual, su_grade)
-                estado = determinar_estado_materia(nota_final, su_grade)
+                if permite_supletorio:
+                    nota_final = calcular_resultado_con_supletorio(p_anual, su_grade)
+                    estado = determinar_estado_materia(nota_final, su_grade)
+                else:
+                    nota_final = p_anual
+                    estado = None
             
             subjects_grades[sub] = {
-                "tipo": tipo,
+                **metadatos,
                 "t1": g1,
                 "t2": g2,
                 "t3": g3,
@@ -477,6 +570,7 @@ def consolidar_estudiantes(t1_path, t2_path, t3_path, su_path, grado_esperado=No
         materias_cuantitativas = [
             val for val in subjects_grades.values()
             if val.get("tipo", "cuantitativa") != "cualitativa"
+            and val.get("permite_supletorio", True)
         ]
         tiene_pendiente = any(
             val["estado"] == "PENDIENTE DE NOTAS EXTERNAS"
@@ -1125,8 +1219,52 @@ def inject_student_data_html(html_content, student, inst, logos):
 
     return html_content
 
+def inject_optativas_bgu3(html_content, materias_data):
+    """Genera únicamente las optativas detectadas dentro del marcador estable de BGU_3."""
+    patron = re.compile(
+        r'(<tbody[^>]*\bid=["\']optativas-bgu3["\'][^>]*>)[\s\S]*?(</tbody>)',
+        re.IGNORECASE,
+    )
+    if not patron.search(html_content):
+        return html_content
+
+    optativas = []
+    for nombre, datos in materias_data.items():
+        metadatos = completar_metadatos_asignatura(nombre, datos)
+        if not metadatos.get("es_optativa_bgu3"):
+            continue
+        if metadatos.get("presentacion_certificado") != "escala_cualitativa":
+            continue
+        optativas.append((metadatos.get("orden", 999), metadatos["nombre"], datos))
+
+    optativas.sort(key=lambda item: (int(item[0]), item[1]))
+    filas = []
+    for indice, (_, nombre, datos) in enumerate(optativas):
+        clase_nombre = "text-left-cell font-semibold" + (" w-1/3" if indice == 0 else "")
+        valores = [
+            convertir_nota_optativa_a_escala_cualitativa(datos.get("t1")),
+            convertir_nota_optativa_a_escala_cualitativa(datos.get("t2")),
+            convertir_nota_optativa_a_escala_cualitativa(datos.get("t3")),
+        ]
+        filas.append(
+            "\n                <tr>\n"
+            f'                    <td class="{clase_nombre}">{escapar_html(nombre)}</td>\n'
+            f"                    <td>{escapar_html(valores[0])}</td>\n"
+            f"                    <td>{escapar_html(valores[1])}</td>\n"
+            f"                    <td>{escapar_html(valores[2])}</td>\n"
+            "                </tr>"
+        )
+
+    contenido = "".join(filas)
+    return patron.sub(rf"\g<1>{contenido}\n            \g<2>", html_content, count=1)
+
+
 def inject_subject_grades(html_content, materias_data):
+    html_content = inject_optativas_bgu3(html_content, materias_data)
     for sub_name, data in materias_data.items():
+        metadatos = completar_metadatos_asignatura(sub_name, data)
+        if metadatos.get("es_optativa_bgu3"):
+            continue
         escaped_sub = re.escape(sub_name)
         tr_pattern = re.compile(
             rf'<tr[^>]*>\s*<td[^>]*>\s*{escaped_sub}[\s\S]*?</td>[\s\S]*?</tr>',
@@ -1201,8 +1339,9 @@ def inject_subject_grades(html_content, materias_data):
             try:
                 grades = [
                     float(v.get("nota_final", 0.0) or v.get("promedio_anual", 0.0))
-                    for v in materias_data.values()
+                    for nombre, v in materias_data.items()
                     if v.get("tipo", "cuantitativa") != "cualitativa"
+                    and completar_metadatos_asignatura(nombre, v).get("permite_supletorio", True)
                     and (v.get("nota_final") is not None or v.get("promedio_anual") is not None)
                 ]
                 promedio_val = f"{(sum(grades) / len(grades)):.2f}" if grades else "-"
@@ -1324,8 +1463,10 @@ def generar_certificados_inicial(payload):
     for est in estudiantes:
         materias = est.get("materias", {})
         for sub_name, m_data in list(materias.items()):
-            tipo = m_data.get("tipo", tipo_asignatura(sub_name))
-            m_data["tipo"] = tipo
+            metadatos = completar_metadatos_asignatura(sub_name, m_data)
+            for campo in CAMPOS_METADATOS_ASIGNATURA:
+                m_data[campo] = metadatos[campo]
+            tipo = metadatos["tipo"]
             if tipo == "cualitativa":
                 m_data["t1"] = mostrar_valor(m_data.get("t1"))
                 m_data["t2"] = mostrar_valor(m_data.get("t2"))
@@ -1347,6 +1488,10 @@ def generar_certificados_inicial(payload):
             m_data["promedio_anual"] = p_anual
             if m_data.get("nota_final") is None:
                 m_data["nota_final"] = p_anual
+            if not metadatos["permite_supletorio"]:
+                m_data["supletorio"] = None
+                m_data["estado"] = None
+                continue
                 
             if 4.01 <= p_anual <= 6.99:
                 nivel_str = inst.get("nivel", "")
@@ -1386,7 +1531,8 @@ def generar_certificados_inicial(payload):
 
 def actualizar_certificado_supletorio(student_id, asignatura, nota_supletorio, cert_output_dir=None):
     """Actualiza un certificado HTML existente con la nota de supletorio."""
-    if tipo_asignatura(asignatura) == "cualitativa":
+    metadatos = completar_metadatos_asignatura(asignatura)
+    if metadatos["tipo"] == "cualitativa" or not metadatos["permite_supletorio"]:
         return False
     # Buscar en el directorio de salida proporcionado, o fallback
     if cert_output_dir:
@@ -1559,7 +1705,14 @@ def main():
             # Calcular promedios para la tabla
             estudiantes_tabla = []
             for est in estudiantes:
-                grades_list = [v for v in est["notas"].values() if isinstance(v, (int, float))]
+                grades_list = [
+                    valor
+                    for nombre, valor in est["notas"].items()
+                    if isinstance(valor, (int, float))
+                    and est.get("metadatos_asignaturas", {})
+                        .get(nombre, metadatos_asignatura(nombre))
+                        .get("permite_supletorio", True)
+                ]
                 prom = sum(grades_list) / len(grades_list) if grades_list else None
                 estudiantes_tabla.append({
                     "cedula": est["cedula"],
