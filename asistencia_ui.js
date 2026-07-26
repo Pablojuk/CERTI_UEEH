@@ -19,16 +19,87 @@ async function persistirAsistencia() {
     return true;
 }
 
+function toggleCollapsibleSection(contentId, chevronId, headerId, onOpen) {
+    const contenido = document.getElementById(contentId);
+    const icono = document.getElementById(chevronId);
+    const cabecera = document.getElementById(headerId);
+    if (!contenido || !icono || !cabecera) return false;
+
+    const abrir = cabecera.getAttribute('aria-expanded') !== 'true';
+    if (typeof contenido.getAnimations === 'function') {
+        contenido.getAnimations().forEach(animacion => animacion.cancel());
+    }
+
+    cabecera.setAttribute('aria-expanded', String(abrir));
+    cabecera.classList.toggle('bg-indigo-50', abrir);
+    cabecera.classList.toggle('border-indigo-200', abrir);
+    icono.classList.toggle('rotate-180', abrir);
+
+    const limpiarEstilosAnimacion = () => {
+        contenido.style.height = '';
+        contenido.style.opacity = '';
+        contenido.style.overflow = '';
+    };
+
+    if (abrir) {
+        contenido.classList.remove('hidden');
+        if (typeof onOpen === 'function') onOpen();
+    }
+
+    if (typeof contenido.animate !== 'function') {
+        contenido.classList.toggle('hidden', !abrir);
+        limpiarEstilosAnimacion();
+        return abrir;
+    }
+
+    contenido.style.overflow = 'hidden';
+    const alturaContenido = contenido.scrollHeight;
+    const fotogramas = abrir
+        ? [
+            { height: '0px', opacity: 0 },
+            { height: `${alturaContenido}px`, opacity: 1 }
+        ]
+        : [
+            { height: `${alturaContenido}px`, opacity: 1 },
+            { height: '0px', opacity: 0 }
+        ];
+    const animacion = contenido.animate(fotogramas, {
+        duration: 250,
+        easing: abrir ? 'ease-out' : 'ease-in'
+    });
+
+    animacion.onfinish = () => {
+        const sigueAbierto = cabecera.getAttribute('aria-expanded') === 'true';
+        contenido.classList.toggle('hidden', !sigueAbierto);
+        limpiarEstilosAnimacion();
+    };
+
+    return abrir;
+}
+
+function toggleDatosInstitucion() {
+    return toggleCollapsibleSection(
+        'institucion-content',
+        'institucion-menu-icon',
+        'institucion-menu-btn'
+    );
+}
+
+function toggleGestionEstudiantes() {
+    return toggleCollapsibleSection(
+        'gestion-estudiantes-content',
+        'gestion-estudiantes-menu-icon',
+        'gestion-estudiantes-menu-btn'
+    );
+}
+
 function abrirModuloAsistencia() {
-    const vista = document.getElementById('asistencia-view');
-    const boton = document.getElementById('asistencia-menu-btn');
-    const icono = document.getElementById('asistencia-menu-icon');
-    const abrir = vista.classList.contains('hidden');
-    vista.classList.toggle('hidden', !abrir);
-    boton.classList.toggle('bg-indigo-50', abrir);
-    boton.classList.toggle('border-indigo-200', abrir);
-    icono.className = `fa-solid ${abrir ? 'fa-chevron-up' : 'fa-chevron-down'} text-slate-400`;
-    if (abrir) renderModuloAsistencia();
+    return toggleCollapsibleSection(
+        'asistencia-view',
+        'asistencia-menu-icon',
+        'asistencia-menu-btn',
+        renderModuloAsistencia
+    );
 }
 
 function cambiarTrimestreAsistencia() {
@@ -560,4 +631,8 @@ function inyectarAsistenciaDocumento(doc, estudiante) {
             celda.textContent = String(valores[clave]);
         }
     });
+}
+
+if (typeof module === 'object' && module.exports) {
+    module.exports = { toggleCollapsibleSection };
 }

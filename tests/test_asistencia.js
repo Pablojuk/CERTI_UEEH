@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const asistencia = require('../asistencia.js');
+const { toggleCollapsibleSection } = require('../asistencia_ui.js');
 
 const raiz = path.resolve(__dirname, '..');
 
@@ -210,6 +211,98 @@ test('la opción de asistencia está debajo de Gestión de Estudiantes y tiene v
     assert.match(html, /id="asistencia-trimestre"/);
     assert.match(html, /id="asistencia-calendario"/);
     assert.match(html, /id="asistencia-buscar"/);
+});
+
+test('las tres secciones comparten cabeceras plegables accesibles e identificadores únicos', () => {
+    const html = fs.readFileSync(path.join(raiz, 'index.html'), 'utf8');
+    const acordeones = [
+        ['institucion-menu-btn', 'institucion-content', 'institucion-menu-icon'],
+        ['gestion-estudiantes-menu-btn', 'gestion-estudiantes-content', 'gestion-estudiantes-menu-icon'],
+        ['asistencia-menu-btn', 'asistencia-view', 'asistencia-menu-icon']
+    ];
+
+    acordeones.forEach(([botonId, contenidoId, iconoId]) => {
+        assert.match(
+            html,
+            new RegExp(`<button id="${botonId}"[^>]*[\\s\\S]*?aria-expanded="false"[^>]*aria-controls="${contenidoId}"`)
+        );
+        assert.match(html, new RegExp(`<div id="${contenidoId}" class="hidden`));
+        assert.match(html, new RegExp(`id="${iconoId}"[^>]*fa-chevron-down[^>]*transition-transform`));
+        [botonId, contenidoId, iconoId].forEach(id => {
+            assert.equal((html.match(new RegExp(`id="${id}"`, 'g')) || []).length, 1);
+        });
+    });
+});
+
+test('el acordeón conserva estado, flecha e independencia después de diez aperturas y cierres', () => {
+    const crearClases = (...iniciales) => {
+        const clases = new Set(iniciales);
+        return {
+            contains: clase => clases.has(clase),
+            add: clase => clases.add(clase),
+            remove: clase => clases.delete(clase),
+            toggle(clase, forzar) {
+                const activo = forzar === undefined ? !clases.has(clase) : forzar;
+                if (activo) clases.add(clase);
+                else clases.delete(clase);
+                return activo;
+            }
+        };
+    };
+    const crearAcordeon = prefijo => {
+        const atributos = new Map([['aria-expanded', 'false']]);
+        return {
+            contenido: {
+                id: `${prefijo}-content`,
+                classList: crearClases('hidden'),
+                style: {},
+                scrollHeight: 1200
+            },
+            icono: {
+                id: `${prefijo}-icon`,
+                classList: crearClases()
+            },
+            cabecera: {
+                id: `${prefijo}-button`,
+                classList: crearClases(),
+                getAttribute: nombre => atributos.get(nombre) ?? null,
+                setAttribute: (nombre, valor) => atributos.set(nombre, valor)
+            }
+        };
+    };
+
+    const institucion = crearAcordeon('institucion');
+    const gestion = crearAcordeon('gestion');
+    const elementos = new Map([
+        [institucion.contenido.id, institucion.contenido],
+        [institucion.icono.id, institucion.icono],
+        [institucion.cabecera.id, institucion.cabecera],
+        [gestion.contenido.id, gestion.contenido],
+        [gestion.icono.id, gestion.icono],
+        [gestion.cabecera.id, gestion.cabecera]
+    ]);
+    const documentoAnterior = global.document;
+    global.document = { getElementById: id => elementos.get(id) || null };
+
+    try {
+        for (let clic = 1; clic <= 10; clic += 1) {
+            const abierto = clic % 2 === 1;
+            assert.equal(
+                toggleCollapsibleSection(
+                    institucion.contenido.id,
+                    institucion.icono.id,
+                    institucion.cabecera.id
+                ),
+                abierto
+            );
+            assert.equal(institucion.cabecera.getAttribute('aria-expanded'), String(abierto));
+            assert.equal(institucion.contenido.classList.contains('hidden'), !abierto);
+            assert.equal(institucion.icono.classList.contains('rotate-180'), abierto);
+            assert.equal(gestion.cabecera.getAttribute('aria-expanded'), 'false');
+        }
+    } finally {
+        global.document = documentoAnterior;
+    }
 });
 
 test('la persistencia reutiliza el store actual y agrega asistencia dentro del curso', () => {
