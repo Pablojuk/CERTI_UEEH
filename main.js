@@ -4,6 +4,146 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 
 let mainWindow;
+let descargaFormatoEnCurso = false;
+
+const FORMATOS_NOTAS = Object.freeze({
+    egb_2_7: Object.freeze({
+        archivoInterno: 'formato_2_a_7_egb.xlsx',
+        nombreDescarga: 'FORMATO PARA 2.º a 7.º EGB.xlsx',
+        tituloDialogo: 'Guardar formato para 2.º a 7.º de EGB'
+    }),
+    egb_8_10: Object.freeze({
+        archivoInterno: 'formato_8_a_10_egb.xlsx',
+        nombreDescarga: 'FORMATO PARA 8.º a 10.º EGB.xlsx',
+        tituloDialogo: 'Guardar formato para 8.º a 10.º de EGB'
+    }),
+    bgu_1_2: Object.freeze({
+        archivoInterno: 'formato_1_y_2_bgu.xlsx',
+        nombreDescarga: 'FORMATO PARA 1.º y 2.º BGU.xlsx',
+        tituloDialogo: 'Guardar formato para 1.º y 2.º de BGU'
+    }),
+    bgu_3: Object.freeze({
+        archivoInterno: 'formato_3_bgu.xlsx',
+        nombreDescarga: 'FORMATO PARA 3.º BGU.xlsx',
+        tituloDialogo: 'Guardar formato para 3.º de BGU'
+    })
+});
+
+const MENSAJES_FORMATOS_NOTAS = Object.freeze({
+    invalido: 'La opción seleccionada no corresponde a un formato autorizado.',
+    noDisponible: 'No se encontró el formato seleccionado dentro de los recursos de la aplicación. Vuelva a instalar la aplicación o comuníquese con el administrador.',
+    copiaFallida: 'No fue posible copiar el archivo en la ubicación seleccionada. Verifique los permisos de la carpeta e intente nuevamente.',
+    enCurso: 'Ya existe una descarga de formato en curso.'
+});
+
+function obtenerDirectorioFormatosNotas(
+    appActual = app,
+    resourcesPathActual = process.resourcesPath,
+    directorioDesarrollo = __dirname
+) {
+    const base = appActual && appActual.isPackaged
+        ? resourcesPathActual
+        : directorioDesarrollo;
+    return path.join(base, 'assets', 'formatos-notas');
+}
+
+async function descargarFormatoNotasSeguro(formatoId, dependencias = {}) {
+    if (
+        typeof formatoId !== 'string'
+        || !Object.prototype.hasOwnProperty.call(FORMATOS_NOTAS, formatoId)
+    ) {
+        return {
+            success: false,
+            cancelled: false,
+            code: 'FORMATO_INVALIDO',
+            error: MENSAJES_FORMATOS_NOTAS.invalido
+        };
+    }
+
+    const formato = FORMATOS_NOTAS[formatoId];
+    const fsActual = dependencias.fs || fs;
+    const pathActual = dependencias.path || path;
+    const dialogActual = dependencias.dialog || dialog;
+    const appActual = dependencias.app || app;
+    const ventanaActual = dependencias.mainWindow || mainWindow;
+    const resourcesPathActual = dependencias.resourcesPath || process.resourcesPath;
+    const directorio = dependencias.directorioFormatos || obtenerDirectorioFormatosNotas(
+        appActual,
+        resourcesPathActual,
+        __dirname
+    );
+    const directorioResuelto = pathActual.resolve(directorio);
+    const sourcePath = pathActual.resolve(directorioResuelto, formato.archivoInterno);
+    const rutaRelativa = pathActual.relative(directorioResuelto, sourcePath);
+
+    if (rutaRelativa.startsWith('..') || pathActual.isAbsolute(rutaRelativa)) {
+        console.error('[descargar-formato] La ruta interna salió del directorio autorizado.');
+        return {
+            success: false,
+            cancelled: false,
+            code: 'FORMATO_INVALIDO',
+            error: MENSAJES_FORMATOS_NOTAS.invalido
+        };
+    }
+
+    try {
+        const estado = fsActual.statSync(sourcePath);
+        if (!estado.isFile()) throw new Error('El recurso no es un archivo regular.');
+        fsActual.accessSync(sourcePath, fsActual.constants.R_OK);
+    } catch (error) {
+        console.error(`[descargar-formato] Recurso no disponible para ${formatoId}:`, error);
+        return {
+            success: false,
+            cancelled: false,
+            code: 'FORMATO_NO_DISPONIBLE',
+            error: MENSAJES_FORMATOS_NOTAS.noDisponible
+        };
+    }
+
+    let result;
+    try {
+        result = await dialogActual.showSaveDialog(ventanaActual, {
+            title: formato.tituloDialogo,
+            defaultPath: pathActual.join(appActual.getPath('downloads'), formato.nombreDescarga),
+            filters: [
+                { name: 'Archivo de Excel', extensions: ['xlsx'] }
+            ]
+        });
+    } catch (error) {
+        console.error(`[descargar-formato] No se pudo abrir el diálogo para ${formatoId}:`, error);
+        return {
+            success: false,
+            cancelled: false,
+            code: 'COPIA_FALLIDA',
+            error: MENSAJES_FORMATOS_NOTAS.copiaFallida
+        };
+    }
+
+    if (result.canceled || !result.filePath) {
+        return { success: false, cancelled: true };
+    }
+
+    try {
+        fsActual.copyFileSync(sourcePath, result.filePath);
+        return {
+            success: true,
+            cancelled: false,
+            path: result.filePath,
+            nombre: formato.nombreDescarga,
+            formatoId
+        };
+    } catch (error) {
+        console.error(`[descargar-formato] Error al copiar ${formatoId}:`, error);
+        return {
+            success: false,
+            cancelled: false,
+            code: 'COPIA_FALLIDA',
+            error: MENSAJES_FORMATOS_NOTAS.copiaFallida
+        };
+    }
+}
+
+if (app && BrowserWindow && ipcMain && dialog) {
 
 function createWindow() {
     mainWindow = new BrowserWindow({
@@ -66,31 +206,22 @@ ipcMain.handle('seleccionar-archivo', async (event, opciones = {}) => {
     return result.filePaths[0];
 });
 
-// IPC: Descargar formato Excel de notas
-ipcMain.handle('descargar-formato', async () => {
+// IPC: Descargar un formato Excel autorizado
+ipcMain.handle('descargar-formato', async (event, formatoId) => {
+    if (descargaFormatoEnCurso) {
+        return {
+            success: false,
+            cancelled: false,
+            code: 'DESCARGA_EN_CURSO',
+            error: MENSAJES_FORMATOS_NOTAS.enCurso
+        };
+    }
+
+    descargaFormatoEnCurso = true;
     try {
-        const sourcePath = path.join(__dirname, 'FORMATO PARA CARGAR LAS NOTAS.xlsx');
-        if (!fs.existsSync(sourcePath)) {
-            return { success: false, error: "El archivo oficial de formato 'FORMATO PARA CARGAR LAS NOTAS.xlsx' no existe en el directorio de la aplicación." };
-        }
-        
-        const result = await dialog.showSaveDialog(mainWindow, {
-            title: "Guardar Formato de Carga de Notas",
-            defaultPath: path.join(app.getPath('downloads'), "FORMATO PARA CARGAR LAS NOTAS.xlsx"),
-            filters: [
-                { name: "Archivos de Excel", extensions: ["xlsx"] }
-            ]
-        });
-
-        if (result.canceled || !result.filePath) {
-            return { success: false, cancelled: true };
-        }
-
-        fs.copyFileSync(sourcePath, result.filePath);
-        return { success: true, path: result.filePath };
-    } catch (error) {
-        console.error("Error al descargar formato:", error);
-        return { success: false, error: error.message };
+        return await descargarFormatoNotasSeguro(formatoId);
+    } finally {
+        descargaFormatoEnCurso = false;
     }
 });
 
@@ -447,3 +578,11 @@ ipcMain.handle('abrir-vista-previa-certificado', async (event, htmlContent) => {
         return { success: false, error: error.message };
     }
 });
+}
+
+module.exports = {
+    FORMATOS_NOTAS,
+    MENSAJES_FORMATOS_NOTAS,
+    obtenerDirectorioFormatosNotas,
+    descargarFormatoNotasSeguro
+};

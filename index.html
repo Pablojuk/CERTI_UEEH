@@ -11,6 +11,14 @@
         body { font-family: 'Inter', sans-serif; }
         /* Animaciones suaves */
         .transition-all { transition-property: all; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 300ms; }
+        /* Respaldo funcional para el modal cuando Tailwind no está disponible sin conexión. */
+        #formatos-notas-modal.hidden,
+        #formatos-notas-modal .hidden {
+            display: none !important;
+        }
+        #formatos-notas-modal:not(.hidden) {
+            display: flex;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen pb-12">
@@ -26,8 +34,8 @@
             </div>
         </div>
         <div class="flex items-center gap-4">
-            <button onclick="descargarFormatoExcel()" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 transition-all bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-full border border-indigo-200">
-                <i class="fa-solid fa-file-arrow-down"></i> Descargar Formato
+            <button id="btn-abrir-formatos-notas" type="button" onclick="abrirModalFormatosNotas()" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 transition-all bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-full border border-indigo-200">
+                <i class="fa-solid fa-file-arrow-down"></i> Descargar formatos
             </button>
             <div class="relative hidden md:block">
                 <i class="fa-solid fa-search absolute left-3 top-2.5 text-slate-400 text-sm"></i>
@@ -543,6 +551,101 @@
                 <button type="button" onclick="guardarCambiosAsistencia()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm font-semibold">
                     <i class="fa-solid fa-floppy-disk mr-1"></i> Guardar cambios
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de descarga de formatos oficiales de notas -->
+    <div id="formatos-notas-modal"
+        class="hidden fixed inset-0 z-[80] overflow-y-auto bg-slate-900/60 p-4 flex items-center justify-center"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="formatos-notas-modal-title"
+        aria-describedby="formatos-notas-modal-description"
+        aria-hidden="true"
+        onclick="if (event.target === event.currentTarget) cerrarModalFormatosNotas()">
+        <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-5xl w-full max-h-[92vh] overflow-y-auto">
+            <div class="p-5 sm:p-6 border-b border-slate-200 flex items-start justify-between gap-4">
+                <div>
+                    <h3 id="formatos-notas-modal-title" class="text-xl font-bold text-slate-900">Descargar formato de notas</h3>
+                    <p id="formatos-notas-modal-description" class="text-sm text-slate-500 mt-1">Seleccione el formato correspondiente al nivel o curso que va a registrar.</p>
+                </div>
+                <button id="btn-cerrar-formatos-notas" type="button" onclick="cerrarModalFormatosNotas()" class="text-slate-400 hover:text-rose-600 p-2 rounded-lg hover:bg-rose-50 transition-all" aria-label="Cerrar selección de formatos">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <div class="p-5 sm:p-6">
+                <div id="formatos-notas-sin-recomendacion" class="hidden mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
+                    <i class="fa-solid fa-circle-info mr-1"></i>
+                    Todavía no existe un formato específico para el curso activo. Puede seleccionar manualmente uno de los formatos disponibles si corresponde.
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <article data-formato-card data-formato-id="egb_2_7" class="relative rounded-xl border border-slate-200 p-5 bg-white transition-all">
+                        <span data-formato-recomendado class="hidden absolute right-4 top-4 rounded-full bg-emerald-100 text-emerald-700 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide">
+                            <i class="fa-solid fa-star mr-1"></i> Recomendado
+                        </span>
+                        <div class="w-11 h-11 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center mb-4">
+                            <i class="fa-solid fa-school text-xl"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-900 pr-24">2.º a 7.º de EGB</h4>
+                        <p class="text-sm text-slate-500 mt-2 min-h-[2.5rem]">Formato para los cursos desde segundo hasta séptimo de Educación General Básica.</p>
+                        <p class="mt-3 rounded-md bg-slate-50 border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 break-words">FORMATO PARA 2.º a 7.º EGB.xlsx</p>
+                        <button type="button" data-formato-descargar data-formato-id="egb_2_7" onclick="descargarFormatoNotas('egb_2_7')" class="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-wait text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-all">
+                            <i class="fa-solid fa-download mr-1"></i> <span data-formato-boton-texto>Descargar</span>
+                        </button>
+                    </article>
+
+                    <article data-formato-card data-formato-id="egb_8_10" class="relative rounded-xl border border-slate-200 p-5 bg-white transition-all">
+                        <span data-formato-recomendado class="hidden absolute right-4 top-4 rounded-full bg-emerald-100 text-emerald-700 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide">
+                            <i class="fa-solid fa-star mr-1"></i> Recomendado
+                        </span>
+                        <div class="w-11 h-11 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center mb-4">
+                            <i class="fa-solid fa-user-graduate text-xl"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-900 pr-24">8.º a 10.º de EGB</h4>
+                        <p class="text-sm text-slate-500 mt-2 min-h-[2.5rem]">Formato para los cursos desde octavo hasta décimo de Educación General Básica.</p>
+                        <p class="mt-3 rounded-md bg-slate-50 border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 break-words">FORMATO PARA 8.º a 10.º EGB.xlsx</p>
+                        <button type="button" data-formato-descargar data-formato-id="egb_8_10" onclick="descargarFormatoNotas('egb_8_10')" class="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-wait text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-all">
+                            <i class="fa-solid fa-download mr-1"></i> <span data-formato-boton-texto>Descargar</span>
+                        </button>
+                    </article>
+
+                    <article data-formato-card data-formato-id="bgu_1_2" class="relative rounded-xl border border-slate-200 p-5 bg-white transition-all">
+                        <span data-formato-recomendado class="hidden absolute right-4 top-4 rounded-full bg-emerald-100 text-emerald-700 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide">
+                            <i class="fa-solid fa-star mr-1"></i> Recomendado
+                        </span>
+                        <div class="w-11 h-11 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center mb-4">
+                            <i class="fa-solid fa-book-open-reader text-xl"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-900 pr-24">1.º y 2.º de BGU</h4>
+                        <p class="text-sm text-slate-500 mt-2 min-h-[2.5rem]">Formato para primero y segundo de Bachillerato General Unificado.</p>
+                        <p class="mt-3 rounded-md bg-slate-50 border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 break-words">FORMATO PARA 1.º y 2.º BGU.xlsx</p>
+                        <button type="button" data-formato-descargar data-formato-id="bgu_1_2" onclick="descargarFormatoNotas('bgu_1_2')" class="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-wait text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-all">
+                            <i class="fa-solid fa-download mr-1"></i> <span data-formato-boton-texto>Descargar</span>
+                        </button>
+                    </article>
+
+                    <article data-formato-card data-formato-id="bgu_3" class="relative rounded-xl border border-slate-200 p-5 bg-white transition-all">
+                        <span data-formato-recomendado class="hidden absolute right-4 top-4 rounded-full bg-emerald-100 text-emerald-700 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide">
+                            <i class="fa-solid fa-star mr-1"></i> Recomendado
+                        </span>
+                        <div class="w-11 h-11 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center mb-4">
+                            <i class="fa-solid fa-flask-vial text-xl"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-900 pr-24">3.º de BGU</h4>
+                        <p class="text-sm text-slate-500 mt-2 min-h-[2.5rem]">Formato específico para tercero de Bachillerato, compatible con sus asignaturas optativas.</p>
+                        <p class="mt-3 rounded-md bg-slate-50 border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 break-words">FORMATO PARA 3.º BGU.xlsx</p>
+                        <button type="button" data-formato-descargar data-formato-id="bgu_3" onclick="descargarFormatoNotas('bgu_3')" class="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-wait text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-all">
+                            <i class="fa-solid fa-download mr-1"></i> <span data-formato-boton-texto>Descargar</span>
+                        </button>
+                    </article>
+                </div>
+            </div>
+
+            <div class="p-5 sm:px-6 border-t border-slate-200 flex justify-end">
+                <button type="button" onclick="cerrarModalFormatosNotas()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-md text-sm font-semibold hover:bg-slate-200 transition-all">Cancelar</button>
             </div>
         </div>
     </div>
@@ -1175,19 +1278,137 @@
             }
         }
 
-        // Descargar Formato Excel
-        async function descargarFormatoExcel() {
-            try {
-                const res = await window.electronAPI.descargarFormato();
-                if (res.success) {
-                    mostrarAlerta("Formato Descargado", `El archivo oficial se guardó correctamente en:<br><strong class="text-xs break-all">${res.path}</strong>`, "success");
-                } else if (!res.cancelled) {
-                    mostrarAlerta("Error al descargar", res.error || "Ocurrió un error inesperado.", "error");
+        // Descarga segura de formatos oficiales de notas
+        const FORMATOS_NOTAS_IDS = Object.freeze(['egb_2_7', 'egb_8_10', 'bgu_1_2', 'bgu_3']);
+        let descargaFormatoNotasEnCurso = false;
+        let focoAnteriorModalFormatos = null;
+
+        function obtenerFormatoRecomendadoCursoActivo() {
+            const curso = obtenerCursoActivo();
+            if (!curso) return null;
+            const grado = curso.datosInstitucion?.gradoCurso || curso.nombreVisible || '';
+            const codigo = codigoGradoCatalogo(grado);
+            const mapeo = {
+                EGB_ELEMENTAL: 'egb_2_7',
+                EGB_MEDIA: 'egb_2_7',
+                EGB_SUPERIOR: 'egb_8_10',
+                BGU_1: 'bgu_1_2',
+                BGU_2: 'bgu_1_2',
+                BGU_3: 'bgu_3'
+            };
+            return mapeo[codigo] || null;
+        }
+
+        function actualizarFormatoRecomendado() {
+            const recomendado = obtenerFormatoRecomendadoCursoActivo();
+            const nota = document.getElementById('formatos-notas-sin-recomendacion');
+            const curso = obtenerCursoActivo();
+
+            document.querySelectorAll('[data-formato-card]').forEach(tarjeta => {
+                const activo = tarjeta.dataset.formatoId === recomendado;
+                tarjeta.classList.toggle('border-emerald-400', activo);
+                tarjeta.classList.toggle('ring-2', activo);
+                tarjeta.classList.toggle('ring-emerald-200', activo);
+                tarjeta.classList.toggle('bg-emerald-50/30', activo);
+                tarjeta.querySelector('[data-formato-recomendado]')?.classList.toggle('hidden', !activo);
+                if (activo) tarjeta.setAttribute('aria-label', 'Formato recomendado para el curso activo');
+                else tarjeta.removeAttribute('aria-label');
+            });
+
+            if (!recomendado) {
+                nota.classList.remove('hidden');
+                if (!curso) {
+                    nota.textContent = 'Seleccione o cree un curso para obtener una recomendación. Puede elegir manualmente cualquiera de los formatos disponibles.';
+                } else {
+                    nota.textContent = 'Todavía no existe un formato específico para el curso activo. Puede seleccionar manualmente uno de los formatos disponibles si corresponde.';
                 }
-            } catch (err) {
-                mostrarAlerta("Error", "No se pudo comunicar con el proceso principal de Electron.", "error");
+            } else {
+                nota.classList.add('hidden');
+            }
+
+            return recomendado;
+        }
+
+        function abrirModalFormatosNotas() {
+            const modal = document.getElementById('formatos-notas-modal');
+            if (!modal) return;
+            focoAnteriorModalFormatos = document.activeElement;
+            actualizarFormatoRecomendado();
+            modal.classList.remove('hidden');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('overflow-hidden');
+            document.getElementById('btn-cerrar-formatos-notas')?.focus();
+        }
+
+        function cerrarModalFormatosNotas() {
+            const modal = document.getElementById('formatos-notas-modal');
+            if (!modal || modal.classList.contains('hidden')) return;
+            modal.classList.add('hidden');
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('overflow-hidden');
+            if (focoAnteriorModalFormatos && typeof focoAnteriorModalFormatos.focus === 'function') {
+                focoAnteriorModalFormatos.focus();
+            }
+            focoAnteriorModalFormatos = null;
+        }
+
+        async function descargarFormatoNotas(formatoId) {
+            if (!FORMATOS_NOTAS_IDS.includes(formatoId) || descargaFormatoNotasEnCurso) return;
+
+            const boton = document.querySelector(`[data-formato-descargar][data-formato-id="${formatoId}"]`);
+            const textoBoton = boton?.querySelector('[data-formato-boton-texto]');
+            const botones = Array.from(document.querySelectorAll('[data-formato-descargar]'));
+            descargaFormatoNotasEnCurso = true;
+            botones.forEach(elemento => { elemento.disabled = true; });
+            if (textoBoton) textoBoton.textContent = 'Descargando...';
+
+            try {
+                const res = await window.electronAPI.descargarFormato(formatoId);
+                if (res?.success) {
+                    const nombreSeguro = escaparHTMLDiagnostico(res.nombre || '');
+                    const rutaSegura = escaparHTMLDiagnostico(res.path || '');
+                    cerrarModalFormatosNotas();
+                    mostrarAlerta(
+                        'Formato descargado',
+                        `El formato “${nombreSeguro}” se guardó correctamente en:<br><strong class="text-xs break-all">${rutaSegura}</strong>`,
+                        'success'
+                    );
+                    return;
+                }
+                if (res?.cancelled) return;
+
+                const titulosPorCodigo = {
+                    FORMATO_INVALIDO: 'Formato no válido',
+                    FORMATO_NO_DISPONIBLE: 'Formato no disponible',
+                    COPIA_FALLIDA: 'No se pudo guardar el formato',
+                    DESCARGA_EN_CURSO: 'Descarga en curso'
+                };
+                mostrarAlerta(
+                    titulosPorCodigo[res?.code] || 'No se pudo descargar el formato',
+                    escaparHTMLDiagnostico(res?.error || 'Ocurrió un error inesperado.'),
+                    'error'
+                );
+            } catch (error) {
+                console.error('No se pudo invocar la descarga del formato:', error);
+                mostrarAlerta(
+                    'No se pudo descargar el formato',
+                    'No fue posible comunicarse con el proceso principal de la aplicación.',
+                    'error'
+                );
+            } finally {
+                descargaFormatoNotasEnCurso = false;
+                botones.forEach(elemento => { elemento.disabled = false; });
+                if (textoBoton) textoBoton.textContent = 'Descargar';
             }
         }
+
+        document.addEventListener('keydown', event => {
+            if (event.key !== 'Escape') return;
+            const modal = document.getElementById('formatos-notas-modal');
+            if (modal && !modal.classList.contains('hidden')) {
+                cerrarModalFormatosNotas();
+            }
+        });
 
         // Modal de Curso: Crear/Editar
         let cursoModalMode = 'crear';
@@ -2262,7 +2483,7 @@
             if (estudiantes.length === 0) {
                 const noCourses = appState.cursos.length === 0;
                 body.innerHTML = `
-                    <tr id="empty-row">
+                    <tr id="empty-row-rendered">
                         <td colspan="6" class="p-8 text-center text-slate-400">
                             <i class="fa-solid fa-folder-open text-2xl mb-2 block"></i>
                             ${noCourses ? 'Primero debe crear un curso antes de cargar las notas.' : 'Cargue los archivos de notas de los trimestres para visualizar los estudiantes.'}

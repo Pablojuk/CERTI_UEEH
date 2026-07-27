@@ -5,6 +5,8 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "build": "electron-builder --win nsis",
+    "build:dir": "electron-builder --dir",
     "postinstall": "electron-builder install-app-deps || echo postinstall-skip"
   },
   "keywords": [
@@ -17,6 +19,50 @@
   "author": "Econ. Pablo Juca",
   "license": "ISC",
   "devDependencies": {
-    "electron": "33.3.1"
+    "electron": "33.3.1",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "ec.edu.ueeh.certi",
+    "productName": "CERTI_UEEH",
+    "asar": true,
+    "files": [
+      "index.html",
+      "main.js",
+      "preload.js",
+      "asistencia.js",
+      "asistencia_ui.js",
+      "procesador_notas.py",
+      "catalogo_asignaturas.py",
+      "catalogo_asignaturas.json",
+      "requirements.txt",
+      "assets/certificados/**/*",
+      "!assets/formatos-notas/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "assets/formatos-notas",
+        "to": "assets/formatos-notas",
+        "filter": [
+          "*.xlsx"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "CERTI_UEEH-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }
