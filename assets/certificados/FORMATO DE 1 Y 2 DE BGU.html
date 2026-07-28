@@ -218,54 +218,27 @@
             </table>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
-            <!-- Participación Estudiantil -->
-            <div>
-                <h3 class="font-bold text-sm mb-2 uppercase bg-slate-200 p-1 border border-slate-400">Participación Estudiantil</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ASIGNATURA</th>
-                            <th>NOTA 1</th>
-                            <th>NOTA 2</th>
-                            <th>NOTA 3</th>
-                            <th>PROMEDIO</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr data-subject="PARTICIPACIÓN ESTUDIANTIL">
-                            <td class="font-semibold text-left-cell">PARTICIPACIÓN ESTUDIANTIL </td>
-                            <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td>
-                            <td data-academic-value="true" data-academic-field="t2" data-term="t2"></td>
-                            <td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
-                            <td class="font-bold" data-academic-value="true" data-academic-field="final"></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Asistencia -->
-            <div>
-                <h3 class="font-bold text-sm mb-2 uppercase bg-slate-200 p-1 border border-slate-400">Asistencia Anual</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>REGISTRO</th>
-                            <th>JUSTIFICACIÓN</th>
-                            <th>INJUSTIFICADO</th>
-                            <th>TOTAL ASISTENCIA</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td data-asistencia="registro" class="font-semibold text-left-cell"></td>
-                            <td data-asistencia="justificadas"></td>
-                            <td data-asistencia="injustificadas"></td>
-                            <td data-asistencia="total" class="font-bold"></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+        <!-- Asistencia -->
+        <div data-cert-section="asistencia-anual" class="w-full">
+            <h3 class="font-bold text-sm mb-2 uppercase bg-slate-200 p-1 border border-slate-400">Asistencia Anual</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>REGISTRO</th>
+                        <th>JUSTIFICACIÓN</th>
+                        <th>INJUSTIFICADO</th>
+                        <th>TOTAL ASISTENCIA</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td data-asistencia="registro" class="font-semibold text-left-cell"></td>
+                        <td data-asistencia="justificadas"></td>
+                        <td data-asistencia="injustificadas"></td>
+                        <td data-asistencia="total" class="font-bold"></td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
 
     </section>
@@ -274,10 +247,12 @@
     <section class="mt-20 pt-8 pb-8 flex justify-around text-sm font-semibold">
         <div class="text-center w-64">
             <div class="border-b border-slate-800 mb-2 h-8 w-full"></div>
+            <p data-cert-field="tutor-name" class="cert-nombre-firma font-bold text-slate-800 mt-1" style="font-size: 0.75rem;"></p>
             <p>TUTOR/A</p>
         </div>
         <div class="text-center w-64">
             <div class="border-b border-slate-800 mb-2 h-8 w-full"></div>
+            <p data-cert-field="rector-name" class="cert-nombre-firma font-bold text-slate-800 mt-1" style="font-size: 0.75rem;"></p>
             <p>RECTOR/A</p>
         </div>
     </section>

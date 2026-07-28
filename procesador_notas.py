@@ -1130,7 +1130,7 @@ def limpiar_celdas_dinamicas_html(html_content):
 def inyectar_campo_certificado(html_content, campo, valor):
     """Inyecta texto escapado en un campo estable de datos personales o institucionales."""
     patron = re.compile(
-        rf'(<(?P<tag>span|div|h1)\b[^>]*\bdata-cert-field=["\']{re.escape(campo)}["\'][^>]*>)'
+        rf'(<(?P<tag>span|div|h1|p)\b[^>]*\bdata-cert-field=["\']{re.escape(campo)}["\'][^>]*>)'
         rf'[\s\S]*?(</(?P=tag)>)',
         re.IGNORECASE,
     )
@@ -1139,6 +1139,8 @@ def inyectar_campo_certificado(html_content, campo, valor):
 
 
 def inject_student_data_html(html_content, student, inst, logos):
+    tutor_name = inst.get("tutor") or inst.get("tutorCurso") or ""
+    rector_name = inst.get("rector") or inst.get("rectorDirector") or ""
     html_content = inyectar_campo_certificado(
         html_content, "institution-name", inst.get("nombre", "")
     )
@@ -1162,6 +1164,12 @@ def inject_student_data_html(html_content, student, inst, logos):
     )
     html_content = inyectar_campo_certificado(
         html_content, "schedule", inst.get("jornada", "")
+    )
+    html_content = inyectar_campo_certificado(
+        html_content, "tutor-name", tutor_name
+    )
+    html_content = inyectar_campo_certificado(
+        html_content, "rector-name", rector_name
     )
 
     # 1. Reemplazar datos institucionales y del estudiante
@@ -1249,7 +1257,6 @@ def inject_student_data_html(html_content, student, inst, logos):
         html_content = html_content.replace('id="text-logo-2" class="', 'id="text-logo-2" class="hidden ')
 
     # 3. Firmas
-    tutor_name = inst.get("tutor", "")
     if tutor_name:
         tutor_pattern = re.compile(r'<div[^>]*class="[^"]*text-center[^"]*"[\s\S]*?<div[^>]*class="[^"]*border-b[^"]*"[\s\S]*?</div>\s*<p[^>]*>\s*(TUTOR/A|TUTOR|TUTORA)\s*</p>\s*</div>', re.IGNORECASE)
         match = tutor_pattern.search(html_content)
@@ -1266,7 +1273,6 @@ def inject_student_data_html(html_content, student, inst, logos):
                 )
             html_content = html_content.replace(block, new_block)
 
-    rector_name = inst.get("rector", "")
     if rector_name:
         rector_pattern = re.compile(r'<div[^>]*class="[^"]*text-center[^"]*"[\s\S]*?<div[^>]*class="[^"]*border-b[^"]*"[\s\S]*?</div>\s*<p[^>]*>\s*(RECTOR/A|RECTOR|RECTORA|DIRECTOR|DIRECTORA)\s*</p>\s*</div>', re.IGNORECASE)
         match = rector_pattern.search(html_content)

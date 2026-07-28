@@ -3097,6 +3097,8 @@
         }
 
         function _certInjectFirmas(doc, inst) {
+            const tutorNombre = inst.tutorCurso || inst.tutor || '';
+            const rectorNombre = inst.rectorDirector || inst.rector || '';
             doc.querySelectorAll('section p').forEach(p => {
                 const t = p.textContent.trim().toUpperCase();
                 if (t === 'TUTOR/A' || t === 'TUTORA' || t === 'TUTOR') {
@@ -3107,18 +3109,15 @@
                         // Darle altura para dejar espacio de firma (aprox 4 enters de espacio)
                         lineDiv.style.height = '3.5rem';
                         
-                        // Eliminar nombre inyectado anteriormente para evitar duplicados
-                        const prevName = p.parentElement.querySelector('.cert-nombre-firma');
-                        if (prevName) prevName.remove();
-
-                        // Inyectar el nombre del Tutor justo encima de la etiqueta del rol
-                        if (inst.tutorCurso) {
-                            const nameEl = doc.createElement('p');
+                        // Actualizar el campo estable o crearlo para plantillas antiguas.
+                        let nameEl = p.parentElement.querySelector('.cert-nombre-firma');
+                        if (!nameEl && tutorNombre) {
+                            nameEl = doc.createElement('p');
                             nameEl.className = 'cert-nombre-firma font-bold text-slate-800 mt-1';
                             nameEl.style.fontSize = '0.75rem';
-                            nameEl.textContent = inst.tutorCurso;
                             p.parentNode.insertBefore(nameEl, p);
                         }
+                        if (nameEl) nameEl.textContent = tutorNombre;
                     }
                 } else if (t === 'RECTOR/A' || t === 'RECTORA' || t === 'RECTOR' || t === 'DIRECTOR') {
                     const lineDiv = p.parentElement?.querySelector('.border-b');
@@ -3128,18 +3127,15 @@
                         // Darle altura para dejar espacio de firma (aprox 4 enters de espacio)
                         lineDiv.style.height = '3.5rem';
                         
-                        // Eliminar nombre inyectado anteriormente para evitar duplicados
-                        const prevName = p.parentElement.querySelector('.cert-nombre-firma');
-                        if (prevName) prevName.remove();
-
-                        // Inyectar el nombre del Rector justo encima de la etiqueta del rol
-                        if (inst.rectorDirector) {
-                            const nameEl = doc.createElement('p');
+                        // Actualizar el campo estable o crearlo para plantillas antiguas.
+                        let nameEl = p.parentElement.querySelector('.cert-nombre-firma');
+                        if (!nameEl && rectorNombre) {
+                            nameEl = doc.createElement('p');
                             nameEl.className = 'cert-nombre-firma font-bold text-slate-800 mt-1';
                             nameEl.style.fontSize = '0.75rem';
-                            nameEl.textContent = inst.rectorDirector;
                             p.parentNode.insertBefore(nameEl, p);
                         }
+                        if (nameEl) nameEl.textContent = rectorNombre;
                     }
                 }
             });

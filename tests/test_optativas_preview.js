@@ -471,3 +471,10 @@ test('vistaPrevia inyecta optativas antes de notas y no usa innerHTML para sus f
     );
     assert.doesNotMatch(extraerFuncion('_certInjectOptativasBGU3'), /innerHTML/);
 });
+
+test('las firmas aceptan las claves de vista previa y del generador PDF', () => {
+    const firmas = extraerFuncion('_certInjectFirmas');
+    assert.match(firmas, /inst\.tutorCurso\s*\|\|\s*inst\.tutor/);
+    assert.match(firmas, /inst\.rectorDirector\s*\|\|\s*inst\.rector/);
+    assert.match(firmas, /cert-nombre-firma/);
+});
