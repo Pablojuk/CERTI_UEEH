@@ -30,10 +30,10 @@
             
             <div class="text-center flex-1 px-4">
                 <h2 class="font-bold text-lg uppercase tracking-wide">Ministerio de Educación, Deporte y Cultura</h2>
-                <h1 class="font-bold text-xl uppercase mt-1 text-slate-800">UNIDAD EDUCATIVA EMILIANO HINOSTROZA</h1>
+                <h1 class="font-bold text-xl uppercase mt-1 text-slate-800" data-cert-field="institution-name"></h1>
                 <div class="mt-2 text-sm font-semibold flex justify-center gap-6">
-                    <span>AMIE: 01H01289</span>
-                    <span>AÑO LECTIVO: COSTA GALAPAGOS 2025-2026</span>
+                    <span>AMIE: <span data-cert-field="amie"></span></span>
+                    <span>AÑO LECTIVO: <span data-cert-field="school-year"></span></span>
                 </div>
             </div>
 
@@ -48,17 +48,14 @@
 
     <section class="mb-6 flex flex-wrap justify-between text-sm font-medium border border-slate-400 p-3 bg-slate-50">
         <div class="w-full md:w-1/2 mb-2">
-            <span class="font-bold">NOMBRE DEL ESTUDIANTE:</span> GUAMAN PUCHA ANTHONY STALIN
-        </div>
+            <span class="font-bold">NOMBRE DEL ESTUDIANTE:</span> <span data-cert-field="student-name"></span></div>
         <div class="w-full md:w-1/2 mb-2">
-            <span class="font-bold">CÉDULA:</span> 0150658566
+            <span class="font-bold">CÉDULA:</span> <span data-cert-field="student-id"></span>
         </div>
         <div class="w-full md:w-1/2">
-            <span class="font-bold">GRADO:</span> 3RO DE BACHILLERATO CIENCIAS PARALELO: A
-        </div>
+            <span class="font-bold">GRADO:</span> <span data-cert-field="grade"></span></div>
         <div class="w-full md:w-1/2">
-            <span class="font-bold">JORNADA:</span> MATUTINA
-        </div>
+            <span class="font-bold">JORNADA:</span> <span data-cert-field="schedule"></span></div>
     </section>
 
     <section class="mb-6">
@@ -78,81 +75,81 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
+                <tr data-subject="MATEMÁTICA">
                     <td class="text-left-cell font-semibold">MATEMÁTICA</td>
-                    <td>8.8</td>
-                    <td>9.04</td>
-                    <td>8.99</td>
-                    <td>0</td>
-                    <td class="font-bold bg-slate-50">8.94</td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td>
+                    <td data-academic-value="true" data-academic-field="t2" data-term="t2"></td>
+                    <td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
+                    <td data-academic-value="true" data-academic-field="supletorio"></td>
+                    <td class="font-bold bg-slate-50" data-academic-value="true" data-academic-field="final"></td>
                 </tr>
-                <tr>
+                <tr data-subject="FÍSICA">
                     <td class="text-left-cell font-semibold">FÍSICA</td>
-                    <td>9.23</td>
-                    <td>9.54</td>
-                    <td>9.59</td>
-                    <td>0</td>
-                    <td class="font-bold bg-slate-50">9.45</td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td>
+                    <td data-academic-value="true" data-academic-field="t2" data-term="t2"></td>
+                    <td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
+                    <td data-academic-value="true" data-academic-field="supletorio"></td>
+                    <td class="font-bold bg-slate-50" data-academic-value="true" data-academic-field="final"></td>
                 </tr>
-                <tr>
+                <tr data-subject="BIOLOGÍA">
                     <td class="text-left-cell font-semibold">BIOLOGÍA</td>
-                    <td>9.66</td>
-                    <td>9.14</td>
-                    <td>9.37</td>
-                    <td>0</td>
-                    <td class="font-bold bg-slate-50">9.39</td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td>
+                    <td data-academic-value="true" data-academic-field="t2" data-term="t2"></td>
+                    <td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
+                    <td data-academic-value="true" data-academic-field="supletorio"></td>
+                    <td class="font-bold bg-slate-50" data-academic-value="true" data-academic-field="final"></td>
                 </tr>
-                <tr>
+                <tr data-subject="QUÍMICA">
                     <td class="text-left-cell font-semibold">QUÍMICA</td>
-                    <td>9.45</td>
-                    <td>9</td>
-                    <td>8.79</td>
-                    <td>0</td>
-                    <td class="font-bold bg-slate-50">9.08</td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td>
+                    <td data-academic-value="true" data-academic-field="t2" data-term="t2"></td>
+                    <td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
+                    <td data-academic-value="true" data-academic-field="supletorio"></td>
+                    <td class="font-bold bg-slate-50" data-academic-value="true" data-academic-field="final"></td>
                 </tr>
-                <tr>
+                <tr data-subject="HISTORIA">
                     <td class="text-left-cell font-semibold">HISTORIA</td>
-                    <td>9,74</td>
-                    <td>9.59</td>
-                    <td>9.66</td>
-                    <td>0</td>
-                    <td class="font-bold bg-slate-50">9.66</td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td>
+                    <td data-academic-value="true" data-academic-field="t2" data-term="t2"></td>
+                    <td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
+                    <td data-academic-value="true" data-academic-field="supletorio"></td>
+                    <td class="font-bold bg-slate-50" data-academic-value="true" data-academic-field="final"></td>
                 </tr>
-                <tr>
+                <tr data-subject="LENGUA Y LITERATURA">
                     <td class="text-left-cell font-semibold">LENGUA Y LITERATURA</td>
-                    <td>7.69</td>
-                    <td>8.1</td>
-                    <td>7:73</td>
-                    <td>0</td>
-                    <td class="font-bold bg-slate-50">7.84</td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td>
+                    <td data-academic-value="true" data-academic-field="t2" data-term="t2"></td>
+                    <td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
+                    <td data-academic-value="true" data-academic-field="supletorio"></td>
+                    <td class="font-bold bg-slate-50" data-academic-value="true" data-academic-field="final"></td>
                 </tr>
-                <tr>
+                <tr data-subject="INGLÉS">
                     <td class="text-left-cell font-semibold">INGLÉS</td>
-                    <td>9.7</td>
-                    <td>9.61</td>
-                    <td>8.11</td>
-                    <td>0</td>
-                    <td class="font-bold bg-slate-50">9.14</td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td>
+                    <td data-academic-value="true" data-academic-field="t2" data-term="t2"></td>
+                    <td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
+                    <td data-academic-value="true" data-academic-field="supletorio"></td>
+                    <td class="font-bold bg-slate-50" data-academic-value="true" data-academic-field="final"></td>
                 </tr>
-                <tr>
+                <tr data-subject="EDUCACIÓN FÍSICA">
                     <td class="text-left-cell font-semibold">EDUCACIÓN FÍSICA</td>
-                    <td>9.42</td>
-                    <td>9.49</td>
-                    <td>9.39</td>
-                    <td>0</td>
-                    <td class="font-bold bg-slate-50">9.43</td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td>
+                    <td data-academic-value="true" data-academic-field="t2" data-term="t2"></td>
+                    <td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
+                    <td data-academic-value="true" data-academic-field="supletorio"></td>
+                    <td class="font-bold bg-slate-50" data-academic-value="true" data-academic-field="final"></td>
                 </tr>
-                <tr>
+                <tr data-subject="EMPRENDIMIENTO Y GESTIÓN">
                     <td class="text-left-cell font-semibold">EMPRENDIMIENTO Y GESTIÓN</td>
-                    <td>9.57</td>
-                    <td>9.47</td>
-                    <td>9.61</td>
-                    <td>0</td>
-                    <td class="font-bold bg-slate-50">9.55</td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td>
+                    <td data-academic-value="true" data-academic-field="t2" data-term="t2"></td>
+                    <td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
+                    <td data-academic-value="true" data-academic-field="supletorio"></td>
+                    <td class="font-bold bg-slate-50" data-academic-value="true" data-academic-field="final"></td>
                 </tr>
                 <tr class="bg-slate-100 border-t-2 border-slate-600">
                     <td colspan="5" class="text-right font-bold pr-4">PROMEDIO ANUAL</td>
-                    <td class="font-bold text-sm">9.16</td>
+                    <td class="font-bold text-sm" data-academic-value="true" data-academic-field="promedio-general"></td>
                 </tr>
             </tbody>
         </table>
@@ -165,11 +162,11 @@
                 <!-- Filas generadas dinámicamente desde los metadatos del catálogo -->
             </tbody>
             <tbody>
-                <tr>
+                <tr data-subject="CÍVICA Y ACOMPAÑAMIENTO INTEGRAL EN EL AULA">
                     <td class="text-left-cell font-semibold">CÍVICA Y ACOMPAÑAMIENTO INTEGRAL EN EL AULA</td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td>
+                    <td data-academic-value="true" data-academic-field="t2" data-term="t2"></td>
+                    <td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
             </tbody>
         </table>
@@ -181,11 +178,11 @@
             <h3 class="font-bold text-sm mb-2 uppercase bg-slate-200 p-1 border border-slate-400">Evaluación Comportamental</h3>
             <table>
                 <tbody>
-                    <tr>
+                    <tr data-academic-row="comportamiento">
                         <td class="text-left-cell font-semibold w-1/4">EVALUACIÓN COMPORTAMENTAL</td>
-                        <td class="w-1/4">Transforma los desacuerdos en oportunidades de crecimiento y cooperación</td>
-                        <td class="w-1/4">Transforma los desacuerdos en oportunidades de crecimiento y cooperación</td>
-                        <td class="w-1/4">Transforma los desacuerdos en oportunidades de crecimiento y cooperación</td>
+                        <td class="w-1/4" data-academic-value="true" data-academic-field="t1" data-term="t1"></td>
+                        <td class="w-1/4" data-academic-value="true" data-academic-field="t2" data-term="t2"></td>
+                        <td class="w-1/4" data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                     </tr>
                 </tbody>
             </table>

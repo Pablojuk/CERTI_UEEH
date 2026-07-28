@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from decimal import Decimal, InvalidOperation
 from difflib import SequenceMatcher
 import json
 from pathlib import Path
@@ -13,6 +14,34 @@ import unicodedata
 _CATALOGO_PATH = Path(__file__).with_name("catalogo_asignaturas.json")
 with _CATALOGO_PATH.open("r", encoding="utf-8") as archivo_catalogo:
     CATALOGO_ASIGNATURAS = json.load(archivo_catalogo)
+
+_ESCALA_CUALITATIVA_PATH = Path(__file__).with_name("escala_cualitativa.json")
+with _ESCALA_CUALITATIVA_PATH.open("r", encoding="utf-8") as archivo_escala:
+    ESCALA_CUALITATIVA = json.load(archivo_escala, parse_float=Decimal)
+
+
+def convertir_nota_a_escala_cualitativa(valor) -> str:
+    """Convierte una nota de 1 a 10 usando la única escala configurada del proyecto."""
+    if valor is None:
+        return ""
+    texto = str(valor).strip()
+    if texto.lower() in {"", "nan", "none", "null", "undefined"}:
+        return ""
+    try:
+        nota = Decimal(texto.replace(",", "."))
+    except (InvalidOperation, ValueError, TypeError):
+        return texto
+    if not nota.is_finite():
+        return ""
+
+    minimo = Decimal(str(ESCALA_CUALITATIVA["minimo"]))
+    maximo = Decimal(str(ESCALA_CUALITATIVA["maximo"]))
+    if nota < minimo or nota > maximo:
+        return texto
+    for rango in ESCALA_CUALITATIVA["rangos"]:
+        if nota >= Decimal(str(rango["desde"])):
+            return str(rango["valor"])
+    return texto
 
 
 def normalizar_texto_asignatura(texto) -> str:
@@ -51,15 +80,36 @@ def normalizar_grado(grado) -> str | None:
         return None
 
     es_egb = "EGB" in texto or "EDUCACION GENERAL BASICA" in texto
-    if "PREPARATORIA" in texto or (es_egb and re.search(r"(?:^|\s)(?:1RO|1ER|1|PRIMERO|PRIMER)(?:\s|$)", texto)):
+    if "PREPARATORIA" in texto or (es_egb and re.search(r"(?:^|\s)(?:1RO|1ER|1ERO|1|PRIMERO|PRIMER)(?:\s|$)", texto)):
         return "EGB_1"
-    if "ELEMENTAL" in texto or (es_egb and re.search(r"(?:^|\s)(?:2DO|3RO|4TO|2|3|4|SEGUNDO|TERCERO|CUARTO)(?:\s|$)", texto)):
+    if "ELEMENTAL" in texto or (es_egb and re.search(r"(?:^|\s)(?:2DO|3RO|3ER|4TO|2|3|4|SEGUNDO|TERCERO|TERCER|CUARTO)(?:\s|$)", texto)):
         return "EGB_ELEMENTAL"
     if "MEDIA" in texto or (es_egb and re.search(r"(?:^|\s)(?:5TO|6TO|7MO|5|6|7|QUINTO|SEXTO|SEPTIMO)(?:\s|$)", texto)):
         return "EGB_MEDIA"
     if "SUPERIOR" in texto or (es_egb and re.search(r"(?:^|\s)(?:8VO|9NO|10MO|8|9|10|OCTAVO|NOVENO|DECIMO)(?:\s|$)", texto)):
         return "EGB_SUPERIOR"
     return None
+
+
+def grado_usa_escala_cualitativa(grado) -> bool:
+    """Reconoce únicamente 1.º, 2.º, 3.º y 4.º EGB, incluidas variantes equivalentes."""
+    texto = normalizar_texto_asignatura(grado)
+    if not texto:
+        return False
+    es_egb = "EGB" in texto or "EDUCACION GENERAL BASICA" in texto
+    if "PREPARATORIA" in texto:
+        return True
+    if not es_egb:
+        return False
+    return bool(
+        re.search(
+            r"(?:^|\s)(?:1RO|1ER|1ERO|1|PRIMERO|PRIMER|"
+            r"2DO|2|SEGUNDO|"
+            r"3RO|3ER|3|TERCERO|TERCER|"
+            r"4TO|4|CUARTO)(?:\s|$)",
+            texto,
+        )
+    )
 
 
 def grados_equivalentes(grado_a, grado_b) -> bool:

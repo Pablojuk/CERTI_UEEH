@@ -5,7 +5,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const asistencia = require('../asistencia.js');
-const { toggleCollapsibleSection } = require('../asistencia_ui.js');
+const {
+    toggleCollapsibleSection,
+    enriquecerEstudiantesConAsistencia,
+    actualizarFaltaPorClic
+} = require('../asistencia_ui.js');
 
 const raiz = path.resolve(__dirname, '..');
 
@@ -99,6 +103,37 @@ test('cada fecha tiene un solo estado y el cambio no duplica la falta', () => {
     assert.equal(resumen.totalAsistencia, 21);
 });
 
+test('un segundo clic con la misma marca desmarca el día', () => {
+    const faltas = {};
+    const fecha = '2026-09-09';
+
+    assert.equal(actualizarFaltaPorClic(faltas, fecha, 'justificada'), true);
+    assert.deepEqual(faltas[fecha], {
+        tipo: 'justificada',
+        observacion: ''
+    });
+
+    assert.equal(actualizarFaltaPorClic(faltas, fecha, 'justificada'), true);
+    assert.equal(faltas[fecha], undefined);
+});
+
+test('cambiar el tipo de falta conserva la observación y borrar un día vacío no genera cambios', () => {
+    const fecha = '2026-09-09';
+    const faltas = {
+        [fecha]: {
+            tipo: 'justificada',
+            observacion: 'Cita médica'
+        }
+    };
+
+    assert.equal(actualizarFaltaPorClic(faltas, fecha, 'injustificada'), true);
+    assert.deepEqual(faltas[fecha], {
+        tipo: 'injustificada',
+        observacion: 'Cita médica'
+    });
+    assert.equal(actualizarFaltaPorClic(faltas, '2026-09-10', 'borrar'), false);
+});
+
 test('el acumulado anual suma T1, T2 y T3 exactamente', () => {
     const datos = asistencia.crearAsistenciaVacia();
     datos.T1 = periodoConDiasLectivos('2026-01-05', 60);
@@ -176,6 +211,45 @@ test('los cursos y trimestres permanecen aislados', () => {
     assert.equal(asistencia.resumenAnual(cursoA, 'alumno').totalFaltas, 1);
     assert.equal(asistencia.resumenAnual(cursoB, 'alumno').totalFaltas, 0);
     assert.equal(asistencia.resumenEstudiante(cursoA.T2, 'alumno').configurado, false);
+});
+
+test('el resumen para documentos conserva curso e id_real aunque se repita el nombre', () => {
+    const asistenciaCurso = asistencia.crearAsistenciaVacia();
+    asistenciaCurso.T1 = periodoConDiasLectivos('2026-09-01', 68);
+    asistenciaCurso.T1.estudiantes.estudiante_a = {
+        faltas: Object.fromEntries(
+            ['01', '02', '03', '04', '07', '08'].map(dia => [
+                `2026-09-${dia}`,
+                { tipo: 'injustificada', observacion: '' }
+            ])
+        )
+    };
+    const curso = { id: 'curso_a', asistencia: asistenciaCurso };
+    const anteriorUtils = global.AsistenciaUtils;
+    const anteriorMostrar = global.mostrarValorSeguro;
+    global.AsistenciaUtils = asistencia;
+    global.mostrarValorSeguro = valor => valor == null ? '' : String(valor);
+    try {
+        const enriquecidos = enriquecerEstudiantesConAsistencia(curso, [
+            { id_real: 'estudiante_a', nombre: 'NOMBRE REPETIDO' },
+            { id_real: 'estudiante_b', nombre: 'NOMBRE REPETIDO' }
+        ]);
+        assert.deepEqual(enriquecidos[0].asistencia, {
+            configurada: true,
+            justificadas: 0,
+            injustificadas: 6,
+            totalFaltas: 6,
+            diasLectivos: 68,
+            totalAsistencia: 62,
+            cursoId: 'curso_a',
+            estudianteId: 'estudiante_a'
+        });
+        assert.equal(enriquecidos[1].asistencia.totalFaltas, 0);
+        assert.equal(enriquecidos[1].asistencia.estudianteId, 'estudiante_b');
+    } finally {
+        global.AsistenciaUtils = anteriorUtils;
+        global.mostrarValorSeguro = anteriorMostrar;
+    }
 });
 
 test('acepta el 29 de febrero únicamente en años bisiestos', () => {

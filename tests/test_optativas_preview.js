@@ -9,6 +9,7 @@ const vm = require('node:vm');
 const raiz = path.resolve(__dirname, '..');
 const indexSource = fs.readFileSync(path.join(raiz, 'index.html'), 'utf8');
 const catalogo = JSON.parse(fs.readFileSync(path.join(raiz, 'catalogo_asignaturas.json'), 'utf8'));
+const escalaCualitativa = JSON.parse(fs.readFileSync(path.join(raiz, 'escala_cualitativa.json'), 'utf8'));
 const metadatosPorNombre = new Map(catalogo.map(entrada => [entrada.nombre, entrada]));
 
 function extraerFuncion(nombre) {
@@ -25,18 +26,43 @@ function extraerFuncion(nombre) {
 }
 
 const contexto = {
+    console: { warn: () => {} },
     mostrarValorSeguro: valor => (
         valor === null || valor === undefined || valor === '' || Number.isNaN(valor)
             ? ''
-            : String(valor)
+            : ['', 'nan', 'none', 'null', 'undefined'].includes(String(valor).trim().toLowerCase())
+                ? ''
+                : String(valor).trim()
     ),
-    tipoAsignaturaCatalogo: () => 'cuantitativa'
+    normalizarTextoAsignatura: valor => String(valor || '')
+        .toUpperCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^A-Z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim(),
+    escalaCualitativa,
+    tipoAsignaturaCatalogo: () => 'cuantitativa',
+    metadatosAsignaturaCatalogo: (nombre, datos = {}) => ({
+        tipo: datos.tipo || metadatosPorNombre.get(nombre)?.tipo || 'cuantitativa',
+        presentacion_certificado: (
+            datos.presentacion_certificado
+            || metadatosPorNombre.get(nombre)?.presentacion_certificado
+            || null
+        )
+    })
 };
 vm.createContext(contexto);
 vm.runInContext(
     [
+        extraerFuncion('gradoUsaEscalaCualitativa'),
+        extraerFuncion('_certConvertirNotaCualitativa'),
         extraerFuncion('_certConvertirNotaOptativa'),
+        extraerFuncion('_certFormatearNotaNumerica'),
+        extraerFuncion('_certPresentarNota'),
         extraerFuncion('_certInjectOptativasBGU3'),
+        extraerFuncion('_certLimpiarDatosDinamicos'),
+        extraerFuncion('_certValidarMateriasCualitativas'),
         extraerFuncion('_certInjectNotas')
     ].join('\n'),
     contexto
@@ -93,6 +119,12 @@ class DocumentoFalso {
             elemento.children.forEach(hijo => {
                 if (selector === 'tr' && hijo.tagName === 'TR') encontrados.push(hijo);
                 if (selector === 'th' && hijo.tagName === 'TH') encontrados.push(hijo);
+                if (
+                    selector === '[data-academic-value]'
+                    && hijo.dataset.academicValue !== undefined
+                ) {
+                    encontrados.push(hijo);
+                }
                 recorrer(hijo);
             });
         };
@@ -100,11 +132,32 @@ class DocumentoFalso {
         return encontrados;
     }
 
-    agregarCivica() {
+    agregarCivica(valorInicial = '') {
         const fila = this.createElement('tr');
-        ['CÍVICA Y ACOMPAÑAMIENTO INTEGRAL EN EL AULA', '', '', ''].forEach(texto => {
+        fila.dataset.subject = 'CÍVICA Y ACOMPAÑAMIENTO INTEGRAL EN EL AULA';
+        ['CÍVICA Y ACOMPAÑAMIENTO INTEGRAL EN EL AULA', valorInicial, valorInicial, valorInicial].forEach((texto, indice) => {
             const celda = this.createElement('td');
             celda.textContent = texto;
+            if (indice > 0) {
+                celda.dataset.academicValue = 'true';
+                celda.dataset.academicField = `t${indice}`;
+            }
+            fila.appendChild(celda);
+        });
+        this.estaticas.appendChild(fila);
+        return fila;
+    }
+
+    agregarMateria(nombre) {
+        const fila = this.createElement('tr');
+        fila.dataset.subject = nombre;
+        [nombre, '', '', '', ''].forEach((texto, indice) => {
+            const celda = this.createElement('td');
+            celda.textContent = texto;
+            if (indice > 0) {
+                celda.dataset.academicValue = 'true';
+                celda.dataset.academicField = indice < 4 ? `t${indice}` : 'final';
+            }
             fila.appendChild(celda);
         });
         this.estaticas.appendChild(fila);
@@ -142,6 +195,65 @@ test('la escala JavaScript respeta todos los límites y vacíos de Python', () =
     casos.forEach(([nota, esperado]) => {
         assert.equal(contexto._certConvertirNotaOptativa(nota), esperado, String(nota));
     });
+});
+
+test('2DO EGB presenta 8,40 como B+ y 9,50 como A+ sin alterar los datos', () => {
+    const doc = new DocumentoFalso();
+    const fila = doc.agregarMateria('MATEMÁTICA');
+    const materia = {
+        tipo: 'cuantitativa',
+        t1: 8.40,
+        t2: 9.50,
+        t3: null,
+        promedio_anual: 8.95
+    };
+    contexto._certInjectNotas(doc, { materias: { MATEMÁTICA: materia } }, '2DO DE EGB');
+    assert.deepEqual(
+        fila.cells.map(celda => celda.textContent),
+        ['MATEMÁTICA', 'B+', 'A+', '', 'A-']
+    );
+    assert.equal(materia.t1, 8.40);
+    assert.equal(materia.t2, 9.50);
+});
+
+test('4TO EGB presenta cualitativamente y conserva una valoración literal', () => {
+    const doc = new DocumentoFalso();
+    const fila = doc.agregarMateria('MATEMÁTICA');
+    contexto._certInjectNotas(doc, {
+        materias: {
+            MATEMÁTICA: {
+                tipo: 'cuantitativa',
+                t1: 8.40,
+                t2: 'B+',
+                t3: null,
+                promedio_anual: 8.40
+            }
+        }
+    }, '4TO DE EGB');
+    assert.deepEqual(
+        fila.cells.map(celda => celda.textContent),
+        ['MATEMÁTICA', 'B+', 'B+', '', 'B+']
+    );
+});
+
+test('5TO EGB mantiene la presentación numérica y una valoración literal', () => {
+    const doc = new DocumentoFalso();
+    const fila = doc.agregarMateria('MATEMÁTICA');
+    contexto._certInjectNotas(doc, {
+        materias: {
+            MATEMÁTICA: {
+                tipo: 'cuantitativa',
+                t1: 8.40,
+                t2: 'B+',
+                t3: null,
+                promedio_anual: 8.40
+            }
+        }
+    }, '5TO DE EGB');
+    assert.deepEqual(
+        fila.cells.map(celda => celda.textContent),
+        ['MATEMÁTICA', '8.40', 'B+', '', '8.40']
+    );
 });
 
 test('la vista previa genera las cinco optativas reales, ordenadas y con T2/T3 vacíos', () => {
@@ -250,6 +362,58 @@ test('cinco reaperturas no duplican filas ni alteran Cívica o las letras', () =
     }
 });
 
+test('Cívica conserva tres valoraciones independientes y las minúsculas', () => {
+    const doc = new DocumentoFalso();
+    const civica = doc.agregarCivica('A+');
+    contexto._certInjectNotas(doc, {
+        materias: {
+            'CÍVICA Y ACOMPAÑAMIENTO INTEGRAL EN EL AULA': {
+                tipo: 'cualitativa',
+                t1: 'b+',
+                t2: 'A-',
+                t3: 'C+'
+            }
+        }
+    });
+    assert.deepEqual(
+        civica.cells.map(celda => celda.textContent),
+        ['CÍVICA Y ACOMPAÑAMIENTO INTEGRAL EN EL AULA', 'b+', 'A-', 'C+']
+    );
+});
+
+test('una materia ausente limpia los valores fijos de la plantilla', () => {
+    const doc = new DocumentoFalso();
+    const civica = doc.agregarCivica('A+');
+    contexto._certInjectNotas(doc, { materias: {} });
+    assert.deepEqual(
+        civica.cells.map(celda => celda.textContent),
+        ['CÍVICA Y ACOMPAÑAMIENTO INTEGRAL EN EL AULA', '', '', '']
+    );
+});
+
+test('dos estudiantes consecutivos no reutilizan la valoración anterior', () => {
+    const doc = new DocumentoFalso();
+    const civica = doc.agregarCivica('VALOR FIJO');
+    const estudiante = valor => ({
+        materias: {
+            'CÍVICA Y ACOMPAÑAMIENTO INTEGRAL EN EL AULA': {
+                tipo: 'cualitativa',
+                t1: valor,
+                t2: null,
+                t3: null
+            }
+        }
+    });
+
+    contexto._certInjectNotas(doc, estudiante('A+'));
+    assert.equal(civica.cells[1].textContent, 'A+');
+    contexto._certInjectNotas(doc, estudiante('B+'));
+    assert.deepEqual(
+        civica.cells.map(celda => celda.textContent),
+        ['CÍVICA Y ACOMPAÑAMIENTO INTEGRAL EN EL AULA', 'B+', '', '']
+    );
+});
+
 test('vistaPrevia inyecta optativas antes de notas y no usa innerHTML para sus filas', () => {
     const vistaInicio = indexSource.indexOf('async function vistaPrevia(');
     const vistaFin = indexSource.indexOf('// Limpiar inputs de archivo', vistaInicio);
@@ -257,7 +421,7 @@ test('vistaPrevia inyecta optativas antes de notas y no usa innerHTML para sus f
     assert.ok(vista.indexOf('_certInjectOptativasBGU3(doc, est);') >= 0);
     assert.ok(
         vista.indexOf('_certInjectOptativasBGU3(doc, est);')
-        < vista.indexOf('_certInjectNotas(doc, est);')
+        < vista.indexOf('_certInjectNotas(doc, est, gradoCursoCanonico);')
     );
     assert.doesNotMatch(extraerFuncion('_certInjectOptativasBGU3'), /innerHTML/);
 });

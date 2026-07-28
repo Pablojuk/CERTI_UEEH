@@ -112,10 +112,15 @@ function obtenerEstudianteIdAsistencia(estudiante) {
 }
 
 function resumenAsistenciaAnualCurso(curso, estudianteId) {
-    return AsistenciaUtils.resumenAnual(
+    const resumen = AsistenciaUtils.resumenAnual(
         curso ? asegurarAsistenciaCurso(curso) : null,
         estudianteId
     );
+    return {
+        ...resumen,
+        cursoId: mostrarValorSeguro(curso?.id),
+        estudianteId: mostrarValorSeguro(estudianteId)
+    };
 }
 
 function enriquecerEstudiantesConAsistencia(curso, estudiantes) {
@@ -492,16 +497,28 @@ function renderCalendarioAsistencia() {
     }
 }
 
+function actualizarFaltaPorClic(faltas, fecha, modo) {
+    const registroActual = faltas[fecha];
+    if (modo === 'borrar' || registroActual?.tipo === modo) {
+        if (!registroActual) return false;
+        delete faltas[fecha];
+        return true;
+    }
+    faltas[fecha] = {
+        tipo: modo,
+        observacion: registroActual?.observacion || ''
+    };
+    return true;
+}
+
 function aplicarModoAsistencia(fecha) {
     if (!asistenciaModalEstado) return;
-    if (asistenciaModalEstado.modo === 'borrar') {
-        delete asistenciaModalEstado.faltas[fecha];
-    } else {
-        asistenciaModalEstado.faltas[fecha] = {
-            tipo: asistenciaModalEstado.modo,
-            observacion: asistenciaModalEstado.faltas[fecha]?.observacion || ''
-        };
-    }
+    const cambioRealizado = actualizarFaltaPorClic(
+        asistenciaModalEstado.faltas,
+        fecha,
+        asistenciaModalEstado.modo
+    );
+    if (!cambioRealizado) return;
     asistenciaModalEstado.cambios = true;
     renderCalendarioAsistencia();
     renderListaFaltasAsistencia();
@@ -600,7 +617,7 @@ function cerrarModalAsistencia() {
     asistenciaModalEstado = null;
 }
 
-function inyectarAsistenciaDocumento(doc, estudiante) {
+function inyectarAsistenciaDocumento(doc, estudiante, cursoId = '') {
     const resumen = estudiante?.asistencia || {
         configurada: false,
         totalFaltas: null,
@@ -608,11 +625,22 @@ function inyectarAsistenciaDocumento(doc, estudiante) {
         injustificadas: null,
         totalAsistencia: null
     };
+    const estudianteId = obtenerEstudianteIdAsistencia(estudiante);
+    const cursoEsperado = mostrarValorSeguro(cursoId);
+    const perteneceAlCurso = (
+        !cursoEsperado || !resumen.cursoId || resumen.cursoId === cursoEsperado
+    );
+    const perteneceAlEstudiante = (
+        !resumen.estudianteId || resumen.estudianteId === estudianteId
+    );
+    const configurada = Boolean(
+        resumen.configurada && perteneceAlCurso && perteneceAlEstudiante
+    );
     const valores = {
-        registro: resumen.configurada ? resumen.totalFaltas : '',
-        justificadas: resumen.configurada ? resumen.justificadas : '',
-        injustificadas: resumen.configurada ? resumen.injustificadas : '',
-        total: resumen.configurada ? resumen.totalAsistencia : ''
+        registro: configurada ? resumen.totalFaltas : '',
+        justificadas: configurada ? resumen.justificadas : '',
+        injustificadas: configurada ? resumen.injustificadas : '',
+        total: configurada ? resumen.totalAsistencia : ''
     };
     let celdas = Array.from(doc.querySelectorAll('[data-asistencia]'));
     if (celdas.length === 0) {
@@ -634,5 +662,11 @@ function inyectarAsistenciaDocumento(doc, estudiante) {
 }
 
 if (typeof module === 'object' && module.exports) {
-    module.exports = { toggleCollapsibleSection };
+    module.exports = {
+        toggleCollapsibleSection,
+        obtenerEstudianteIdAsistencia,
+        resumenAsistenciaAnualCurso,
+        enriquecerEstudiantesConAsistencia,
+        actualizarFaltaPorClic
+    };
 }

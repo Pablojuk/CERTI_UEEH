@@ -35,6 +35,7 @@
       "procesador_notas.py",
       "catalogo_asignaturas.py",
       "catalogo_asignaturas.json",
+      "escala_cualitativa.json",
       "requirements.txt",
       "assets/certificados/**/*",
       "!assets/formatos-notas/**/*"

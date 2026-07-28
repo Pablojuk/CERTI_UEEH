@@ -20,10 +20,12 @@ from decimal import Decimal, InvalidOperation, ROUND_DOWN
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from html import escape as escapar_html
+from html import escape as escapar_html, unescape as desescapar_html
 from openpyxl.utils import column_index_from_string
 from catalogo_asignaturas import (
     clasificar_asignatura,
+    convertir_nota_a_escala_cualitativa,
+    grado_usa_escala_cualitativa,
     grados_equivalentes,
     metadatos_asignatura,
     normalizar_grado,
@@ -76,31 +78,50 @@ def completar_metadatos_asignatura(nombre: str, datos: dict | None = None) -> di
 
 
 def convertir_nota_optativa_a_escala_cualitativa(valor) -> str:
-    """Convierte una nota numérica sin redondearla; los vacíos o fuera de rango quedan vacíos."""
+    """Compatibilidad para optativas: reutiliza la escala central y descarta entradas inválidas."""
     if not mostrar_valor(valor):
         return ""
     try:
-        nota = Decimal(str(valor))
+        nota = Decimal(str(valor).replace(",", "."))
     except (InvalidOperation, ValueError, TypeError):
         return ""
     if not nota.is_finite() or nota < Decimal("1.00") or nota > Decimal("10.00"):
         return ""
-    intervalos = (
-        (Decimal("1.50"), "E-"),
-        (Decimal("2.50"), "E+"),
-        (Decimal("3.50"), "D-"),
-        (Decimal("4.50"), "D+"),
-        (Decimal("5.50"), "C-"),
-        (Decimal("6.50"), "C+"),
-        (Decimal("7.50"), "B-"),
-        (Decimal("8.50"), "B+"),
-        (Decimal("9.50"), "A-"),
-        (Decimal("10.01"), "A+"),
-    )
-    for limite_superior, escala in intervalos:
-        if nota < limite_superior:
-            return escala
-    return ""
+    return convertir_nota_a_escala_cualitativa(nota)
+
+
+def formatear_nota_numerica_certificado(valor) -> str:
+    """Mantiene la presentación numérica histórica con dos decimales."""
+    texto = mostrar_valor(valor)
+    if not texto:
+        return ""
+    try:
+        numero = Decimal(texto.replace(",", "."))
+    except (InvalidOperation, ValueError, TypeError):
+        return texto
+    if not numero.is_finite():
+        return ""
+    return f"{numero:.2f}"
+
+
+def presentar_nota_certificado(valor, grado, metadatos=None) -> str:
+    """Presenta una nota sin alterar el valor usado por los cálculos académicos."""
+    texto = mostrar_valor(valor)
+    if not texto:
+        return ""
+    datos = metadatos if isinstance(metadatos, dict) else {}
+    if datos.get("tipo") == "cualitativa":
+        return texto
+    if datos.get("presentacion_certificado") == "escala_cualitativa":
+        return convertir_nota_optativa_a_escala_cualitativa(valor)
+    if grado_usa_escala_cualitativa(grado):
+        try:
+            numero = Decimal(texto.replace(",", "."))
+        except (InvalidOperation, ValueError, TypeError):
+            return texto
+        if numero.is_finite() and Decimal("1") <= numero <= Decimal("10"):
+            return convertir_nota_a_escala_cualitativa(numero)
+    return formatear_nota_numerica_certificado(valor)
 
 
 def es_encabezado_evaluacion_comportamental(valor) -> bool:
@@ -1097,7 +1118,52 @@ def mapear_plantilla_python(grado_curso: str) -> str | None:
     # Sin coincidencia
     return None
 
+def limpiar_celdas_dinamicas_html(html_content):
+    """Vacía todos los campos académicos marcados antes de inyectar datos reales."""
+    patron = re.compile(
+        r'(<td\b[^>]*\bdata-academic-value=["\']true["\'][^>]*>)[\s\S]*?(</td>)',
+        re.IGNORECASE,
+    )
+    return patron.sub(r"\g<1>\g<2>", html_content)
+
+
+def inyectar_campo_certificado(html_content, campo, valor):
+    """Inyecta texto escapado en un campo estable de datos personales o institucionales."""
+    patron = re.compile(
+        rf'(<(?P<tag>span|div|h1)\b[^>]*\bdata-cert-field=["\']{re.escape(campo)}["\'][^>]*>)'
+        rf'[\s\S]*?(</(?P=tag)>)',
+        re.IGNORECASE,
+    )
+    texto = escapar_html(mostrar_valor(valor))
+    return patron.sub(lambda match: f"{match.group(1)}{texto}{match.group(3)}", html_content)
+
+
 def inject_student_data_html(html_content, student, inst, logos):
+    html_content = inyectar_campo_certificado(
+        html_content, "institution-name", inst.get("nombre", "")
+    )
+    html_content = inyectar_campo_certificado(
+        html_content, "amie", inst.get("amie", "")
+    )
+    html_content = inyectar_campo_certificado(
+        html_content, "school-year", inst.get("anio", "")
+    )
+    html_content = inyectar_campo_certificado(
+        html_content, "student-name", student.get("nombre", "")
+    )
+    html_content = inyectar_campo_certificado(
+        html_content, "student-id", student.get("cedula", "")
+    )
+    grado_completo = (
+        f"{inst.get('grado', '')} PARALELO: {inst.get('paralelo', '')}".strip()
+    )
+    html_content = inyectar_campo_certificado(
+        html_content, "grade", grado_completo
+    )
+    html_content = inyectar_campo_certificado(
+        html_content, "schedule", inst.get("jornada", "")
+    )
+
     # 1. Reemplazar datos institucionales y del estudiante
     html_content = re.sub(
         r'(NOMBRE DEL ESTUDIANTE:\s*)[^<\n]+', 
@@ -1112,7 +1178,6 @@ def inject_student_data_html(html_content, student, inst, logos):
         flags=re.IGNORECASE
     )
     
-    grado_completo = f"{inst.get('grado', '')} PARALELO: {inst.get('paralelo', '')}"
     html_content = re.sub(
         r'(GRADO:\s*)[^<\n]+', 
         rf'\g<1>{grado_completo}', 
@@ -1134,12 +1199,13 @@ def inject_student_data_html(html_content, student, inst, logos):
         flags=re.IGNORECASE
     )
     
-    html_content = re.sub(
-        r'(AÑO LECTIVO:\s*)[^<\n]+', 
-        rf'\g<1>{inst.get("anio", "")}', 
-        html_content, 
-        flags=re.IGNORECASE
-    )
+    if 'data-cert-field="school-year"' not in html_content:
+        html_content = re.sub(
+            r'(AÑO LECTIVO:\s*)[^<\n]+',
+            rf'\g<1>{inst.get("anio", "")}',
+            html_content,
+            flags=re.IGNORECASE,
+        )
 
     if inst.get("nombre"):
         html_content = re.sub(
@@ -1259,8 +1325,68 @@ def inject_optativas_bgu3(html_content, materias_data):
     return patron.sub(rf"\g<1>{contenido}\n            \g<2>", html_content, count=1)
 
 
-def inject_subject_grades(html_content, materias_data):
+def _inyectar_celda_academica(fila_html, campo, valor):
+    patron = re.compile(
+        rf'(<td\b[^>]*\bdata-academic-field=["\']{re.escape(campo)}["\'][^>]*>)'
+        rf'[\s\S]*?(</td>)',
+        re.IGNORECASE,
+    )
+    texto = escapar_html(mostrar_valor(valor))
+    return patron.sub(lambda match: f"{match.group(1)}{texto}{match.group(2)}", fila_html)
+
+
+def inject_subject_grades(html_content, materias_data, grado=None):
     html_content = inject_optativas_bgu3(html_content, materias_data)
+    html_content = limpiar_celdas_dinamicas_html(html_content)
+
+    materias_normalizadas = {
+        normalizar_texto_asignatura(nombre): (nombre, datos)
+        for nombre, datos in materias_data.items()
+        if isinstance(datos, dict)
+    }
+    filas_marcadas = re.compile(
+        r'<tr\b[^>]*\bdata-subject=["\'](?P<subject>[^"\']+)["\'][^>]*>'
+        r'[\s\S]*?</tr>',
+        re.IGNORECASE,
+    )
+
+    def inyectar_fila_marcada(match):
+        fila = match.group(0)
+        clave = normalizar_texto_asignatura(desescapar_html(match.group("subject")))
+        encontrado = materias_normalizadas.get(clave)
+        if not encontrado:
+            return fila
+        nombre, datos = encontrado
+        metadatos = completar_metadatos_asignatura(nombre, datos)
+        if metadatos.get("es_optativa_bgu3"):
+            return fila
+
+        es_cualitativa = metadatos["tipo"] == "cualitativa"
+        valores = {
+            "t1": presentar_nota_certificado(datos.get("t1"), grado, metadatos),
+            "t2": presentar_nota_certificado(datos.get("t2"), grado, metadatos),
+            "t3": presentar_nota_certificado(datos.get("t3"), grado, metadatos),
+            "supletorio": (
+                ""
+                if es_cualitativa
+                else presentar_nota_certificado(datos.get("supletorio"), grado, metadatos)
+            ),
+            "final": "",
+        }
+        if not es_cualitativa:
+            valores["final"] = presentar_nota_certificado(
+                datos.get("nota_final")
+                if datos.get("nota_final") is not None
+                else datos.get("promedio_anual"),
+                grado,
+                metadatos,
+            )
+        for campo, valor in valores.items():
+            fila = _inyectar_celda_academica(fila, campo, valor)
+        return fila
+
+    html_content = filas_marcadas.sub(inyectar_fila_marcada, html_content)
+
     for sub_name, data in materias_data.items():
         metadatos = completar_metadatos_asignatura(sub_name, data)
         if metadatos.get("es_optativa_bgu3"):
@@ -1274,6 +1400,8 @@ def inject_subject_grades(html_content, materias_data):
         match = tr_pattern.search(html_content)
         if match:
             tr_block = match.group(0)
+            if re.search(r"\bdata-subject=", tr_block, re.IGNORECASE):
+                continue
             td_pattern = re.compile(r'<td[^>]*>([\s\S]*?)</td>', re.IGNORECASE)
             tds = list(td_pattern.finditer(tr_block))
             
@@ -1285,14 +1413,9 @@ def inject_subject_grades(html_content, materias_data):
                     return escapar_html(mostrar_valor(valor))
 
                 def fmt(valor, _es_supletorio=False):
-                    texto = mostrar_valor(valor)
-                    if not texto:
-                        return ""
-                    try:
-                        numero = float(valor)
-                        return "" if math.isnan(numero) else f"{numero:.2f}"
-                    except (TypeError, ValueError):
-                        return escapar_html(texto)
+                    return escapar_html(
+                        presentar_nota_certificado(valor, grado, metadatos)
+                    )
                 
                 new_tds = []
                 if es_cualitativa:
@@ -1344,9 +1467,17 @@ def inject_subject_grades(html_content, materias_data):
                     and completar_metadatos_asignatura(nombre, v).get("permite_supletorio", True)
                     and (v.get("nota_final") is not None or v.get("promedio_anual") is not None)
                 ]
-                promedio_val = f"{(sum(grades) / len(grades)):.2f}" if grades else "-"
+                promedio_val = (
+                    presentar_nota_certificado(
+                        sum(grades) / len(grades),
+                        grado,
+                        {"tipo": "cuantitativa"},
+                    )
+                    if grades
+                    else ""
+                )
             except Exception:
-                promedio_val = "-"
+                promedio_val = ""
                 
             last_td = tds[-1]
             new_tr_block = tr_block[:last_td.start()] + f'<td class="font-bold bg-slate-100">{promedio_val}</td>' + "</tr>"
@@ -1397,10 +1528,29 @@ def inject_evaluacion_comportamental(html_content, evaluacion):
     return html_content
 
 
-def inject_asistencia_anual(html_content, asistencia):
-    """Completa las celdas identificadas de asistencia sin inventar valores."""
+def inject_asistencia_anual(
+    html_content,
+    asistencia,
+    curso_id_esperado=None,
+    estudiante_id_esperado=None,
+):
+    """Completa asistencia sólo cuando corresponde al curso y estudiante esperados."""
     datos = asistencia if isinstance(asistencia, dict) else {}
-    configurada = bool(datos.get("configurada"))
+    curso_id = mostrar_valor(datos.get("cursoId"))
+    estudiante_id = mostrar_valor(datos.get("estudianteId"))
+    curso_coincide = (
+        not mostrar_valor(curso_id_esperado)
+        or not curso_id
+        or curso_id == mostrar_valor(curso_id_esperado)
+    )
+    estudiante_coincide = (
+        not mostrar_valor(estudiante_id_esperado)
+        or not estudiante_id
+        or estudiante_id == mostrar_valor(estudiante_id_esperado)
+    )
+    configurada = bool(
+        datos.get("configurada") and curso_coincide and estudiante_coincide
+    )
     valores = {
         "registro": datos.get("totalFaltas") if configurada else "",
         "justificadas": datos.get("justificadas") if configurada else "",
@@ -1461,13 +1611,32 @@ def generar_certificados_inicial(payload):
     archivos_generados = []
     
     for est in estudiantes:
-        materias = est.get("materias", {})
+        materias = {}
+        for sub_name, datos_originales in est.get("materias", {}).items():
+            if not isinstance(datos_originales, dict):
+                print(
+                    f'[Certificados-PY] Advertencia: estructura inesperada para "{sub_name}"; '
+                    "sus celdas quedarán vacías.",
+                    file=sys.stderr,
+                )
+                materias[sub_name] = {}
+                continue
+            materias[sub_name] = dict(datos_originales)
+
         for sub_name, m_data in list(materias.items()):
             metadatos = completar_metadatos_asignatura(sub_name, m_data)
             for campo in CAMPOS_METADATOS_ASIGNATURA:
                 m_data[campo] = metadatos[campo]
             tipo = metadatos["tipo"]
             if tipo == "cualitativa":
+                for periodo in ("t1", "t2", "t3"):
+                    valor = m_data.get(periodo)
+                    if valor is not None and not isinstance(valor, str):
+                        print(
+                            f'[Certificados-PY] Advertencia: "{sub_name}" {periodo} '
+                            "se esperaba como texto; se mostrará sin conversión numérica.",
+                            file=sys.stderr,
+                        )
                 m_data["t1"] = mostrar_valor(m_data.get("t1"))
                 m_data["t2"] = mostrar_valor(m_data.get("t2"))
                 m_data["t3"] = mostrar_valor(m_data.get("t3"))
@@ -1483,7 +1652,12 @@ def generar_certificados_inicial(payload):
                 m_data["nota_final"] = None
                 continue
 
-            g1, g2, g3 = (float(nota) for nota in notas_trimestrales)
+            try:
+                g1, g2, g3 = (float(nota) for nota in notas_trimestrales)
+            except (TypeError, ValueError):
+                # Una valoración ya cualitativa se conserva para presentación y no se
+                # fuerza a participar en cálculos numéricos.
+                continue
             p_anual = calcular_promedio_anual(g1, g2, g3)
             m_data["promedio_anual"] = p_anual
             if m_data.get("nota_final") is None:
@@ -1506,13 +1680,18 @@ def generar_certificados_inicial(payload):
                 })
         
         student_html = inject_student_data_html(template_html, est, inst, logos)
-        student_html = inject_subject_grades(student_html, materias)
+        student_html = inject_subject_grades(student_html, materias, grado_canonico)
         if curso_admite_evaluacion_comportamental(grado_canonico):
             student_html = inject_evaluacion_comportamental(
                 student_html,
                 est.get("evaluacion_comportamental", {}),
             )
-        student_html = inject_asistencia_anual(student_html, est.get("asistencia"))
+        student_html = inject_asistencia_anual(
+            student_html,
+            est.get("asistencia"),
+            payload.get("cursoActivoId"),
+            est.get("id_real"),
+        )
         
         # Guardar en directorio de salida, NO en plantillas
         output_filename = f"certificado_{est['id_real']}.html"

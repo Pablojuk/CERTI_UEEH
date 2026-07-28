@@ -45,16 +45,41 @@ class AsistenciaReportesTests(unittest.TestCase):
         plantilla = (self.plantillas / "FORMATO DE 3 DE BGU.html").read_text(encoding="utf-8")
         html = inject_asistencia_anual(plantilla, {
             "configurada": True,
-            "justificadas": 3,
-            "injustificadas": 4,
-            "totalFaltas": 7,
-            "diasLectivos": 190,
-            "totalAsistencia": 183,
+            "justificadas": 0,
+            "injustificadas": 6,
+            "totalFaltas": 6,
+            "diasLectivos": 68,
+            "totalAsistencia": 62,
         })
-        self.assertEqual(self.extraer_valor(html, "registro"), "7")
-        self.assertEqual(self.extraer_valor(html, "justificadas"), "3")
-        self.assertEqual(self.extraer_valor(html, "injustificadas"), "4")
-        self.assertEqual(self.extraer_valor(html, "total"), "183")
+        self.assertEqual(self.extraer_valor(html, "registro"), "6")
+        self.assertEqual(self.extraer_valor(html, "justificadas"), "0")
+        self.assertEqual(self.extraer_valor(html, "injustificadas"), "6")
+        self.assertEqual(self.extraer_valor(html, "total"), "62")
+
+    def test_no_inyecta_resumen_de_otro_curso_o_estudiante(self):
+        plantilla = (self.plantillas / "FORMATO DE 3 DE BGU.html").read_text(encoding="utf-8")
+        resumen = {
+            "configurada": True,
+            "cursoId": "curso_a",
+            "estudianteId": "estudiante_a",
+            "justificadas": 0,
+            "injustificadas": 6,
+            "totalFaltas": 6,
+            "totalAsistencia": 62,
+        }
+        for curso, estudiante in (
+            ("curso_b", "estudiante_a"),
+            ("curso_a", "estudiante_b"),
+        ):
+            with self.subTest(curso=curso, estudiante=estudiante):
+                html = inject_asistencia_anual(
+                    plantilla,
+                    resumen,
+                    curso,
+                    estudiante,
+                )
+                for clave in ("registro", "justificadas", "injustificadas", "total"):
+                    self.assertEqual(self.extraer_valor(html, clave), "")
 
     def test_sin_configuracion_mantiene_celdas_vacias(self):
         plantilla = (self.plantillas / "FORMATO DE 3 DE BGU.html").read_text(encoding="utf-8")

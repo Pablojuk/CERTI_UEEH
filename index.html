@@ -775,6 +775,7 @@
         let trasladoPendienteActual = null;
         let licenciaActiva = false;
         let catalogoAsignaturas = [];
+        let escalaCualitativa = { minimo: 1, maximo: 10, rangos: [] };
         let trimestreAsistenciaActivo = 'T1';
         let asistenciaModalEstado = null;
 
@@ -904,6 +905,16 @@
                 console.error("No se pudo cargar el catálogo de asignaturas:", err);
                 catalogoAsignaturas = [];
             }
+            try {
+                const escala = await window.electronAPI.obtenerEscalaCualitativa();
+                escalaCualitativa = (
+                    escala
+                    && Array.isArray(escala.rangos)
+                ) ? escala : { minimo: 1, maximo: 10, rangos: [] };
+            } catch (err) {
+                console.error("No se pudo cargar la escala cualitativa:", err);
+                escalaCualitativa = { minimo: 1, maximo: 10, rangos: [] };
+            }
 
             // Cargar base de datos local
             await loadStateFromDB();
@@ -952,8 +963,8 @@
                 if (/(^|\s)(1RO|1ER|1|PRIMERO|PRIMER)(\s|$)/.test(g)) return 'BGU_1';
             }
             const esEgb = g.includes('EGB') || g.includes('EDUCACION GENERAL BASICA');
-            if (g.includes('PREPARATORIA') || (esEgb && /(^|\s)(1RO|1ER|1|PRIMERO|PRIMER)(\s|$)/.test(g))) return 'EGB_1';
-            if (g.includes('ELEMENTAL') || (esEgb && /(^|\s)(2DO|3RO|4TO|2|3|4|SEGUNDO|TERCERO|CUARTO)(\s|$)/.test(g))) return 'EGB_ELEMENTAL';
+            if (g.includes('PREPARATORIA') || (esEgb && /(^|\s)(1RO|1ER|1ERO|1|PRIMERO|PRIMER)(\s|$)/.test(g))) return 'EGB_1';
+            if (g.includes('ELEMENTAL') || (esEgb && /(^|\s)(2DO|3RO|3ER|4TO|2|3|4|SEGUNDO|TERCERO|TERCER|CUARTO)(\s|$)/.test(g))) return 'EGB_ELEMENTAL';
             if (g.includes('MEDIA') || (esEgb && /(^|\s)(5TO|6TO|7MO|5|6|7|QUINTO|SEXTO|SEPTIMO)(\s|$)/.test(g))) return 'EGB_MEDIA';
             if (g.includes('SUPERIOR') || (esEgb && /(^|\s)(8VO|9NO|10MO|8|9|10|OCTAVO|NOVENO|DECIMO)(\s|$)/.test(g))) return 'EGB_SUPERIOR';
             return null;
@@ -2692,6 +2703,43 @@
 
         // --- Helpers de inyección DOM para certificados ---
 
+        function _certLimpiarDatosDinamicos(doc) {
+            doc.querySelectorAll('[data-academic-value]').forEach(celda => {
+                celda.textContent = '';
+            });
+        }
+
+        function _certAsignarCampoTexto(doc, campo, valor) {
+            const elemento = doc.querySelector(`[data-cert-field="${campo}"]`);
+            if (!elemento) return false;
+            elemento.textContent = mostrarValorSeguro(valor);
+            return true;
+        }
+
+        function _certValidarMateriasCualitativas(est) {
+            const materias = est && est.materias && typeof est.materias === 'object'
+                ? est.materias
+                : {};
+            Object.entries(materias).forEach(([nombre, datos]) => {
+                if (!datos || typeof datos !== 'object') {
+                    if (typeof console !== 'undefined') {
+                        console.warn(`[Certificados] Estructura inesperada para la materia cualitativa "${nombre}".`);
+                    }
+                    return;
+                }
+                const tipo = datos.tipo || tipoAsignaturaCatalogo(nombre);
+                if (tipo !== 'cualitativa') return;
+                ['t1', 't2', 't3'].forEach(periodo => {
+                    const valor = datos[periodo];
+                    if (valor !== null && valor !== undefined && typeof valor !== 'string') {
+                        if (typeof console !== 'undefined') {
+                            console.warn(`[Certificados] ${nombre} ${periodo} se esperaba como texto; se mostrará sin conversión numérica.`);
+                        }
+                    }
+                });
+            });
+        }
+
         function _certInjectLogos(doc, logos) {
             const img1 = doc.getElementById('img-logo-1');
             const img2 = doc.getElementById('img-logo-2');
@@ -2715,23 +2763,40 @@
         }
 
         function _certInjectInstitucion(doc, inst) {
+            _certAsignarCampoTexto(doc, 'institution-name', inst.nombreInstitucion || inst.nombre || '');
+            _certAsignarCampoTexto(doc, 'amie', inst.codigoAmie || inst.amie || '');
+            _certAsignarCampoTexto(doc, 'school-year', (inst.anioLectivo || inst.anio || '').toUpperCase());
+
             const h1 = doc.querySelector('header h1');
-            if (h1) h1.textContent = inst.nombreInstitucion || '';
+            if (h1 && !h1.hasAttribute('data-cert-field')) {
+                h1.textContent = inst.nombreInstitucion || inst.nombre || '';
+            }
 
             const headerEl = doc.querySelector('header');
             if (headerEl) {
                 headerEl.querySelectorAll('span').forEach(span => {
+                    if (span.hasAttribute('data-cert-field')) return;
                     const t = span.textContent.trim();
                     if (t.includes('AMIE:')) {
-                        span.textContent = 'AMIE: ' + (inst.codigoAmie || '');
+                        span.textContent = 'AMIE: ' + (inst.codigoAmie || inst.amie || '');
                     } else if (t.includes('AÑO LECTIVO:') || t.includes('ANO LECTIVO:')) {
-                        span.textContent = 'AÑO LECTIVO: ' + (inst.anioLectivo || '').toUpperCase();
+                        span.textContent = 'AÑO LECTIVO: ' + (inst.anioLectivo || inst.anio || '').toUpperCase();
                     }
                 });
             }
         }
 
         function _certInjectEstudiante(doc, est, inst) {
+            const usaCamposEstables = _certAsignarCampoTexto(doc, 'student-name', est.nombre || '');
+            _certAsignarCampoTexto(doc, 'student-id', est.cedula || '');
+            _certAsignarCampoTexto(
+                doc,
+                'grade',
+                `${inst.gradoCurso || inst.grado || ''} PARALELO: ${inst.paralelo || ''}`.trim()
+            );
+            _certAsignarCampoTexto(doc, 'schedule', inst.jornada || '');
+            if (usaCamposEstables) return;
+
             const boldSpans = doc.querySelectorAll('section span.font-bold, section span[class*="font-bold"]');
             boldSpans.forEach(span => {
                 const t = span.textContent.trim().toUpperCase();
@@ -2751,27 +2816,56 @@
             });
         }
 
-        function _certConvertirNotaOptativa(valor) {
-            if (valor === null || valor === undefined || valor === '') return '';
-            if (typeof valor === 'string') {
-                const texto = valor.trim();
-                if (!texto || ['none', 'null', 'undefined', 'nan'].includes(texto.toLowerCase())) {
-                    return '';
-                }
-            }
+        function gradoUsaEscalaCualitativa(grado) {
+            const texto = normalizarTextoAsignatura(grado);
+            if (!texto) return false;
+            if (texto.includes('PREPARATORIA')) return true;
+            const esEgb = texto.includes('EGB') || texto.includes('EDUCACION GENERAL BASICA');
+            if (!esEgb) return false;
+            return /(^|\s)(1RO|1ER|1ERO|1|PRIMERO|PRIMER|2DO|2|SEGUNDO|3RO|3ER|3|TERCERO|TERCER|4TO|4|CUARTO)(\s|$)/.test(texto);
+        }
 
-            const nota = Number(valor);
-            if (!Number.isFinite(nota) || nota < 1 || nota > 10) return '';
-            if (nota < 1.5) return 'E-';
-            if (nota < 2.5) return 'E+';
-            if (nota < 3.5) return 'D-';
-            if (nota < 4.5) return 'D+';
-            if (nota < 5.5) return 'C-';
-            if (nota < 6.5) return 'C+';
-            if (nota < 7.5) return 'B-';
-            if (nota < 8.5) return 'B+';
-            if (nota < 9.5) return 'A-';
-            return 'A+';
+        function _certConvertirNotaCualitativa(valor) {
+            const texto = mostrarValorSeguro(valor);
+            if (!texto) return '';
+            const nota = Number(texto.replace(',', '.'));
+            if (!Number.isFinite(nota)) return texto;
+            const minimo = Number(escalaCualitativa.minimo);
+            const maximo = Number(escalaCualitativa.maximo);
+            if (nota < minimo || nota > maximo) return texto;
+            const rango = escalaCualitativa.rangos.find(item => nota >= Number(item.desde));
+            return rango ? String(rango.valor) : texto;
+        }
+
+        function _certConvertirNotaOptativa(valor) {
+            const texto = mostrarValorSeguro(valor);
+            if (!texto) return '';
+            const nota = Number(texto.replace(',', '.'));
+            const minimo = Number(escalaCualitativa.minimo);
+            const maximo = Number(escalaCualitativa.maximo);
+            if (!Number.isFinite(nota) || nota < minimo || nota > maximo) return '';
+            return _certConvertirNotaCualitativa(nota);
+        }
+
+        function _certFormatearNotaNumerica(valor) {
+            const texto = mostrarValorSeguro(valor);
+            if (!texto) return '';
+            const nota = Number(texto.replace(',', '.'));
+            return Number.isFinite(nota) ? nota.toFixed(2) : texto;
+        }
+
+        function _certPresentarNota(valor, grado, metadatos) {
+            const texto = mostrarValorSeguro(valor);
+            if (!texto) return '';
+            const datos = metadatos || {};
+            if (datos.tipo === 'cualitativa') return texto;
+            if (datos.presentacion_certificado === 'escala_cualitativa') {
+                return _certConvertirNotaOptativa(valor);
+            }
+            if (gradoUsaEscalaCualitativa(grado)) {
+                return _certConvertirNotaCualitativa(valor);
+            }
+            return _certFormatearNotaNumerica(valor);
         }
 
         function _certInjectOptativasBGU3(doc, est) {
@@ -2819,8 +2913,9 @@
             });
         }
 
-        function _certInjectNotas(doc, est) {
-            if (!est.materias || Object.keys(est.materias).length === 0) return;
+        function _certInjectNotas(doc, est, gradoCurso = '') {
+            _certLimpiarDatosDinamicos(doc);
+            _certValidarMateriasCualitativas(est);
 
             // Helper para normalizar cadenas para comparación
             const normalizar = (texto) => {
@@ -2834,8 +2929,13 @@
 
             // Mapear cada materia por su nombre normalizado
             const materiasMap = {};
-            Object.entries(est.materias).forEach(([nombre, data]) => {
-                materiasMap[normalizar(nombre)] = data;
+            const materias = est && est.materias && typeof est.materias === 'object'
+                ? est.materias
+                : {};
+            Object.entries(materias).forEach(([nombre, data]) => {
+                if (data && typeof data === 'object') {
+                    materiasMap[normalizar(nombre)] = { nombre, data };
+                }
             });
 
             // Buscar y actualizar filas en todas las tablas
@@ -2844,63 +2944,105 @@
                 const cells = Array.from(row.cells);
                 if (cells.length < 2) return;
 
-                // Revisar si la primera o segunda celda coincide con alguna materia
+                // Los data-* son la vía estable; el texto visible queda como compatibilidad.
                 let matchedSubjectNorm = null;
                 let subjectCellIndex = -1;
+                const subjectData = row.dataset ? row.dataset.subject : '';
+                if (subjectData) {
+                    matchedSubjectNorm = normalizar(subjectData);
+                    subjectCellIndex = 0;
+                }
 
-                for (let i = 0; i < Math.min(cells.length, 2); i++) {
-                    const cellText = normalizar(cells[i].textContent);
-                    if (materiasMap[cellText]) {
-                        matchedSubjectNorm = cellText;
-                        subjectCellIndex = i;
-                        break;
+                if (!matchedSubjectNorm) {
+                    for (let i = 0; i < Math.min(cells.length, 2); i++) {
+                        const cellText = normalizar(cells[i].textContent);
+                        if (materiasMap[cellText]) {
+                            matchedSubjectNorm = cellText;
+                            subjectCellIndex = i;
+                            break;
+                        }
                     }
                 }
 
-                if (matchedSubjectNorm !== null && subjectCellIndex !== -1) {
-                    const data = materiasMap[matchedSubjectNorm];
+                if (
+                    matchedSubjectNorm !== null
+                    && subjectCellIndex !== -1
+                    && materiasMap[matchedSubjectNorm]
+                ) {
+                    const materiaEncontrada = materiasMap[matchedSubjectNorm];
+                    const data = materiaEncontrada.data;
                     if (
                         data.es_optativa_bgu3 === true
                         && data.presentacion_certificado === 'escala_cualitativa'
                     ) {
                         return;
                     }
-                    const gradeCells = cells.slice(subjectCellIndex + 1);
-                    const esCualitativa = (data.tipo || tipoAsignaturaCatalogo(matchedSubjectNorm)) === 'cualitativa';
+                    const gradeCells = cells.filter(cell => (
+                        cell.dataset
+                        && cell.dataset.academicValue === 'true'
+                    ));
+                    const celdasNotas = gradeCells.length > 0
+                        ? gradeCells
+                        : cells.slice(subjectCellIndex + 1);
+                    const metadatos = metadatosAsignaturaCatalogo(
+                        materiaEncontrada.nombre,
+                        data
+                    );
+                    const esCualitativa = metadatos.tipo === 'cualitativa';
 
                     const fmt = (val, isSupletorio = false) => {
-                        return mostrarValorSeguro(val);
+                        return _certPresentarNota(val, gradoCurso, metadatos);
                     };
 
                     if (esCualitativa) {
-                        gradeCells.forEach((cell, indice) => {
-                            cell.textContent = indice < 3
-                                ? mostrarValorSeguro([data.t1, data.t2, data.t3][indice])
+                        celdasNotas.forEach((cell, indice) => {
+                            const campo = cell.dataset ? cell.dataset.academicField : '';
+                            const periodo = campo || ['t1', 't2', 't3'][indice];
+                            cell.textContent = ['t1', 't2', 't3'].includes(periodo)
+                                ? mostrarValorSeguro(data[periodo])
                                 : '';
                         });
                         return;
                     }
 
-                    if (gradeCells.length === 3) {
+                    const celdasPorCampo = Object.fromEntries(
+                        celdasNotas
+                            .filter(cell => cell.dataset && cell.dataset.academicField)
+                            .map(cell => [cell.dataset.academicField, cell])
+                    );
+                    if (Object.keys(celdasPorCampo).length > 0) {
+                        if (celdasPorCampo.t1) celdasPorCampo.t1.textContent = fmt(data.t1);
+                        if (celdasPorCampo.t2) celdasPorCampo.t2.textContent = fmt(data.t2);
+                        if (celdasPorCampo.t3) celdasPorCampo.t3.textContent = fmt(data.t3);
+                        if (celdasPorCampo.supletorio) {
+                            celdasPorCampo.supletorio.textContent = fmt(data.supletorio, true);
+                        }
+                        if (celdasPorCampo.final) {
+                            const valFinal = data.nota_final !== null && data.nota_final !== undefined
+                                ? data.nota_final
+                                : data.promedio_anual;
+                            celdasPorCampo.final.textContent = fmt(valFinal);
+                        }
+                    } else if (celdasNotas.length === 3) {
                         // Trimestres T1, T2, T3
-                        gradeCells[0].textContent = fmt(data.t1);
-                        gradeCells[1].textContent = fmt(data.t2);
-                        gradeCells[2].textContent = fmt(data.t3);
-                    } else if (gradeCells.length === 4) {
+                        celdasNotas[0].textContent = fmt(data.t1);
+                        celdasNotas[1].textContent = fmt(data.t2);
+                        celdasNotas[2].textContent = fmt(data.t3);
+                    } else if (celdasNotas.length === 4) {
                         // Trimestres T1, T2, T3 + Promedio Anual (sin supletorio)
-                        gradeCells[0].textContent = fmt(data.t1);
-                        gradeCells[1].textContent = fmt(data.t2);
-                        gradeCells[2].textContent = fmt(data.t3);
+                        celdasNotas[0].textContent = fmt(data.t1);
+                        celdasNotas[1].textContent = fmt(data.t2);
+                        celdasNotas[2].textContent = fmt(data.t3);
                         const valFinal = (data.nota_final !== null && data.nota_final !== undefined) ? data.nota_final : data.promedio_anual;
-                        gradeCells[3].textContent = fmt(valFinal);
-                    } else if (gradeCells.length === 5) {
+                        celdasNotas[3].textContent = fmt(valFinal);
+                    } else if (celdasNotas.length === 5) {
                         // Trimestres T1, T2, T3 + Supletorio + Promedio Anual
-                        gradeCells[0].textContent = fmt(data.t1);
-                        gradeCells[1].textContent = fmt(data.t2);
-                        gradeCells[2].textContent = fmt(data.t3);
-                        gradeCells[3].textContent = fmt(data.supletorio, true);
+                        celdasNotas[0].textContent = fmt(data.t1);
+                        celdasNotas[1].textContent = fmt(data.t2);
+                        celdasNotas[2].textContent = fmt(data.t3);
+                        celdasNotas[3].textContent = fmt(data.supletorio, true);
                         const valFinal = (data.nota_final !== null && data.nota_final !== undefined) ? data.nota_final : data.promedio_anual;
-                        gradeCells[4].textContent = fmt(valFinal);
+                        celdasNotas[4].textContent = fmt(valFinal);
                     }
                 }
             });
@@ -2918,7 +3060,11 @@
                 if (hasPromedioLabel) {
                     const lastCell = cells[cells.length - 1];
                     if (lastCell) {
-                        lastCell.textContent = mostrarValorSeguro(est.promedio);
+                        lastCell.textContent = _certPresentarNota(
+                            est.promedio,
+                            gradoCurso,
+                            { tipo: 'cuantitativa' }
+                        );
                     }
                 }
             });
@@ -3634,9 +3780,9 @@
             _certInjectInstitucion(doc, inst);
             _certInjectEstudiante(doc, est, inst);
             _certInjectOptativasBGU3(doc, est);
-            _certInjectNotas(doc, est);
+            _certInjectNotas(doc, est, gradoCursoCanonico);
             _certInjectEvaluacionComportamental(doc, est, gradoCursoCanonico);
-            inyectarAsistenciaDocumento(doc, est);
+            inyectarAsistenciaDocumento(doc, est, curso.id);
             _certInjectFirmas(doc, inst);
 
             // Limpiar inputs de archivo (no necesarios en preview)

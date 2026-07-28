@@ -31,11 +31,11 @@
             </label>
             
             <div class="text-center flex-1 px-4">
-                <h2 class="font-bold text-lg uppercase tracking-wide">Ministerio de Educación, Deporte y Cultura <span class="hidden no-print">[cite: 5]</span></h2>
-                <h1 class="font-bold text-xl uppercase mt-1 text-slate-800">UNIDAD EDUCATIVA EMILIANO HINOSTROZA <span class="hidden no-print">[cite: 5]</span></h1>
+                <h2 class="font-bold text-lg uppercase tracking-wide">Ministerio de Educación, Deporte y Cultura </h2>
+                <h1 class="font-bold text-xl uppercase mt-1 text-slate-800" data-cert-field="institution-name"></h1>
                 <div class="mt-2 text-sm font-semibold flex justify-center gap-6">
-                    <span>AMIE: 01H01289 <span class="hidden no-print">[cite: 5]</span></span>
-                    <span>AÑO LECTIVO: COSTA GALAPAGOS 2025-2026 <span class="hidden no-print">[cite: 5]</span></span>
+                    <span>AMIE: <span data-cert-field="amie"></span></span>
+                    <span>AÑO LECTIVO: <span data-cert-field="school-year"></span></span>
                 </div>
             </div>
 
@@ -52,17 +52,14 @@
     <!-- Datos del Estudiante -->
     <section class="mb-6 flex flex-wrap justify-between text-sm font-medium border border-slate-400 p-3 bg-slate-50">
         <div class="w-full md:w-1/2 mb-2">
-            <span class="font-bold">NOMBRE DEL ESTUDIANTE:</span> CAICEDO SANCHEZ JHONATHAN NEFTALI <span class="hidden no-print">[cite: 5]</span>
-        </div>
+            <span class="font-bold">NOMBRE DEL ESTUDIANTE:</span> <span data-cert-field="student-name"></span></div>
         <div class="w-full md:w-1/2 mb-2 flex items-center">
-            <span class="font-bold mr-1">CÉDULA:</span> <div class="border-b border-slate-400 w-32 inline-block"></div>
+            <span class="font-bold mr-1">CÉDULA:</span> <div class="border-b border-slate-400 w-32 inline-block" data-cert-field="student-id"></div>
         </div>
         <div class="w-full md:w-1/2">
-            <span class="font-bold">GRADO:</span> 5TO DE EDUCACION GENERAL BASICA PARALELO: A <span class="hidden no-print">[cite: 5]</span>
-        </div>
+            <span class="font-bold">GRADO:</span> <span data-cert-field="grade"></span></div>
         <div class="w-full md:w-1/2">
-            <span class="font-bold">JORNADA:</span> MATUTINA <span class="hidden no-print">[cite: 5]</span>
-        </div>
+            <span class="font-bold">JORNADA:</span> <span data-cert-field="schedule"></span></div>
     </section>
 
     <!-- Tabla 1: Calificaciones Cuantitativas -->
@@ -83,66 +80,66 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td class="text-left-cell font-semibold">MATEMÁTICA <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>9.07 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>8.68 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>8.93 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>0 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td class="font-bold bg-slate-50">8.89 <span class="hidden no-print">[cite: 5]</span></td>
+                <tr data-subject="MATEMÁTICA">
+                    <td class="text-left-cell font-semibold">MATEMÁTICA </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td>
+                    <td data-academic-value="true" data-academic-field="t2" data-term="t2"></td>
+                    <td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
+                    <td data-academic-value="true" data-academic-field="supletorio"></td>
+                    <td class="font-bold bg-slate-50" data-academic-value="true" data-academic-field="final"></td>
                 </tr>
-                <tr>
-                    <td class="text-left-cell font-semibold">CIENCIAS NATURALES <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>9.56 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>9.48 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>8.81 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>0 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td class="font-bold bg-slate-50">9.28 <span class="hidden no-print">[cite: 5]</span></td>
+                <tr data-subject="CIENCIAS NATURALES">
+                    <td class="text-left-cell font-semibold">CIENCIAS NATURALES </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td>
+                    <td data-academic-value="true" data-academic-field="t2" data-term="t2"></td>
+                    <td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
+                    <td data-academic-value="true" data-academic-field="supletorio"></td>
+                    <td class="font-bold bg-slate-50" data-academic-value="true" data-academic-field="final"></td>
                 </tr>
-                <tr>
-                    <td class="text-left-cell font-semibold">ESTUDIOS SOCIALES <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>8.46 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>8.9 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>8.76 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>0 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td class="font-bold bg-slate-50">8.7 <span class="hidden no-print">[cite: 5]</span></td>
+                <tr data-subject="ESTUDIOS SOCIALES">
+                    <td class="text-left-cell font-semibold">ESTUDIOS SOCIALES </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td>
+                    <td data-academic-value="true" data-academic-field="t2" data-term="t2"></td>
+                    <td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
+                    <td data-academic-value="true" data-academic-field="supletorio"></td>
+                    <td class="font-bold bg-slate-50" data-academic-value="true" data-academic-field="final"></td>
                 </tr>
-                <tr>
-                    <td class="text-left-cell font-semibold">LENGUA Y LITERATURA <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>8.95 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>8.56 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>8.62 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>0 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td class="font-bold bg-slate-50">8.71 <span class="hidden no-print">[cite: 5]</span></td>
+                <tr data-subject="LENGUA Y LITERATURA">
+                    <td class="text-left-cell font-semibold">LENGUA Y LITERATURA </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td>
+                    <td data-academic-value="true" data-academic-field="t2" data-term="t2"></td>
+                    <td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
+                    <td data-academic-value="true" data-academic-field="supletorio"></td>
+                    <td class="font-bold bg-slate-50" data-academic-value="true" data-academic-field="final"></td>
                 </tr>
-                <tr>
-                    <td class="text-left-cell font-semibold">EDUCACIÓN CULTURAL Y ARTÍSTICA <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>8.91 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>9.35 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>8.91 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>0 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td class="font-bold bg-slate-50">9.05 <span class="hidden no-print">[cite: 5]</span></td>
+                <tr data-subject="EDUCACIÓN CULTURAL Y ARTÍSTICA">
+                    <td class="text-left-cell font-semibold">EDUCACIÓN CULTURAL Y ARTÍSTICA </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td>
+                    <td data-academic-value="true" data-academic-field="t2" data-term="t2"></td>
+                    <td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
+                    <td data-academic-value="true" data-academic-field="supletorio"></td>
+                    <td class="font-bold bg-slate-50" data-academic-value="true" data-academic-field="final"></td>
                 </tr>
-                <tr>
-                    <td class="text-left-cell font-semibold">INGLÉS <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>8.92 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>8.81 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>9 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>0 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td class="font-bold bg-slate-50">8.91 <span class="hidden no-print">[cite: 5]</span></td>
+                <tr data-subject="INGLÉS">
+                    <td class="text-left-cell font-semibold">INGLÉS </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td>
+                    <td data-academic-value="true" data-academic-field="t2" data-term="t2"></td>
+                    <td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
+                    <td data-academic-value="true" data-academic-field="supletorio"></td>
+                    <td class="font-bold bg-slate-50" data-academic-value="true" data-academic-field="final"></td>
                 </tr>
-                <tr>
-                    <td class="text-left-cell font-semibold">EDUCACIÓN FÍSICA <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>9.66 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>9.78 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>9.24 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>0 <span class="hidden no-print">[cite: 5]</span></td>
-                    <td class="font-bold bg-slate-50">9.56 <span class="hidden no-print">[cite: 5]</span></td>
+                <tr data-subject="EDUCACIÓN FÍSICA">
+                    <td class="text-left-cell font-semibold">EDUCACIÓN FÍSICA </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td>
+                    <td data-academic-value="true" data-academic-field="t2" data-term="t2"></td>
+                    <td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
+                    <td data-academic-value="true" data-academic-field="supletorio"></td>
+                    <td class="font-bold bg-slate-50" data-academic-value="true" data-academic-field="final"></td>
                 </tr>
                 <!-- Fila de Promedio General -->
                 <tr class="bg-slate-100 border-t-2 border-slate-600">
                     <td colspan="5" class="text-right font-bold pr-4">PROMEDIO ANUAL</td>
-                    <td class="font-bold text-sm">9.01 <span class="hidden no-print">[cite: 5]</span></td>
+                    <td class="font-bold text-sm" data-academic-value="true" data-academic-field="promedio-general"></td>
                 </tr>
             </tbody>
         </table>
@@ -153,17 +150,17 @@
         <h3 class="font-bold text-sm mb-2 uppercase bg-slate-200 p-1 border border-slate-400">Asignaturas Optativas / Cualitativas</h3>
         <table>
             <tbody>
-                <tr>
-                    <td class="text-left-cell font-semibold w-1/3">CÍVICA Y ACOMPAÑAMIENTO INTEGRAL EN EL AULA <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>A+ <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>A+ <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>A+ <span class="hidden no-print">[cite: 5]</span></td>
+                <tr data-subject="CÍVICA Y ACOMPAÑAMIENTO INTEGRAL EN EL AULA">
+                    <td class="text-left-cell font-semibold w-1/3">CÍVICA Y ACOMPAÑAMIENTO INTEGRAL EN EL AULA </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td>
+                    <td data-academic-value="true" data-academic-field="t2" data-term="t2"></td>
+                    <td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
-                <tr>
-                    <td class="text-left-cell font-semibold w-1/3">ANIMACIÓN A LA LECTURA <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>A+ <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>A+ <span class="hidden no-print">[cite: 5]</span></td>
-                    <td>A- <span class="hidden no-print">[cite: 5]</span></td>
+                <tr data-subject="ANIMACIÓN A LA LECTURA">
+                    <td class="text-left-cell font-semibold w-1/3">ANIMACIÓN A LA LECTURA </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td>
+                    <td data-academic-value="true" data-academic-field="t2" data-term="t2"></td>
+                    <td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
             </tbody>
         </table>
@@ -177,11 +174,11 @@
             <h3 class="font-bold text-sm mb-2 uppercase bg-slate-200 p-1 border border-slate-400">Evaluación Comportamental</h3>
             <table>
                 <tbody>
-                    <tr>
-                        <td class="text-left-cell font-semibold w-1/4">EVALUACIÓN COMPORTAMENTAL <span class="hidden no-print">[cite: 5]</span></td>
-                        <td class="w-1/4 text-xs">Transforma los desacuerdos en oportunidades de crecimiento y cooperación <span class="hidden no-print">[cite: 5]</span></td>
-                        <td class="w-1/4 text-xs">Transforma los desacuerdos en oportunidades de crecimiento y cooperación <span class="hidden no-print">[cite: 5]</span></td>
-                        <td class="w-1/4 text-xs">Transforma los desacuerdos en oportunidades de crecimiento y cooperación <span class="hidden no-print">[cite: 5]</span></td>
+                    <tr data-academic-row="comportamiento">
+                        <td class="text-left-cell font-semibold w-1/4">EVALUACIÓN COMPORTAMENTAL </td>
+                        <td class="w-1/4 text-xs" data-academic-value="true" data-academic-field="t1" data-term="t1"></td>
+                        <td class="w-1/4 text-xs" data-academic-value="true" data-academic-field="t2" data-term="t2"></td>
+                        <td class="w-1/4 text-xs" data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                     </tr>
                 </tbody>
             </table>

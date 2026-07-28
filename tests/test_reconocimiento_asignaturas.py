@@ -207,7 +207,12 @@ class ReconocimientoAsignaturasTests(unittest.TestCase):
         })
         indice = html.index("CÍVICA Y ACOMPAÑAMIENTO INTEGRAL EN EL AULA")
         fila = html[html.rfind("<tr", 0, indice):html.index("</tr>", indice) + len("</tr>")]
-        self.assertRegex(fila, r"<td>b\+</td><td></td><td></td>")
+        self.assertRegex(
+            fila,
+            r'data-academic-field="t1"[^>]*>b\+</td>'
+            r'[\s\S]*data-academic-field="t2"[^>]*></td>'
+            r'[\s\S]*data-academic-field="t3"[^>]*></td>',
+        )
 
     def test_valor_cualitativo_vacio_permanece_ausente_sin_marcadores(self):
         ruta = self.crear_excel("civica_vacia.xlsx", "3RO BGU", [

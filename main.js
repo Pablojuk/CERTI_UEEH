@@ -325,6 +325,16 @@ ipcMain.handle('obtener-catalogo-asignaturas', async () => {
     }
 });
 
+ipcMain.handle('obtener-escala-cualitativa', async () => {
+    try {
+        const escalaPath = path.join(__dirname, 'escala_cualitativa.json');
+        return JSON.parse(fs.readFileSync(escalaPath, 'utf-8'));
+    } catch (error) {
+        console.error("Error al leer la escala cualitativa:", error);
+        return { minimo: 1, maximo: 10, rangos: [] };
+    }
+});
+
 // IPC: Generar Boletines (PDF)
 ipcMain.handle('generar-boletines', async (event, datos) => {
     try {

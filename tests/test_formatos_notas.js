@@ -21,11 +21,11 @@ const indexSource = fs.readFileSync(path.join(raiz, 'index.html'), 'utf8');
 const preloadSource = fs.readFileSync(path.join(raiz, 'preload.js'), 'utf8');
 const packageJson = JSON.parse(fs.readFileSync(path.join(raiz, 'package.json'), 'utf8'));
 
-const originalesPorId = {
-    egb_2_7: 'FORMATO PARA 2.º a 7.º EGB.xlsx',
-    egb_8_10: 'FORMATO PARA 8.º a 10.º EGB.xlsx',
-    bgu_1_2: 'FORMATO PARA 1.º y 2.º BGU.xlsx',
-    bgu_3: 'FORMATO PARA 3.º BGU.xlsx'
+const hashesEsperadosPorId = {
+    egb_2_7: 'be04d082453ad9fc4cf90113fa4909fba556380e09c1e3053ecda685739bb037',
+    egb_8_10: '15723e3328c6a3e1ea8552a7d7a2b72f13d6f0d0b2a889a863a2d47acbf49ad8',
+    bgu_1_2: 'ec0384cd3232c1bb5813aacdd3e620a639f1a6d6c91623141fc907dbbaf337e9',
+    bgu_3: 'e6a84c5b9acfb451eab0ff838f52c4303a225beb9d9ab3672bc2b49a0d8be753'
 };
 
 function sha256(ruta) {
@@ -59,14 +59,12 @@ function crearDependencias(directorioFormatos, dialogo) {
     };
 }
 
-test('los cuatro recursos conservan tamaño y hash del original', () => {
+test('los cuatro recursos empaquetados conservan sus hashes conocidos', () => {
     assert.deepEqual(Object.keys(FORMATOS_NOTAS), ['egb_2_7', 'egb_8_10', 'bgu_1_2', 'bgu_3']);
     Object.entries(FORMATOS_NOTAS).forEach(([formatoId, formato]) => {
-        const original = path.join(raiz, originalesPorId[formatoId]);
         const recurso = path.join(recursos, formato.archivoInterno);
-        assert.ok(fs.statSync(original).size > 0);
-        assert.equal(fs.statSync(recurso).size, fs.statSync(original).size);
-        assert.equal(sha256(recurso), sha256(original));
+        assert.ok(fs.statSync(recurso).size > 0);
+        assert.equal(sha256(recurso), hashesEsperadosPorId[formatoId]);
     });
     assert.notEqual(
         sha256(path.join(recursos, FORMATOS_NOTAS.bgu_1_2.archivoInterno)),
