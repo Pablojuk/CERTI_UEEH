@@ -256,6 +256,52 @@ test('5TO EGB mantiene la presentación numérica y una valoración literal', ()
     );
 });
 
+test('Animación a la Lectura se presenta cualitativamente en EGB Media y Superior', () => {
+    ['5TO DE EGB', '9NO DE EGB'].forEach(grado => {
+        const doc = new DocumentoFalso();
+        const fila = doc.agregarMateria('ANIMACIÓN A LA LECTURA');
+        const materia = {
+            tipo: 'cuantitativa',
+            t1: 7.09,
+            t2: 9.50,
+            t3: null
+        };
+        contexto._certInjectNotas(
+            doc,
+            { materias: { 'ANIMACIÓN A LA LECTURA': materia } },
+            grado
+        );
+        assert.deepEqual(
+            fila.cells.map(celda => celda.textContent),
+            ['ANIMACIÓN A LA LECTURA', 'B-', 'A+', '', '']
+        );
+        assert.equal(materia.t1, 7.09);
+        assert.equal(materia.t2, 9.50);
+    });
+});
+
+test('Orientación Vocacional y Profesional se presenta cualitativamente en EGB Superior', () => {
+    const doc = new DocumentoFalso();
+    const fila = doc.agregarMateria('ORIENTACIÓN VOCACIONAL Y PROFESIONAL');
+    const materia = {
+        tipo: 'cuantitativa',
+        t1: 7.09,
+        t2: 8.40,
+        t3: null
+    };
+    contexto._certInjectNotas(
+        doc,
+        { materias: { 'ORIENTACIÓN VOCACIONAL Y PROFESIONAL': materia } },
+        '10MO DE EGB'
+    );
+    assert.deepEqual(
+        fila.cells.map(celda => celda.textContent),
+        ['ORIENTACIÓN VOCACIONAL Y PROFESIONAL', 'B-', 'B+', '', '']
+    );
+    assert.equal(materia.t1, 7.09);
+    assert.equal(materia.t2, 8.40);
+});
+
 test('la vista previa genera las cinco optativas reales, ordenadas y con T2/T3 vacíos', () => {
     const doc = new DocumentoFalso();
     const est = {

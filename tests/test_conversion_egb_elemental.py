@@ -37,6 +37,21 @@ class ConversionEgbElementalTests(unittest.TestCase):
             for campo in ("t1", "t2", "t3", "final")
         }
 
+    def valores_trimestrales(self, html, nombre):
+        fila = re.search(
+            rf'<tr[^>]*data-subject="{re.escape(nombre)}"[^>]*>[\s\S]*?</tr>',
+            html,
+            re.IGNORECASE,
+        ).group(0)
+        return [
+            re.search(
+                rf'<td[^>]*data-academic-field="t{periodo}"[^>]*>([\s\S]*?)</td>',
+                fila,
+                re.IGNORECASE,
+            ).group(1).strip()
+            for periodo in (1, 2, 3)
+        ]
+
     def test_reconoce_solo_primero_a_cuarto_egb(self):
         for grado in (
             "1RO DE EGB",
@@ -124,6 +139,66 @@ class ConversionEgbElementalTests(unittest.TestCase):
             self.valores_materia(html, "MATEMÁTICA"),
             {"t1": "8.40", "t2": "B+", "t3": "", "final": "8.40"},
         )
+
+    def test_animacion_a_la_lectura_es_cualitativa_en_egb_media_y_superior(self):
+        materia = {
+            "tipo": "cuantitativa",
+            "t1": 7.09,
+            "t2": 9.50,
+            "t3": None,
+        }
+        for plantilla_nombre, grado in (
+            ("FORMATO EGBM.html", "5TO DE EGB"),
+            ("FORMATO EGBS.html", "9NO DE EGB"),
+        ):
+            with self.subTest(grado=grado):
+                plantilla = (
+                    Path(__file__).parents[1]
+                    / "assets"
+                    / "certificados"
+                    / plantilla_nombre
+                ).read_text(encoding="utf-8")
+                html = inject_subject_grades(
+                    plantilla,
+                    {"ANIMACIÓN A LA LECTURA": materia},
+                    grado,
+                )
+                self.assertEqual(
+                    self.valores_trimestrales(html, "ANIMACIÓN A LA LECTURA"),
+                    ["B-", "A+", ""],
+                )
+        self.assertEqual(materia["t1"], 7.09)
+        self.assertEqual(materia["t2"], 9.50)
+        self.assertIsNone(materia["t3"])
+
+    def test_orientacion_vocacional_es_cualitativa_en_egb_superior(self):
+        plantilla = (
+            Path(__file__).parents[1]
+            / "assets"
+            / "certificados"
+            / "FORMATO EGBS.html"
+        ).read_text(encoding="utf-8")
+        materia = {
+            "tipo": "cuantitativa",
+            "t1": 7.09,
+            "t2": 8.40,
+            "t3": None,
+        }
+        html = inject_subject_grades(
+            plantilla,
+            {"ORIENTACIÓN VOCACIONAL Y PROFESIONAL": materia},
+            "10MO DE EGB",
+        )
+        self.assertEqual(
+            self.valores_trimestrales(
+                html,
+                "ORIENTACIÓN VOCACIONAL Y PROFESIONAL",
+            ),
+            ["B-", "B+", ""],
+        )
+        self.assertEqual(materia["t1"], 7.09)
+        self.assertEqual(materia["t2"], 8.40)
+        self.assertIsNone(materia["t3"])
 
 
 if __name__ == "__main__":
