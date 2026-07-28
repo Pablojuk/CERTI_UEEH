@@ -8,6 +8,8 @@ const asistencia = require('../asistencia.js');
 const {
     toggleCollapsibleSection,
     enriquecerEstudiantesConAsistencia,
+    obtenerValoresAsistenciaDocumento,
+    inyectarAsistenciaDocumento,
     actualizarFaltaPorClic
 } = require('../asistencia_ui.js');
 
@@ -241,6 +243,38 @@ test('el resumen para documentos conserva curso e id_real aunque se repita el no
             totalFaltas: 6,
             diasLectivos: 68,
             totalAsistencia: 62,
+            T1: {
+                configurado: true,
+                justificadas: 0,
+                injustificadas: 6,
+                totalFaltas: 6,
+                diasLectivos: 68,
+                totalAsistencia: 62
+            },
+            T2: {
+                configurado: false,
+                justificadas: 0,
+                injustificadas: 0,
+                totalFaltas: 0,
+                diasLectivos: 0,
+                totalAsistencia: 0
+            },
+            T3: {
+                configurado: false,
+                justificadas: 0,
+                injustificadas: 0,
+                totalFaltas: 0,
+                diasLectivos: 0,
+                totalAsistencia: 0
+            },
+            anual: {
+                configurada: true,
+                justificadas: 0,
+                injustificadas: 6,
+                totalFaltas: 6,
+                diasLectivos: 68,
+                totalAsistencia: 62
+            },
             cursoId: 'curso_a',
             estudianteId: 'estudiante_a'
         });
@@ -248,6 +282,123 @@ test('el resumen para documentos conserva curso e id_real aunque se repita el no
         assert.equal(enriquecidos[1].asistencia.estudianteId, 'estudiante_b');
     } finally {
         global.AsistenciaUtils = anteriorUtils;
+        global.mostrarValorSeguro = anteriorMostrar;
+    }
+});
+
+test('el certificado recibe T1, T2, T3 y el anual exactos, incluidos ceros y filas vacías', () => {
+    const asistenciaCurso = asistencia.crearAsistenciaVacia();
+    asistenciaCurso.T1 = periodoConDiasLectivos('2026-01-05', 22);
+    asistenciaCurso.T2 = periodoConDiasLectivos('2026-04-06', 22);
+    asistenciaCurso.T3 = periodoConDiasLectivos('2026-08-03', 22);
+    asistenciaCurso.T1.estudiantes.alumno = {
+        faltas: {
+            '2026-01-05': { tipo: 'injustificada', observacion: '' },
+            '2026-01-06': { tipo: 'injustificada', observacion: '' },
+            '2026-01-07': { tipo: 'injustificada', observacion: '' }
+        }
+    };
+    asistenciaCurso.T2.estudiantes.alumno = {
+        faltas: {
+            '2026-04-06': { tipo: 'justificada', observacion: '' },
+            '2026-04-07': { tipo: 'injustificada', observacion: '' }
+        }
+    };
+    asistenciaCurso.T3.estudiantes.alumno = {
+        faltas: {
+            '2026-08-03': { tipo: 'injustificada', observacion: '' }
+        }
+    };
+    const anteriorUtils = global.AsistenciaUtils;
+    const anteriorMostrar = global.mostrarValorSeguro;
+    global.AsistenciaUtils = asistencia;
+    global.mostrarValorSeguro = valor => valor == null ? '' : String(valor);
+    try {
+        const [alumno, sinFaltas] = enriquecerEstudiantesConAsistencia(
+            { id: 'curso_a', asistencia: asistenciaCurso },
+            [
+                { id_real: 'alumno', nombre: 'ALUMNO' },
+                { id_real: 'sin_faltas', nombre: 'SIN FALTAS' }
+            ]
+        );
+        assert.deepEqual(
+            obtenerValoresAsistenciaDocumento(alumno.asistencia, 'alumno', 'curso_a'),
+            {
+                T1: { registro: 3, justificacion: 0, injustificado: 3, total: 19 },
+                T2: { registro: 2, justificacion: 1, injustificado: 1, total: 20 },
+                T3: { registro: 1, justificacion: 0, injustificado: 1, total: 21 },
+                ANUAL: { registro: 6, justificacion: 1, injustificado: 5, total: 60 }
+            }
+        );
+        assert.deepEqual(
+            obtenerValoresAsistenciaDocumento(sinFaltas.asistencia, 'sin_faltas', 'curso_a').T1,
+            { registro: 0, justificacion: 0, injustificado: 0, total: 22 }
+        );
+
+        asistenciaCurso.T3 = asistencia.crearTrimestreVacio();
+        const [parcial] = enriquecerEstudiantesConAsistencia(
+            { id: 'curso_a', asistencia: asistenciaCurso },
+            [{ id_real: 'alumno', nombre: 'ALUMNO' }]
+        );
+        assert.deepEqual(
+            obtenerValoresAsistenciaDocumento(parcial.asistencia, 'alumno', 'curso_a').T3,
+            { registro: '', justificacion: '', injustificado: '', total: '' }
+        );
+        assert.deepEqual(
+            obtenerValoresAsistenciaDocumento(parcial.asistencia, 'otro', 'curso_a').ANUAL,
+            { registro: '', justificacion: '', injustificado: '', total: '' }
+        );
+        assert.deepEqual(
+            obtenerValoresAsistenciaDocumento(parcial.asistencia, 'alumno', 'otro_curso').T1,
+            { registro: '', justificacion: '', injustificado: '', total: '' }
+        );
+    } finally {
+        global.AsistenciaUtils = anteriorUtils;
+        global.mostrarValorSeguro = anteriorMostrar;
+    }
+});
+
+test('la vista previa llena las mismas dieciséis celdas trimestrales y anuales', () => {
+    const resumen = {
+        cursoId: 'curso_a',
+        estudianteId: 'alumno',
+        T1: { configurado: true, totalFaltas: 3, justificadas: 0, injustificadas: 3, totalAsistencia: 19 },
+        T2: { configurado: true, totalFaltas: 2, justificadas: 1, injustificadas: 1, totalAsistencia: 20 },
+        T3: { configurado: true, totalFaltas: 1, justificadas: 0, injustificadas: 1, totalAsistencia: 21 },
+        anual: { configurada: true, totalFaltas: 6, justificadas: 1, injustificadas: 5, totalAsistencia: 60 }
+    };
+    const celdas = [];
+    ['T1', 'T2', 'T3', 'ANUAL'].forEach(periodo => {
+        ['registro', 'justificacion', 'injustificado', 'total'].forEach(campo => {
+            celdas.push({
+                dataset: {
+                    asistenciaPeriodo: periodo,
+                    asistenciaCampo: campo
+                },
+                textContent: ''
+            });
+        });
+    });
+    const doc = {
+        querySelectorAll(selector) {
+            return selector === '[data-asistencia-periodo][data-asistencia-campo]'
+                ? celdas
+                : [];
+        }
+    };
+    const anteriorMostrar = global.mostrarValorSeguro;
+    global.mostrarValorSeguro = valor => valor == null ? '' : String(valor);
+    try {
+        inyectarAsistenciaDocumento(
+            doc,
+            { id_real: 'alumno', asistencia: resumen },
+            'curso_a'
+        );
+        assert.deepEqual(
+            celdas.map(celda => celda.textContent),
+            ['3', '0', '3', '19', '2', '1', '1', '20', '1', '0', '1', '21', '6', '1', '5', '60']
+        );
+    } finally {
         global.mostrarValorSeguro = anteriorMostrar;
     }
 });

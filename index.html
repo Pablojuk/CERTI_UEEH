@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob: file:; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: blob: file:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none';">
     <title>Módulo de Generación de Boletines</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -154,7 +155,7 @@
                 </div>
                 <div class="p-5 flex-grow flex flex-col gap-5">
                     <div class="flex-grow flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-xl p-4 hover:bg-slate-50 transition-all relative">
-                        <input type="file" id="file-logo1" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/*" onchange="previewImage(event, 'preview1', 'logo1')">
+                        <input type="file" id="file-logo1" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/png,image/jpeg,image/webp" onchange="previewImage(event, 'preview1', 'logo1')">
                         <div id="preview1-container" class="text-center">
                             <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-2 text-slate-400">
                                 <i class="fa-solid fa-building-columns text-2xl"></i>
@@ -165,7 +166,7 @@
                         <img id="preview1" class="hidden h-24 object-contain mx-auto pointer-events-none" />
                     </div>
                     <div class="flex-grow flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-xl p-4 hover:bg-slate-50 transition-all relative">
-                        <input type="file" id="file-logo2" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/*" onchange="previewImage(event, 'preview2', 'logo2')">
+                        <input type="file" id="file-logo2" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/png,image/jpeg,image/webp" onchange="previewImage(event, 'preview2', 'logo2')">
                         <div id="preview2-container" class="text-center">
                             <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-2 text-slate-400">
                                 <i class="fa-solid fa-landmark text-2xl"></i>
@@ -650,6 +651,47 @@
         </div>
     </div>
 
+    <!-- Modal de optativas para generar el formato de 3.º BGU -->
+    <div id="optativas-bgu3-modal"
+        class="hidden fixed inset-0 z-[90] overflow-y-auto bg-slate-900/70 p-4 flex items-center justify-center"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="optativas-bgu3-modal-title"
+        aria-describedby="optativas-bgu3-modal-description"
+        aria-hidden="true"
+        onclick="if (event.target === event.currentTarget) cerrarModalOptativasBgu3()">
+        <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-3xl w-full max-h-[92vh] overflow-y-auto">
+            <div class="p-5 sm:p-6 border-b border-slate-200 flex items-start justify-between gap-4">
+                <div>
+                    <h3 id="optativas-bgu3-modal-title" class="text-xl font-bold text-slate-900">Optativas de 3.º de BGU</h3>
+                    <p id="optativas-bgu3-modal-description" class="text-sm text-slate-500 mt-1">
+                        Seleccione las asignaturas que se incluirán en la copia del formato.
+                    </p>
+                </div>
+                <button id="btn-cerrar-optativas-bgu3" type="button" onclick="cerrarModalOptativasBgu3()" class="text-slate-400 hover:text-rose-600 p-2 rounded-lg hover:bg-rose-50 transition-all" aria-label="Cerrar selección de optativas">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <div class="p-5 sm:p-6">
+                <div class="mb-4 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
+                    <i class="fa-solid fa-circle-info mr-1"></i>
+                    El formato admite hasta <strong>16 asignaturas</strong> en total. Las materias generales, Cívica y Evaluación Comportamental se conservarán.
+                </div>
+                <div id="optativas-bgu3-lista" class="grid grid-cols-1 sm:grid-cols-2 gap-3" role="group" aria-label="Asignaturas optativas de 3.º BGU"></div>
+                <div id="optativas-bgu3-estado" class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600" role="status" aria-live="polite"></div>
+            </div>
+
+            <div class="p-5 sm:px-6 border-t border-slate-200 flex flex-col-reverse sm:flex-row justify-end gap-3">
+                <button type="button" onclick="cerrarModalOptativasBgu3()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-md text-sm font-semibold hover:bg-slate-200 transition-all">Cancelar</button>
+                <button id="btn-generar-formato-bgu3" type="button" onclick="generarDescargarFormatoBgu3()" disabled class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-md text-sm font-semibold transition-all">
+                    <i class="fa-solid fa-file-excel mr-1"></i>
+                    <span data-optativas-bgu3-boton-texto>Generar y descargar</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal de Vista Previa / Estado -->
     <div id="status-modal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden">
@@ -808,8 +850,8 @@
                     tx.oncomplete = () => resolve(true);
                     tx.onerror = () => reject(tx.error);
                 });
-            } catch (err) {
-                console.error("Error al guardar estado en IndexedDB:", err);
+            } catch {
+                console.error("No se pudo guardar el estado local.");
             }
         }
 
@@ -873,8 +915,8 @@
                     };
                     req.onerror = () => reject(req.error);
                 });
-            } catch (err) {
-                console.error("Error al cargar estado de IndexedDB:", err);
+            } catch {
+                console.error("No se pudo cargar el estado local.");
                 return false;
             }
         }
@@ -893,16 +935,16 @@
                     badge.className = "bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1 rounded-full text-xs font-bold tracking-wide flex items-center gap-1.5 shadow-sm";
                     badge.innerHTML = `<div class="w-2 h-2 rounded-full bg-amber-500"></div> PRUEBA OFFLINE (MAX 3)`;
                 }
-            } catch (err) {
-                console.error("Error al verificar licencia:", err);
+            } catch {
+                console.error("No se pudo verificar la licencia.");
             }
 
             // Cargar el catálogo central antes de migrar/consolidar datos locales.
             try {
                 const catalogo = await window.electronAPI.obtenerCatalogoAsignaturas();
                 catalogoAsignaturas = Array.isArray(catalogo) ? catalogo : [];
-            } catch (err) {
-                console.error("No se pudo cargar el catálogo de asignaturas:", err);
+            } catch {
+                console.error("No se pudo cargar el catálogo de asignaturas.");
                 catalogoAsignaturas = [];
             }
             try {
@@ -911,8 +953,8 @@
                     escala
                     && Array.isArray(escala.rangos)
                 ) ? escala : { minimo: 1, maximo: 10, rangos: [] };
-            } catch (err) {
-                console.error("No se pudo cargar la escala cualitativa:", err);
+            } catch {
+                console.error("No se pudo cargar la escala cualitativa.");
                 escalaCualitativa = { minimo: 1, maximo: 10, rangos: [] };
             }
 
@@ -1291,8 +1333,11 @@
 
         // Descarga segura de formatos oficiales de notas
         const FORMATOS_NOTAS_IDS = Object.freeze(['egb_2_7', 'egb_8_10', 'bgu_1_2', 'bgu_3']);
+        const CAPACIDAD_MATERIAS_FORMATO_BGU3 = 16;
         let descargaFormatoNotasEnCurso = false;
         let focoAnteriorModalFormatos = null;
+        let focoAnteriorModalOptativasBgu3 = null;
+        let cursoIdModalOptativasBgu3 = null;
 
         function obtenerFormatoRecomendadoCursoActivo() {
             const curso = obtenerCursoActivo();
@@ -1340,6 +1385,160 @@
             return recomendado;
         }
 
+        function obtenerOptativasBgu3Disponibles() {
+            return catalogoAsignaturas
+                .filter(entrada => entrada?.es_optativa_bgu3 === true)
+                .slice()
+                .sort((a, b) => Number(a.orden || 999) - Number(b.orden || 999));
+        }
+
+        function obtenerCursoActivoBgu3() {
+            const curso = obtenerCursoActivo();
+            if (!curso) return null;
+            const grado = curso.datosInstitucion?.gradoCurso || curso.nombreVisible || '';
+            return codigoGradoCatalogo(grado) === 'BGU_3' ? curso : null;
+        }
+
+        function obtenerSeleccionOptativasBgu3Curso(curso) {
+            const autorizadas = new Set(
+                obtenerOptativasBgu3Disponibles().map(entrada => entrada.nombre)
+            );
+            return Array.isArray(curso?.optativasFormatoBgu3)
+                ? curso.optativasFormatoBgu3.filter(nombre => autorizadas.has(nombre))
+                : [];
+        }
+
+        function cantidadMateriasFijasBgu3() {
+            return catalogoAsignaturas.filter(
+                entrada => (
+                    Array.isArray(entrada?.grados)
+                    && entrada.grados.includes('BGU_3')
+                    && entrada.es_optativa_bgu3 !== true
+                )
+            ).length + 1;
+        }
+
+        function seleccionOptativasBgu3Actual() {
+            return Array.from(
+                document.querySelectorAll('[data-optativa-bgu3]:checked'),
+                casilla => casilla.value
+            );
+        }
+
+        function actualizarEstadoOptativasBgu3() {
+            const seleccion = seleccionOptativasBgu3Actual();
+            const materiasFijas = cantidadMateriasFijasBgu3();
+            const total = materiasFijas + seleccion.length;
+            const disponibles = Math.max(
+                CAPACIDAD_MATERIAS_FORMATO_BGU3 - materiasFijas,
+                0
+            );
+            const catalogoDisponible = obtenerOptativasBgu3Disponibles().length > 0;
+            const estado = document.getElementById('optativas-bgu3-estado');
+            const boton = document.getElementById('btn-generar-formato-bgu3');
+            const excedida = total > CAPACIDAD_MATERIAS_FORMATO_BGU3;
+            const bloqueada = excedida || !catalogoDisponible;
+            if (boton) {
+                boton.disabled = (
+                    descargaFormatoNotasEnCurso
+                    || seleccion.length === 0
+                    || bloqueada
+                );
+            }
+            if (!estado) return {
+                valida: seleccion.length > 0 && !bloqueada,
+                seleccion,
+                total
+            };
+
+            estado.classList.toggle('border-rose-300', bloqueada);
+            estado.classList.toggle('bg-rose-50', bloqueada);
+            estado.classList.toggle('text-rose-700', bloqueada);
+            estado.classList.toggle('border-slate-200', !bloqueada);
+            estado.classList.toggle('bg-slate-50', !bloqueada);
+            estado.classList.toggle('text-slate-600', !bloqueada);
+            if (!catalogoDisponible) {
+                estado.textContent = 'No se pudo cargar el catálogo oficial de optativas. Cierre el modal e intente nuevamente.';
+            } else if (excedida) {
+                estado.textContent = `La selección suma ${total} asignaturas y supera el máximo de ${CAPACIDAD_MATERIAS_FORMATO_BGU3}.`;
+            } else if (seleccion.length === 0) {
+                estado.textContent = `Seleccione al menos una optativa. Puede elegir hasta ${disponibles}.`;
+            } else {
+                estado.textContent = `${seleccion.length} optativa(s) seleccionada(s). Total del formato: ${total} de ${CAPACIDAD_MATERIAS_FORMATO_BGU3} asignaturas.`;
+            }
+            return {
+                valida: seleccion.length > 0 && !bloqueada,
+                seleccion,
+                total
+            };
+        }
+
+        function renderOptativasBgu3(curso) {
+            const contenedor = document.getElementById('optativas-bgu3-lista');
+            if (!contenedor) return;
+            contenedor.replaceChildren();
+            const guardadas = new Set(obtenerSeleccionOptativasBgu3Curso(curso));
+            obtenerOptativasBgu3Disponibles().forEach((entrada, indice) => {
+                const etiqueta = document.createElement('label');
+                etiqueta.className = 'flex items-start gap-3 rounded-lg border border-slate-200 p-3 hover:border-emerald-300 hover:bg-emerald-50/40 cursor-pointer transition-colors';
+                const casilla = document.createElement('input');
+                casilla.type = 'checkbox';
+                casilla.id = `optativa-bgu3-${indice}`;
+                casilla.value = entrada.nombre;
+                casilla.checked = guardadas.has(entrada.nombre);
+                casilla.dataset.optativaBgu3 = 'true';
+                casilla.className = 'mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500';
+                casilla.addEventListener('change', actualizarEstadoOptativasBgu3);
+                const nombre = document.createElement('span');
+                nombre.className = 'text-sm font-semibold text-slate-700';
+                nombre.textContent = entrada.nombre;
+                etiqueta.append(casilla, nombre);
+                contenedor.appendChild(etiqueta);
+            });
+            actualizarEstadoOptativasBgu3();
+        }
+
+        function abrirModalOptativasBgu3() {
+            const curso = obtenerCursoActivoBgu3();
+            if (!curso) {
+                mostrarAlerta(
+                    'Curso de 3.º BGU requerido',
+                    'Seleccione o cree el curso de 3.º BGU para guardar su selección de optativas sin mezclarla con otros cursos.',
+                    'warning'
+                );
+                return;
+            }
+            const modal = document.getElementById('optativas-bgu3-modal');
+            if (!modal) return;
+            focoAnteriorModalOptativasBgu3 = document.activeElement;
+            cursoIdModalOptativasBgu3 = curso.id;
+            renderOptativasBgu3(curso);
+            modal.classList.remove('hidden');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('overflow-hidden');
+            document.getElementById('btn-cerrar-optativas-bgu3')?.focus();
+        }
+
+        function cerrarModalOptativasBgu3(devolverFoco = true) {
+            const modal = document.getElementById('optativas-bgu3-modal');
+            if (!modal || modal.classList.contains('hidden')) return;
+            modal.classList.add('hidden');
+            modal.setAttribute('aria-hidden', 'true');
+            cursoIdModalOptativasBgu3 = null;
+            const modalFormatos = document.getElementById('formatos-notas-modal');
+            if (!modalFormatos || modalFormatos.classList.contains('hidden')) {
+                document.body.classList.remove('overflow-hidden');
+            }
+            if (
+                devolverFoco
+                && focoAnteriorModalOptativasBgu3
+                && typeof focoAnteriorModalOptativasBgu3.focus === 'function'
+            ) {
+                focoAnteriorModalOptativasBgu3.focus();
+            }
+            focoAnteriorModalOptativasBgu3 = null;
+        }
+
         function abrirModalFormatosNotas() {
             const modal = document.getElementById('formatos-notas-modal');
             if (!modal) return;
@@ -1354,6 +1553,7 @@
         function cerrarModalFormatosNotas() {
             const modal = document.getElementById('formatos-notas-modal');
             if (!modal || modal.classList.contains('hidden')) return;
+            cerrarModalOptativasBgu3(false);
             modal.classList.add('hidden');
             modal.setAttribute('aria-hidden', 'true');
             document.body.classList.remove('overflow-hidden');
@@ -1364,24 +1564,62 @@
         }
 
         async function descargarFormatoNotas(formatoId) {
+            if (formatoId === 'bgu_3') {
+                abrirModalOptativasBgu3();
+                return;
+            }
+            await ejecutarDescargaFormatoNotas(formatoId);
+        }
+
+        async function generarDescargarFormatoBgu3() {
+            if (descargaFormatoNotasEnCurso) return;
+            const curso = obtenerCursoActivoBgu3();
+            if (!curso || curso.id !== cursoIdModalOptativasBgu3) {
+                cerrarModalOptativasBgu3(false);
+                mostrarAlerta(
+                    'El curso activo cambió',
+                    'Vuelva a abrir la selección de optativas para el curso actual.',
+                    'warning'
+                );
+                return;
+            }
+            const estado = actualizarEstadoOptativasBgu3();
+            if (!estado.valida) return;
+            curso.optativasFormatoBgu3 = estado.seleccion.slice();
+            await saveStateToDB();
+            await ejecutarDescargaFormatoNotas('bgu_3', {
+                cursoId: curso.id,
+                optativas: estado.seleccion
+            });
+        }
+
+        async function ejecutarDescargaFormatoNotas(formatoId, opciones = {}) {
             if (!FORMATOS_NOTAS_IDS.includes(formatoId) || descargaFormatoNotasEnCurso) return;
 
-            const boton = document.querySelector(`[data-formato-descargar][data-formato-id="${formatoId}"]`);
-            const textoBoton = boton?.querySelector('[data-formato-boton-texto]');
+            const boton = formatoId === 'bgu_3'
+                ? document.getElementById('btn-generar-formato-bgu3')
+                : document.querySelector(`[data-formato-descargar][data-formato-id="${formatoId}"]`);
+            const textoBoton = formatoId === 'bgu_3'
+                ? boton?.querySelector('[data-optativas-bgu3-boton-texto]')
+                : boton?.querySelector('[data-formato-boton-texto]');
             const botones = Array.from(document.querySelectorAll('[data-formato-descargar]'));
             descargaFormatoNotasEnCurso = true;
             botones.forEach(elemento => { elemento.disabled = true; });
-            if (textoBoton) textoBoton.textContent = 'Descargando...';
+            if (boton) boton.disabled = true;
+            if (textoBoton) {
+                textoBoton.textContent = formatoId === 'bgu_3'
+                    ? 'Generando...'
+                    : 'Descargando...';
+            }
 
             try {
-                const res = await window.electronAPI.descargarFormato(formatoId);
+                const res = await window.electronAPI.descargarFormato(formatoId, opciones);
                 if (res?.success) {
-                    const nombreSeguro = escaparHTMLDiagnostico(res.nombre || '');
-                    const rutaSegura = escaparHTMLDiagnostico(res.path || '');
+                    cerrarModalOptativasBgu3(false);
                     cerrarModalFormatosNotas();
                     mostrarAlerta(
                         'Formato descargado',
-                        `El formato “${nombreSeguro}” se guardó correctamente en:<br><strong class="text-xs break-all">${rutaSegura}</strong>`,
+                        `El formato “${res.nombre || ''}” se guardó correctamente en:\n${res.path || ''}`,
                         'success'
                     );
                     return;
@@ -1391,16 +1629,21 @@
                 const titulosPorCodigo = {
                     FORMATO_INVALIDO: 'Formato no válido',
                     FORMATO_NO_DISPONIBLE: 'Formato no disponible',
+                    OPTATIVAS_REQUERIDAS: 'Seleccione una optativa',
+                    OPTATIVAS_INVALIDAS: 'Selección no válida',
+                    CAPACIDAD_EXCEDIDA: 'Capacidad excedida',
+                    GENERACION_FALLIDA: 'No se pudo generar el formato',
+                    DESTINO_NO_PERMITIDO: 'Ubicación no permitida',
                     COPIA_FALLIDA: 'No se pudo guardar el formato',
                     DESCARGA_EN_CURSO: 'Descarga en curso'
                 };
                 mostrarAlerta(
                     titulosPorCodigo[res?.code] || 'No se pudo descargar el formato',
-                    escaparHTMLDiagnostico(res?.error || 'Ocurrió un error inesperado.'),
+                    res?.error || 'Ocurrió un error inesperado.',
                     'error'
                 );
-            } catch (error) {
-                console.error('No se pudo invocar la descarga del formato:', error);
+            } catch {
+                console.error('No se pudo invocar la descarga del formato.');
                 mostrarAlerta(
                     'No se pudo descargar el formato',
                     'No fue posible comunicarse con el proceso principal de la aplicación.',
@@ -1409,12 +1652,22 @@
             } finally {
                 descargaFormatoNotasEnCurso = false;
                 botones.forEach(elemento => { elemento.disabled = false; });
-                if (textoBoton) textoBoton.textContent = 'Descargar';
+                if (textoBoton) {
+                    textoBoton.textContent = formatoId === 'bgu_3'
+                        ? 'Generar y descargar'
+                        : 'Descargar';
+                }
+                actualizarEstadoOptativasBgu3();
             }
         }
 
         document.addEventListener('keydown', event => {
             if (event.key !== 'Escape') return;
+            const modalOptativas = document.getElementById('optativas-bgu3-modal');
+            if (modalOptativas && !modalOptativas.classList.contains('hidden')) {
+                cerrarModalOptativasBgu3();
+                return;
+            }
             const modal = document.getElementById('formatos-notas-modal');
             if (modal && !modal.classList.contains('hidden')) {
                 cerrarModalFormatosNotas();
@@ -1599,6 +1852,17 @@
             const containerText = document.getElementById(`${previewId}-container`);
 
             if (input.files && input.files[0]) {
+                const archivo = input.files[0];
+                const tiposPermitidos = new Set(['image/png', 'image/jpeg', 'image/webp']);
+                if (!tiposPermitidos.has(archivo.type) || archivo.size <= 0 || archivo.size > 5 * 1024 * 1024) {
+                    input.value = '';
+                    mostrarAlerta(
+                        'Logotipo no válido',
+                        'Seleccione una imagen PNG, JPEG o WEBP de hasta 5 MB.',
+                        'warning'
+                    );
+                    return;
+                }
                 const reader = new FileReader();
                 reader.onload = async function(e) {
                     const base64Str = e.target.result;
@@ -1613,7 +1877,7 @@
                         await saveStateToDB();
                     }
                 }
-                reader.readAsDataURL(input.files[0]);
+                reader.readAsDataURL(archivo);
             }
         }
 
@@ -2045,21 +2309,6 @@
             mostrarAlerta('Alumno creado', 'El alumno por traslado fue creado y sus notas externas quedaron guardadas como MANUAL_EXTERNO.', 'success');
         }
 
-        function validarCargaTrimestre3(periodKey, periodoDetectadoStr, result, cursoEncontrado, fileName) {
-            if (periodKey !== 'trimestre3') return;
-            console.log('[T3] Archivo seleccionado:', fileName);
-            console.log('[T3] Periodo detectado:', periodoDetectadoStr);
-            console.log('[T3] periodKey final:', periodKey);
-            console.log('[T3] Estudiantes detectados:', result.estudiantes?.length || 0);
-            console.log('[T3] Guardado en curso:', cursoEncontrado.periodos.trimestre3);
-        }
-
-        function escaparHTMLDiagnostico(valor) {
-            return String(valor ?? '').replace(/[&<>"']/g, caracter => ({
-                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
-            })[caracter]);
-        }
-
         function resumenCargaAsignaturas(result, grado) {
             const optativas = Array.isArray(result.optativasDetectadas)
                 ? new Set(result.optativasDetectadas.map(item => item.canonica)).size
@@ -2071,14 +2320,14 @@
             ];
             (result.asignaturasReconocidas || [])
                 .filter(item => item.metodo !== 'coincidencia_exacta' && normalizarTextoAsignatura(item.original) !== normalizarTextoAsignatura(item.canonica))
-                .forEach(item => lineas.push(`Se corrigió “${escaparHTMLDiagnostico(item.original)}” a “${escaparHTMLDiagnostico(item.canonica)}”.`));
+                .forEach(item => lineas.push(`Se corrigió “${item.original}” a “${item.canonica}”.`));
             (result.asignaturasIgnoradasPorCurso || []).forEach(item => {
-                lineas.push(`Se ignoró “${escaparHTMLDiagnostico(item.original)}” porque no corresponde a ${escaparHTMLDiagnostico(grado)}.`);
+                lineas.push(`Se ignoró “${item.original}” porque no corresponde a ${grado}.`);
             });
             (result.asignaturasNoReconocidas || []).forEach(item => {
-                lineas.push(`No se reconoció “${escaparHTMLDiagnostico(item.original)}” y se omitió.`);
+                lineas.push(`No se reconoció “${item.original}” y se omitió.`);
             });
-            return lineas.join('<br>');
+            return lineas.join('\n');
         }
 
         function consolidarYRenderizar() {
@@ -2275,7 +2524,6 @@
 
             listaConsolidada.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
             estudiantesCargados = listaConsolidada;
-            console.log('[consolidarYRenderizar] T3 estudiantes integrados:', t3.estudiantes?.length || 0);
             renderEstudiantes();
             renderEstudiantesNoEncontrados();
             renderModuloAsistencia();
@@ -2298,8 +2546,6 @@
 
             if (!absolutePath) return;
 
-            console.log("[handleFileSelect] Ruta seleccionada desde Electron:", absolutePath);
-
             const fileName = absolutePath.split(/[\\/]/).pop() || '';
 
             // Validar extensión
@@ -2315,14 +2561,11 @@
                 const filePathsPayload = { grado: cursoActivo.datosInstitucion?.gradoCurso || '' };
                 filePathsPayload[id] = absolutePath;
 
-                console.log("[handleFileSelect] Payload enviado a analizarExcel:", filePathsPayload);
-
                 const result = await window.electronAPI.analizarExcel(filePathsPayload);
-                console.log("[handleFileSelect] Resultado recibido desde Python:", result);
                 document.getElementById('loading-overlay').classList.add('hidden');
 
                 if (result.error) {
-                    mostrarAlerta("Error de formato", escaparHTMLDiagnostico(result.error), "error");
+                    mostrarAlerta("Error de formato", result.error, "error");
                     return;
                 }
 
@@ -2381,12 +2624,6 @@
                     }
                 }
 
-                if (id === 't3' || periodKey === 'trimestre3') {
-                    console.log("[T3] Periodo detectado:", periodoExcelDetectado || periodoExcelOriginal || 'NO DETECTADO');
-                    console.log("[T3] periodKey final:", periodKey);
-                    console.log("[T3] Estudiantes detectados:", result.estudiantes?.length || 0);
-                }
-
                 // Normalización para comparación
                 const excelGrado = normalizarTextoComparacion(inst.gradoCurso);
                 const excelParalelo = normalizarTextoComparacion(inst.paralelo);
@@ -2420,8 +2657,6 @@
                     }
                 }
 
-                console.log(`[Importación] Cantidad de cursos ANTES de importar: ${appState.cursos.length}`);
-
                 // Guardar la información en el período correcto del curso activo
                 const nowStr = new Date().toLocaleDateString();
                 cursoActivo.periodos[periodKey] = {
@@ -2431,8 +2666,6 @@
                     asignaturas: result.asignaturas || [],
                     estudiantes: result.estudiantes || []
                 };
-
-                validarCargaTrimestre3(periodKey, periodoDetectadoStr, result, cursoActivo, fileName);
 
                 // Actualizar cabeceras complementarias en el curso activo
                 if (!cursoActivo.datosInstitucion) {
@@ -2447,8 +2680,6 @@
 
                 // Actualizar cursoKey basándonos en los datos actuales
                 cursoActivo.cursoKey = generarCursoKey(cursoActivo);
-
-                console.log(`[Importación] Cantidad de cursos DESPUÉS de importar: ${appState.cursos.length}`);
 
                 await saveStateToDB();
                 actualizarSelectorCursosUI();
@@ -2802,16 +3033,28 @@
                 const t = span.textContent.trim().toUpperCase();
                 const parentDiv = span.closest('div');
                 if (!parentDiv) return;
+                const asignarTextoSeguro = (etiqueta, valor) => {
+                    const etiquetaEl = doc.createElement('span');
+                    etiquetaEl.className = 'font-bold';
+                    etiquetaEl.textContent = etiqueta;
+                    parentDiv.replaceChildren(
+                        etiquetaEl,
+                        doc.createTextNode(` ${String(valor || '')}`)
+                    );
+                };
 
                 if (t.includes('NOMBRE') && (t.includes('ESTUDIANTE') || t.includes('DEL'))) {
-                    parentDiv.innerHTML = `<span class="font-bold">${span.textContent.trim()}</span> ${est.nombre || ''}`;
+                    asignarTextoSeguro(span.textContent.trim(), est.nombre || '');
                 } else if (t.includes('DULA') || t.includes('CEDULA')) {
-                    parentDiv.innerHTML = `<span class="font-bold">CÉDULA:</span> ${est.cedula || 'S/C'}`;
+                    asignarTextoSeguro('CÉDULA:', est.cedula || 'S/C');
                     parentDiv.className = parentDiv.className.replace('flex', '').replace('items-center', '').trim();
                 } else if (t === 'GRADO:') {
-                    parentDiv.innerHTML = `<span class="font-bold">GRADO:</span> ${inst.gradoCurso || ''} PARALELO: ${inst.paralelo || ''}`;
+                    asignarTextoSeguro(
+                        'GRADO:',
+                        `${inst.gradoCurso || ''} PARALELO: ${inst.paralelo || ''}`
+                    );
                 } else if (t === 'JORNADA:') {
-                    parentDiv.innerHTML = `<span class="font-bold">JORNADA:</span> ${inst.jornada || 'MATUTINA'}`;
+                    asignarTextoSeguro('JORNADA:', inst.jornada || 'MATUTINA');
                 }
             });
         }
@@ -3227,10 +3470,18 @@
 
             supletorioEstudianteActivoId = estudianteId;
 
-            // Cambiar título del panel
-            document.getElementById('supletorios-titulo').innerHTML = `
-                <i class="fa-solid fa-square-poll-horizontal text-amber-500"></i> Exámenes supletorios — <strong class="text-indigo-600">${est.nombre}</strong>
-            `;
+            // Cambiar título del panel sin interpretar datos del Excel como HTML.
+            const tituloSupletorios = document.getElementById('supletorios-titulo');
+            const iconoTitulo = document.createElement('i');
+            iconoTitulo.className = 'fa-solid fa-square-poll-horizontal text-amber-500';
+            const nombreTitulo = document.createElement('strong');
+            nombreTitulo.className = 'text-indigo-600';
+            nombreTitulo.textContent = est.nombre;
+            tituloSupletorios.replaceChildren(
+                iconoTitulo,
+                document.createTextNode(' Exámenes supletorios — '),
+                nombreTitulo
+            );
 
             const tbody = document.getElementById('supletorios-body');
             tbody.innerHTML = '';
@@ -3423,7 +3674,7 @@
                     consolidarYRenderizar(); // Recalcula promedios y actualiza la tabla de estudiantes
                     
                     // Mostrar mensaje de éxito
-                    mostrarAlerta("Éxito al guardar", `Se han guardado las notas de supletorio para el estudiante <strong>${est.nombre}</strong>.`, "success");
+                    mostrarAlerta("Éxito al guardar", `Se han guardado las notas de supletorio para el estudiante ${est.nombre}.`, "success");
                     
                     // Cerrar el panel
                     cerrarPanelSupletorio();
@@ -3561,19 +3812,10 @@
             const gradoCursoCanonico = curso.datosInstitucion?.gradoCurso || curso.nombreVisible || '';
             const plantillaName = mapearPlantilla(gradoCursoCanonico);
 
-            // Diagnósticos en consola
-            console.log(`[Certificados] Curso activo: ${curso.nombreVisible}`);
-            console.log(`[Certificados] ID del curso activo: ${curso.id}`);
-            console.log(`[Certificados] gradoCurso original: ${curso.datosInstitucion?.gradoCurso || ''}`);
-            console.log(`[Certificados] gradoCurso normalizado: ${gradoCursoCanonico}`);
-            console.log(`[Certificados] Plantilla seleccionada: ${plantillaName || 'Ninguna'}`);
-            console.log(`[Certificados] Tipo de generación: PDF`);
-            console.log(`[Certificados] Cantidad de estudiantes: ${estudiantesData.length}`);
-
             if (!plantillaName) {
                 document.getElementById('loading-overlay').classList.add('hidden');
                 mostrarAlerta("Sin Plantilla",
-                    `No se encontró una plantilla de certificado para el grado: "${gradoCursoCanonico || 'sin especificar'}".<br>Verifique que el campo "Grado/Curso" esté correctamente configurado.`,
+                    `No se encontró una plantilla de certificado para el grado: "${gradoCursoCanonico || 'sin especificar'}".\nVerifique que el campo "Grado/Curso" esté correctamente configurado.`,
                     "error");
                 return null;
             }
@@ -3581,14 +3823,12 @@
             // Verificar si el archivo de la plantilla existe
             const checkRes = await window.electronAPI.leerPlantilla(plantillaName);
             if (checkRes.error) {
-                console.log(`[Certificados] Existe: false`);
                 document.getElementById('loading-overlay').classList.add('hidden');
                 mostrarAlerta("Sin Plantilla",
-                    `No se encontró la plantilla de certificado: "${plantillaName}".<br>Verifique que el archivo exista en la carpeta del sistema.`,
+                    `No se encontró la plantilla de certificado: "${plantillaName}".\nVerifique que el archivo exista en la carpeta del sistema.`,
                     "error");
                 return null;
             }
-            console.log(`[Certificados] Existe: true`);
 
             const pythonPayload = {
                 cursoActivoId: curso.id,
@@ -3669,7 +3909,7 @@
                     if (!res) return; // Error ya mostrado o usuario canceló
                     if (res.cancelled) return;
                     if (res.success) {
-                        mostrarAlerta("Éxito", `Certificados generados correctamente en la ruta:<br><strong class="text-xs break-all">${res.path}</strong>`, "success");
+                        mostrarAlerta("Éxito", `Certificados generados correctamente en la ruta:\n${res.path}`, "success");
                     } else {
                         mostrarAlerta("Error", "Ocurrió un error al generar los certificados: " + (res.error || ''), "error");
                     }
@@ -3707,8 +3947,9 @@
                 const res = await window.electronAPI.generarBoletines(payload);
                 document.getElementById('loading-overlay').classList.add('hidden');
 
+                if (res.cancelled) return;
                 if (res.success) {
-                    mostrarAlerta("Éxito", `Documentos generados con éxito en la ruta:<br><strong class="text-xs break-all">${res.path}</strong>`, "success", res.path);
+                    mostrarAlerta("Éxito", `Documentos generados con éxito en la ruta:\n${res.path}`, "success", res.path);
                 } else {
                     mostrarAlerta("Error", "Ocurrió un error al generar los PDF: " + res.error, "error");
                 }
@@ -3741,16 +3982,6 @@
             // Determinar la plantilla según el grado
             const plantillaName = mapearPlantilla(gradoCursoCanonico);
 
-            // Diagnósticos en consola
-            console.log(`[Certificados] Curso activo: ${curso.nombreVisible}`);
-            console.log(`[Certificados] ID del curso activo: ${curso.id}`);
-            console.log(`[Certificados] gradoCurso original: ${curso.datosInstitucion?.gradoCurso || ''}`);
-            console.log(`[Certificados] gradoCurso normalizado: ${gradoCursoCanonico}`);
-            console.log(`[Certificados] plantillaName seleccionada: ${plantillaName || 'Ninguna'}`);
-            console.log(`[Certificados] Ruta relativa: assets/certificados/${plantillaName || ''}`);
-            console.log(`[Certificados] Tipo de generación: preview`);
-            console.log(`[Certificados] Cantidad de estudiantes: 1`);
-
             if (!plantillaName) {
                 mostrarAlerta("Sin Plantilla",
                     `No se encontró una plantilla de certificado para el grado: "${gradoCursoCanonico || 'sin especificar'}".`,
@@ -3761,11 +3992,9 @@
             // Cargar la plantilla
             const result = await window.electronAPI.leerPlantilla(plantillaName);
             if (result.error) {
-                console.log(`[Certificados] Existe plantilla: false`);
                 mostrarAlerta("Error de Plantilla", result.error, "error");
                 return;
             }
-            console.log(`[Certificados] Existe plantilla: true`);
 
             const templateHTML = result.content;
             const parser = new DOMParser();
@@ -3860,8 +4089,9 @@
             const msgElem = document.getElementById('modal-message');
             const btnAction = document.getElementById('modal-btn-action');
 
-            titleElem.innerHTML = titulo;
-            msgElem.innerHTML = mensaje;
+            titleElem.textContent = String(titulo || '');
+            msgElem.textContent = String(mensaje || '');
+            msgElem.classList.add('whitespace-pre-line', 'break-words');
 
             btnAction.classList.add('hidden');
 

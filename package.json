@@ -26,6 +26,23 @@
     "appId": "ec.edu.ueeh.certi",
     "productName": "CERTI_UEEH",
     "asar": true,
+    "asarUnpack": [
+      "procesador_notas.py",
+      "catalogo_asignaturas.py",
+      "catalogo_asignaturas.json",
+      "escala_cualitativa.json",
+      "assets/certificados/**/*"
+    ],
+    "electronFuses": {
+      "runAsNode": false,
+      "enableCookieEncryption": true,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true,
+      "loadBrowserProcessSpecificV8Snapshot": false,
+      "grantFileProtocolExtraPrivileges": true
+    },
     "files": [
       "index.html",
       "main.js",

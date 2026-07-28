@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: file:; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: file:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none';">
     <title>Reporte de Calificaciones - 5to EGB</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -191,6 +192,7 @@
                 <table>
                     <thead>
                         <tr>
+                            <th>PERIODO</th>
                             <th>REGISTRO</th>
                             <th>JUSTIFICACIÓN</th>
                             <th>INJUSTIFICADO</th>
@@ -199,10 +201,32 @@
                     </thead>
                     <tbody>
                         <tr>
-                            <td data-asistencia="registro" class="font-semibold text-left-cell"></td>
-                            <td data-asistencia="justificadas"></td>
-                            <td data-asistencia="injustificadas"></td>
-                            <td data-asistencia="total" class="font-bold"></td>
+                            <td class="font-semibold text-left-cell">PRIMER TRIMESTRE</td>
+                            <td data-asistencia-periodo="T1" data-asistencia-campo="registro"></td>
+                            <td data-asistencia-periodo="T1" data-asistencia-campo="justificacion"></td>
+                            <td data-asistencia-periodo="T1" data-asistencia-campo="injustificado"></td>
+                            <td data-asistencia-periodo="T1" data-asistencia-campo="total" class="font-bold"></td>
+                        </tr>
+                        <tr>
+                            <td class="font-semibold text-left-cell">SEGUNDO TRIMESTRE</td>
+                            <td data-asistencia-periodo="T2" data-asistencia-campo="registro"></td>
+                            <td data-asistencia-periodo="T2" data-asistencia-campo="justificacion"></td>
+                            <td data-asistencia-periodo="T2" data-asistencia-campo="injustificado"></td>
+                            <td data-asistencia-periodo="T2" data-asistencia-campo="total" class="font-bold"></td>
+                        </tr>
+                        <tr>
+                            <td class="font-semibold text-left-cell">TERCER TRIMESTRE</td>
+                            <td data-asistencia-periodo="T3" data-asistencia-campo="registro"></td>
+                            <td data-asistencia-periodo="T3" data-asistencia-campo="justificacion"></td>
+                            <td data-asistencia-periodo="T3" data-asistencia-campo="injustificado"></td>
+                            <td data-asistencia-periodo="T3" data-asistencia-campo="total" class="font-bold"></td>
+                        </tr>
+                        <tr class="bg-slate-50">
+                            <td class="font-bold text-left-cell">TOTAL ANUAL</td>
+                            <td data-asistencia-periodo="ANUAL" data-asistencia-campo="registro"></td>
+                            <td data-asistencia-periodo="ANUAL" data-asistencia-campo="justificacion"></td>
+                            <td data-asistencia-periodo="ANUAL" data-asistencia-campo="injustificado"></td>
+                            <td data-asistencia-periodo="ANUAL" data-asistencia-campo="total" class="font-bold"></td>
                         </tr>
                     </tbody>
                 </table>

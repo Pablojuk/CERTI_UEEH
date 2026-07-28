@@ -5,9 +5,11 @@ Cruza las notas de archivos Excel trimestrales y supletorios.
 """
 
 from __future__ import annotations
+from copy import copy
 import os
 import sys
 import json
+import shutil
 
 try:
     sys.stdout.reconfigure(encoding='utf-8')
@@ -21,8 +23,10 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from html import escape as escapar_html, unescape as desescapar_html
-from openpyxl.utils import column_index_from_string
+from openpyxl import load_workbook
+from openpyxl.utils import column_index_from_string, get_column_letter
 from catalogo_asignaturas import (
+    CATALOGO_ASIGNATURAS,
     clasificar_asignatura,
     convertir_nota_a_escala_cualitativa,
     grado_usa_escala_cualitativa,
@@ -44,6 +48,10 @@ from reportlab.lib.units import inch
 COLUMNA_MAXIMA_ACADEMICA = column_index_from_string("X")
 ENCABEZADO_EVALUACION_COMPORTAMENTAL = "EVALUACION COMPORTAMENTAL"
 GRADOS_SIN_EVALUACION_COMPORTAMENTAL = {"INICIAL_1", "INICIAL_2", "EGB_1"}
+CAPACIDAD_MATERIAS_FORMATO_BGU3 = 16
+MAX_EXCEL_BYTES = 25 * 1024 * 1024
+FILA_ENCABEZADOS_FORMATO_BGU3 = 9
+PRIMERA_COLUMNA_MATERIAS_FORMATO_BGU3 = column_index_from_string("C")
 VALORES_VACIOS_TEXTO = {"", "nan", "none", "null", "undefined"}
 CAMPOS_METADATOS_ASIGNATURA = (
     "tipo",
@@ -53,6 +61,247 @@ CAMPOS_METADATOS_ASIGNATURA = (
     "permite_supletorio",
     "orden",
 )
+DEBUG_ACTIVO = os.environ.get("CERTI_DEBUG") == "1"
+
+
+def registrar_debug(mensaje):
+    """Emite diagnósticos sin datos académicos únicamente cuando se habilita explícitamente."""
+    if DEBUG_ACTIVO:
+        print(str(mensaje), file=sys.stderr)
+
+
+def es_segmento_ruta_seguro(valor, maximo=180):
+    texto = str(valor or "").strip()
+    return bool(
+        texto
+        and len(texto) <= maximo
+        and texto not in {".", ".."}
+        and not any(caracter in texto for caracter in ("/", "\\", "\0"))
+        and not any(ord(caracter) < 32 or ord(caracter) == 127 for caracter in texto)
+    )
+
+
+def resolver_ruta_hija(directorio_base, *segmentos):
+    base = Path(directorio_base).resolve()
+    destino = base.joinpath(*map(str, segmentos)).resolve()
+    try:
+        destino.relative_to(base)
+    except ValueError:
+        return None
+    return destino
+
+
+def validar_archivo_excel(ruta):
+    try:
+        archivo = Path(ruta)
+        return bool(
+            archivo.is_absolute()
+            and archivo.suffix.lower() in {".xlsx", ".xls"}
+            and archivo.is_file()
+            and not archivo.is_symlink()
+            and 0 < archivo.stat().st_size <= MAX_EXCEL_BYTES
+        )
+    except (OSError, TypeError, ValueError):
+        return False
+
+
+def optativas_bgu3_catalogo() -> list[dict]:
+    """Devuelve las optativas autorizadas de 3.º BGU en su orden oficial."""
+    return sorted(
+        (
+            entrada
+            for entrada in CATALOGO_ASIGNATURAS
+            if entrada.get("es_optativa_bgu3") is True
+        ),
+        key=lambda entrada: int(entrada.get("orden", 999)),
+    )
+
+
+def generar_formato_bgu3_con_optativas(
+    origen,
+    destino,
+    optativas,
+):
+    """Genera una copia del formato de 3.º BGU con las optativas seleccionadas."""
+    ruta_origen = Path(origen).resolve()
+    ruta_destino = Path(destino).resolve()
+    if not validar_archivo_excel(ruta_origen):
+        raise ValueError("No se encontró la plantilla original de 3.º BGU.")
+    if ruta_origen == ruta_destino:
+        raise ValueError("La plantilla original es de solo lectura.")
+
+    autorizadas = optativas_bgu3_catalogo()
+    autorizadas_por_nombre = {
+        entrada["nombre"]: entrada
+        for entrada in autorizadas
+    }
+    seleccion = [
+        str(nombre).strip()
+        for nombre in (optativas if isinstance(optativas, list) else [])
+        if str(nombre).strip()
+    ]
+    if not seleccion:
+        raise ValueError("Seleccione al menos una optativa de 3.º BGU.")
+    if (
+        len(set(seleccion)) != len(seleccion)
+        or any(nombre not in autorizadas_por_nombre for nombre in seleccion)
+    ):
+        raise ValueError("La selección contiene optativas no autorizadas.")
+    seleccion = [
+        entrada["nombre"]
+        for entrada in autorizadas
+        if entrada["nombre"] in seleccion
+    ]
+
+    materias_fijas_catalogo = sum(
+        1
+        for entrada in CATALOGO_ASIGNATURAS
+        if (
+            "BGU_3" in entrada.get("grados", [])
+            and entrada.get("es_optativa_bgu3") is not True
+        )
+    ) + 1  # Evaluación comportamental no está en el catálogo.
+    total_materias = materias_fijas_catalogo + len(seleccion)
+    if total_materias > CAPACIDAD_MATERIAS_FORMATO_BGU3:
+        raise ValueError(
+            "La selección supera la capacidad de "
+            f"{CAPACIDAD_MATERIAS_FORMATO_BGU3} asignaturas del formato."
+        )
+
+    ruta_destino.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(ruta_origen, ruta_destino)
+    libro = load_workbook(ruta_destino)
+    hoja = libro.active
+    ultima_columna = (
+        PRIMERA_COLUMNA_MATERIAS_FORMATO_BGU3
+        + CAPACIDAD_MATERIAS_FORMATO_BGU3
+        - 1
+    )
+    nombres_optativas_normalizados = {
+        normalizar_texto_asignatura(entrada["nombre"])
+        for entrada in autorizadas
+    }
+
+    columnas_originales = {}
+    for columna in range(
+        PRIMERA_COLUMNA_MATERIAS_FORMATO_BGU3,
+        ultima_columna + 1,
+    ):
+        letra = get_column_letter(columna)
+        dimension = hoja.column_dimensions[letra]
+        columnas_originales[columna] = {
+            "ancho": dimension.width,
+            "oculta": dimension.hidden,
+            "mejor_ajuste": dimension.bestFit,
+            "nivel": dimension.outlineLevel,
+            "celdas": [
+                {
+                    "valor": hoja.cell(fila, columna).value,
+                    "estilo": copy(hoja.cell(fila, columna)._style),
+                    "comentario": copy(hoja.cell(fila, columna).comment),
+                    "hipervinculo": copy(hoja.cell(fila, columna).hyperlink),
+                }
+                for fila in range(FILA_ENCABEZADOS_FORMATO_BGU3, hoja.max_row + 1)
+            ],
+        }
+
+    columnas_optativas = []
+    materias_fijas = []
+    posicion_primera_optativa = None
+    for columna in range(
+        PRIMERA_COLUMNA_MATERIAS_FORMATO_BGU3,
+        ultima_columna + 1,
+    ):
+        encabezado = mostrar_valor(
+            hoja.cell(FILA_ENCABEZADOS_FORMATO_BGU3, columna).value
+        )
+        if not encabezado:
+            continue
+        es_optativa = (
+            normalizar_texto_asignatura(encabezado)
+            in nombres_optativas_normalizados
+        )
+        if es_optativa:
+            if posicion_primera_optativa is None:
+                posicion_primera_optativa = len(materias_fijas)
+            columnas_optativas.append(columna)
+        else:
+            materias_fijas.append((encabezado, columna))
+
+    if len(materias_fijas) != materias_fijas_catalogo:
+        raise ValueError(
+            "La plantilla de 3.º BGU no contiene la cantidad esperada "
+            "de materias generales, Cívica y Evaluación Comportamental."
+        )
+    if len(seleccion) > len(columnas_optativas):
+        raise ValueError(
+            "La plantilla no tiene suficientes columnas reservadas para "
+            "las optativas seleccionadas."
+        )
+
+    punto_insercion = (
+        posicion_primera_optativa
+        if posicion_primera_optativa is not None
+        else len(materias_fijas)
+    )
+    materias_generadas = [
+        *materias_fijas[:punto_insercion],
+        *[
+            (nombre, columnas_optativas[indice])
+            for indice, nombre in enumerate(seleccion)
+        ],
+        *materias_fijas[punto_insercion:],
+    ]
+
+    for desplazamiento, (nombre, columna_fuente) in enumerate(materias_generadas):
+        columna_destino = PRIMERA_COLUMNA_MATERIAS_FORMATO_BGU3 + desplazamiento
+        datos_fuente = columnas_originales[columna_fuente]
+        letra_destino = get_column_letter(columna_destino)
+        dimension_destino = hoja.column_dimensions[letra_destino]
+        dimension_destino.width = datos_fuente["ancho"]
+        dimension_destino.hidden = datos_fuente["oculta"]
+        dimension_destino.bestFit = datos_fuente["mejor_ajuste"]
+        dimension_destino.outlineLevel = datos_fuente["nivel"]
+        for indice_fila, fila in enumerate(
+            range(FILA_ENCABEZADOS_FORMATO_BGU3, hoja.max_row + 1)
+        ):
+            origen_celda = datos_fuente["celdas"][indice_fila]
+            celda = hoja.cell(fila, columna_destino)
+            celda.value = origen_celda["valor"]
+            celda._style = copy(origen_celda["estilo"])
+            celda.comment = copy(origen_celda["comentario"])
+            celda._hyperlink = copy(origen_celda["hipervinculo"])
+        hoja.cell(FILA_ENCABEZADOS_FORMATO_BGU3, columna_destino).value = nombre
+
+    columnas_usadas = len(materias_generadas)
+    for columna_destino in range(
+        PRIMERA_COLUMNA_MATERIAS_FORMATO_BGU3 + columnas_usadas,
+        ultima_columna + 1,
+    ):
+        datos_fuente = columnas_originales[
+            columnas_optativas[
+                (columna_destino - PRIMERA_COLUMNA_MATERIAS_FORMATO_BGU3)
+                % len(columnas_optativas)
+            ]
+        ]
+        for indice_fila, fila in enumerate(
+            range(FILA_ENCABEZADOS_FORMATO_BGU3, hoja.max_row + 1)
+        ):
+            celda = hoja.cell(fila, columna_destino)
+            celda.value = None
+            celda._style = copy(datos_fuente["celdas"][indice_fila]["estilo"])
+            celda.comment = None
+            celda._hyperlink = None
+
+    libro.save(ruta_destino)
+    return {
+        "success": True,
+        "path": str(ruta_destino),
+        "optativas": seleccion,
+        "materiasFijas": materias_fijas_catalogo,
+        "totalMaterias": total_materias,
+        "capacidad": CAPACIDAD_MATERIAS_FORMATO_BGU3,
+    }
 
 
 def mostrar_valor(valor) -> str:
@@ -314,8 +563,8 @@ def cargar_excel_datos(file_path: str, grado_esperado: str | None = None, diagno
     con 'notas' vacío por ahora.
     """
     diagnostico = diagnostico if diagnostico is not None else crear_diagnostico_asignaturas()
-    if not file_path or not os.path.exists(file_path):
-        print(f"[cargar_excel_datos] Ruta inválida o inexistente: {file_path}", file=sys.stderr)
+    if not validar_archivo_excel(file_path):
+        registrar_debug("[cargar_excel_datos] Ruta inválida o inexistente.")
         return {}
         
     try:
@@ -323,9 +572,9 @@ def cargar_excel_datos(file_path: str, grado_esperado: str | None = None, diagno
         wb = openpyxl.load_workbook(file_path, data_only=True)
         sheet = obtener_hoja_principal(wb)
         if sheet is None:
-            print(f"[cargar_excel_datos] No existe la hoja 'Reporte Periodo'. Hojas encontradas: {', '.join(wb.sheetnames)}", file=sys.stderr)
+            registrar_debug("[cargar_excel_datos] No existe la hoja obligatoria.")
             return {}
-        print(f"[cargar_excel_datos] Hoja usada: {sheet.title}", file=sys.stderr)
+        registrar_debug("[cargar_excel_datos] Hoja principal localizada.")
 
         grado_excel = obtener_valor_celda(sheet, "B3")
         if grado_esperado:
@@ -395,7 +644,7 @@ def cargar_excel_datos(file_path: str, grado_esperado: str | None = None, diagno
                     },
                 })
                 canonicas_agregadas.add(clasificacion["canonica"])
-            print(f"[cargar_excel_datos] Formato materia única: {subject_name}, leyendo columna {col_to_read} ({periodo_detectado})", file=sys.stderr)
+            registrar_debug("[cargar_excel_datos] Formato de materia única detectado.")
         else:
             # Formato estándar multiasignatura. La zona académica oficial termina en X.
             comportamiento_col = None
@@ -429,10 +678,8 @@ def cargar_excel_datos(file_path: str, grado_esperado: str | None = None, diagno
                 })
                 canonicas_agregadas.add(canonica)
 
-        print(
-            f"[cargar_excel_datos] Asignaturas detectadas: "
-            f"{[subject['nombre'] for subject in subject_columns]}",
-            file=sys.stderr,
+        registrar_debug(
+            f"[cargar_excel_datos] Cantidad de asignaturas detectadas: {len(subject_columns)}"
         )
 
         records = {}
@@ -499,8 +746,8 @@ def cargar_excel_datos(file_path: str, grado_esperado: str | None = None, diagno
         return records
     except ErrorGradoExcel:
         raise
-    except Exception as e:
-        print(f"Error al cargar excel {file_path}: {e}", file=sys.stderr)
+    except Exception:
+        registrar_debug("[cargar_excel_datos] El archivo no pudo procesarse.")
         return {}
 
 def consolidar_estudiantes(t1_path, t2_path, t3_path, su_path, grado_esperado=None) -> list[dict]:
@@ -722,11 +969,11 @@ def generar_boletin_pdf(datos_consolidados, institucion_info, logos_paths, outpu
                 
         # Texto central del encabezado
         text_encabezado = [
-            Paragraph(institucion_info["nombre"].upper(), styles['MainTitle']),
+            Paragraph(escapar_html(mostrar_valor(institucion_info["nombre"]).upper()), styles['MainTitle']),
             Spacer(1, 2),
             Paragraph("REPORTE DE CALIFICACIONES TRIMESTRALES", styles['SubTitle']),
-            Paragraph(f"Año Lectivo: {institucion_info['anio']}", styles['SubTitle']),
-            Paragraph(f"Código AMIE: {institucion_info['amie']}", styles['SubTitle'])
+            Paragraph(f"Año Lectivo: {escapar_html(mostrar_valor(institucion_info['anio']))}", styles['SubTitle']),
+            Paragraph(f"Código AMIE: {escapar_html(mostrar_valor(institucion_info['amie']))}", styles['SubTitle'])
         ]
         
         # Tabla del encabezado
@@ -745,16 +992,16 @@ def generar_boletin_pdf(datos_consolidados, institucion_info, logos_paths, outpu
         tutor_nombre = institucion_info.get("tutor") or "N/A"
         info_data = [
             [
-                Paragraph(f"<b>Estudiante:</b> {est['nombre']}", styles['TableText']),
-                Paragraph(f"<b>Cédula:</b> {est['cedula']}", styles['TableText'])
+                Paragraph(f"<b>Estudiante:</b> {escapar_html(mostrar_valor(est['nombre']))}", styles['TableText']),
+                Paragraph(f"<b>Cédula:</b> {escapar_html(mostrar_valor(est['cedula']))}", styles['TableText'])
             ],
             [
-                Paragraph(f"<b>Curso:</b> {institucion_info['grado']}", styles['TableText']),
-                Paragraph(f"<b>Paralelo:</b> {institucion_info['paralelo']}", styles['TableText'])
+                Paragraph(f"<b>Curso:</b> {escapar_html(mostrar_valor(institucion_info['grado']))}", styles['TableText']),
+                Paragraph(f"<b>Paralelo:</b> {escapar_html(mostrar_valor(institucion_info['paralelo']))}", styles['TableText'])
             ],
             [
-                Paragraph(f"<b>Jornada:</b> {institucion_info['jornada']}", styles['TableText']),
-                Paragraph(f"<b>Tutor/a:</b> {tutor_nombre}", styles['TableText'])
+                Paragraph(f"<b>Jornada:</b> {escapar_html(mostrar_valor(institucion_info['jornada']))}", styles['TableText']),
+                Paragraph(f"<b>Tutor/a:</b> {escapar_html(mostrar_valor(tutor_nombre))}", styles['TableText'])
             ]
         ]
         
@@ -826,7 +1073,7 @@ def generar_boletin_pdf(datos_consolidados, institucion_info, logos_paths, outpu
                 est_color = colors.HexColor("#991b1b") # Rose oscuro
                 
             grades_data.append([
-                Paragraph(sub, styles['TableTextBold']),
+                Paragraph(escapar_html(mostrar_valor(sub)), styles['TableTextBold']),
                 Paragraph(t1_str, styles['TableText']),
                 Paragraph(t2_str, styles['TableText']),
                 Paragraph(t3_str, styles['TableText']),
@@ -834,7 +1081,7 @@ def generar_boletin_pdf(datos_consolidados, institucion_info, logos_paths, outpu
                 Paragraph(su_str, styles['TableText']),
                 Paragraph(nf_str, styles['TableTextBold']),
                 Paragraph(
-                    "" if es_cualitativa else f"<font color='{est_color}'><b>{est_materia}</b></font>",
+                    "" if es_cualitativa else f"<font color='{est_color}'><b>{escapar_html(mostrar_valor(est_materia))}</b></font>",
                     styles['TableText'],
                 )
             ])
@@ -929,7 +1176,7 @@ def generar_boletin_pdf(datos_consolidados, institucion_info, logos_paths, outpu
         summary_data = [
             [
                 Paragraph(f"<b>PROMEDIO GENERAL DEL ESTUDIANTE:</b> {prom_txt}", styles['TableTextBold']),
-                Paragraph(f"<b>ESTADO FINAL:</b> <font color='{status_color}'><b>{est['estado']}</b></font>", styles['TableTextBold'])
+                Paragraph(f"<b>ESTADO FINAL:</b> <font color='{status_color}'><b>{escapar_html(mostrar_valor(est['estado']))}</b></font>", styles['TableTextBold'])
             ]
         ]
         summary_table = Table(summary_data, colWidths=[270, 270])
@@ -950,8 +1197,8 @@ def generar_boletin_pdf(datos_consolidados, institucion_info, logos_paths, outpu
                 Paragraph("________________________________________", styles['SubTitle'])
             ],
             [
-                Paragraph(f"<b>{tutor_nombre}</b><br/>Tutor / Docente", styles['SubTitle']),
-                Paragraph(f"<b>{institucion_info['rector']}</b><br/>Rector / Director", styles['SubTitle'])
+                Paragraph(f"<b>{escapar_html(mostrar_valor(tutor_nombre))}</b><br/>Tutor / Docente", styles['SubTitle']),
+                Paragraph(f"<b>{escapar_html(mostrar_valor(institucion_info['rector']))}</b><br/>Rector / Director", styles['SubTitle'])
             ]
         ]
         firmas_table = Table(firmas_data, colWidths=[270, 270])
@@ -975,10 +1222,10 @@ def extraer_datos_institucionales(file_path: str) -> dict:
         raise ValueError("Ruta inválida: no se recibió la ruta del archivo Excel.")
 
     file_path = str(file_path).strip()
-    print(f"[extraer_datos_institucionales] Ruta recibida: {file_path}", file=sys.stderr)
+    registrar_debug("[extraer_datos_institucionales] Archivo recibido.")
 
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Ruta inválida: el archivo Excel no existe: {file_path}")
+    if not validar_archivo_excel(file_path):
+        raise ValueError("Ruta inválida: el archivo Excel no es válido o supera 25 MB.")
 
     try:
         import openpyxl
@@ -991,7 +1238,7 @@ def extraer_datos_institucionales(file_path: str) -> dict:
         hojas = ", ".join(wb.sheetnames) or "sin hojas"
         raise ValueError(f"Formato incorrecto: no existe la hoja obligatoria 'Reporte Periodo'. Hojas encontradas: {hojas}")
 
-    print(f"[extraer_datos_institucionales] Hoja usada: {sheet.title}", file=sys.stderr)
+    registrar_debug("[extraer_datos_institucionales] Hoja principal localizada.")
 
     valores_log = {
         "A1": obtener_valor_celda(sheet, "A1"),
@@ -1004,9 +1251,6 @@ def extraer_datos_institucionales(file_path: str) -> dict:
         "D4": obtener_valor_celda(sheet, "D4"),
         "B6": obtener_valor_celda(sheet, "B6"),
     }
-    for ref, valor in valores_log.items():
-        print(f"[extraer_datos_institucionales] {ref}: {valor}", file=sys.stderr)
-
     datos = {
         "nombreInstitucion": valores_log["A1"],
         "nivel": "",
@@ -1034,7 +1278,7 @@ def extraer_datos_institucionales(file_path: str) -> dict:
     if vacios:
         raise ValueError("Formato incorrecto: celdas obligatorias vacías: " + ", ".join(vacios))
 
-    print(f"[extraer_datos_institucionales] datosInstitucion final: {json.dumps(datos, ensure_ascii=False)}", file=sys.stderr)
+    registrar_debug("[extraer_datos_institucionales] Datos institucionales validados.")
     return datos
 
 
@@ -1141,6 +1385,14 @@ def inyectar_campo_certificado(html_content, campo, valor):
 def inject_student_data_html(html_content, student, inst, logos):
     tutor_name = inst.get("tutor") or inst.get("tutorCurso") or ""
     rector_name = inst.get("rector") or inst.get("rectorDirector") or ""
+    student_name_html = escapar_html(mostrar_valor(student.get("nombre", "")))
+    student_id_html = escapar_html(mostrar_valor(student.get("cedula", "")))
+    jornada_html = escapar_html(mostrar_valor(inst.get("jornada", "")))
+    amie_html = escapar_html(mostrar_valor(inst.get("amie", "")))
+    anio_html = escapar_html(mostrar_valor(inst.get("anio", "")))
+    institucion_html = escapar_html(mostrar_valor(inst.get("nombre", "")))
+    tutor_html = escapar_html(mostrar_valor(tutor_name))
+    rector_html = escapar_html(mostrar_valor(rector_name))
     html_content = inyectar_campo_certificado(
         html_content, "institution-name", inst.get("nombre", "")
     )
@@ -1159,6 +1411,7 @@ def inject_student_data_html(html_content, student, inst, logos):
     grado_completo = (
         f"{inst.get('grado', '')} PARALELO: {inst.get('paralelo', '')}".strip()
     )
+    grado_completo_html = escapar_html(grado_completo)
     html_content = inyectar_campo_certificado(
         html_content, "grade", grado_completo
     )
@@ -1175,34 +1428,34 @@ def inject_student_data_html(html_content, student, inst, logos):
     # 1. Reemplazar datos institucionales y del estudiante
     html_content = re.sub(
         r'(NOMBRE DEL ESTUDIANTE:\s*)[^<\n]+', 
-        rf'\g<1>{student["nombre"]}', 
+        lambda match: f"{match.group(1)}{student_name_html}",
         html_content, 
         flags=re.IGNORECASE
     )
     html_content = re.sub(
         r'(CÉDULA:\s*)[^<\n]+', 
-        rf'\g<1>{student["cedula"]}', 
+        lambda match: f"{match.group(1)}{student_id_html}",
         html_content, 
         flags=re.IGNORECASE
     )
     
     html_content = re.sub(
         r'(GRADO:\s*)[^<\n]+', 
-        rf'\g<1>{grado_completo}', 
+        lambda match: f"{match.group(1)}{grado_completo_html}",
         html_content, 
         flags=re.IGNORECASE
     )
     
     html_content = re.sub(
         r'(JORNADA:\s*)[^<\n]+', 
-        rf'\g<1>{inst.get("jornada", "")}', 
+        lambda match: f"{match.group(1)}{jornada_html}",
         html_content, 
         flags=re.IGNORECASE
     )
     
     html_content = re.sub(
         r'(AMIE:\s*)[^<\n\s,]+', 
-        rf'\g<1>{inst.get("amie", "")}', 
+        lambda match: f"{match.group(1)}{amie_html}",
         html_content, 
         flags=re.IGNORECASE
     )
@@ -1210,7 +1463,7 @@ def inject_student_data_html(html_content, student, inst, logos):
     if 'data-cert-field="school-year"' not in html_content:
         html_content = re.sub(
             r'(AÑO LECTIVO:\s*)[^<\n]+',
-            rf'\g<1>{inst.get("anio", "")}',
+            lambda match: f"{match.group(1)}{anio_html}",
             html_content,
             flags=re.IGNORECASE,
         )
@@ -1218,13 +1471,14 @@ def inject_student_data_html(html_content, student, inst, logos):
     if inst.get("nombre"):
         html_content = re.sub(
             r'(<h1[^>]*>)[^<]*(EMILIANO HINOSTROZA|UNIDAD EDUCATIVA)[^<]*(</h1>)',
-            rf'\g<1>{inst["nombre"]}\g<3>',
+            lambda match: f"{match.group(1)}{institucion_html}{match.group(3)}",
             html_content,
             flags=re.IGNORECASE
         )
         
     # 2. Inyectar logos en base64
     if logos.get("logo1"):
+        logo1_html = escapar_html(mostrar_valor(logos["logo1"]), quote=True)
         html_content = re.sub(
             r'id="img-logo-1"\s*class="[^"]*"',
             f'id="img-logo-1" class="absolute inset-0 w-full h-full object-contain p-1"',
@@ -1233,14 +1487,15 @@ def inject_student_data_html(html_content, student, inst, logos):
         if 'src=' in html_content.split('id="img-logo-1"')[1].split('>')[0]:
             html_content = re.sub(
                 r'id="img-logo-1"\s*src="[^"]*"',
-                f'id="img-logo-1" src="{logos["logo1"]}"',
+                f'id="img-logo-1" src="{logo1_html}"',
                 html_content
             )
         else:
-            html_content = html_content.replace('id="img-logo-1"', f'id="img-logo-1" src="{logos["logo1"]}"')
+            html_content = html_content.replace('id="img-logo-1"', f'id="img-logo-1" src="{logo1_html}"')
         html_content = html_content.replace('id="text-logo-1" class="', 'id="text-logo-1" class="hidden ')
 
     if logos.get("logo2"):
+        logo2_html = escapar_html(mostrar_valor(logos["logo2"]), quote=True)
         html_content = re.sub(
             r'id="img-logo-2"\s*class="[^"]*"',
             f'id="img-logo-2" class="absolute inset-0 w-full h-full object-contain p-1"',
@@ -1249,11 +1504,11 @@ def inject_student_data_html(html_content, student, inst, logos):
         if 'src=' in html_content.split('id="img-logo-2"')[1].split('>')[0]:
             html_content = re.sub(
                 r'id="img-logo-2"\s*src="[^"]*"',
-                f'id="img-logo-2" src="{logos["logo2"]}"',
+                f'id="img-logo-2" src="{logo2_html}"',
                 html_content
             )
         else:
-            html_content = html_content.replace('id="img-logo-2"', f'id="img-logo-2" src="{logos["logo2"]}"')
+            html_content = html_content.replace('id="img-logo-2"', f'id="img-logo-2" src="{logo2_html}"')
         html_content = html_content.replace('id="text-logo-2" class="', 'id="text-logo-2" class="hidden ')
 
     # 3. Firmas
@@ -1269,7 +1524,7 @@ def inject_student_data_html(html_content, student, inst, logos):
             if 'cert-nombre-firma' not in new_block:
                 new_block = new_block.replace(
                     '<p>',
-                    f'<p class="cert-nombre-firma font-bold text-slate-800 mt-1" style="font-size: 0.75rem;">{tutor_name}</p>\n            <p>'
+                    f'<p class="cert-nombre-firma font-bold text-slate-800 mt-1" style="font-size: 0.75rem;">{tutor_html}</p>\n            <p>'
                 )
             html_content = html_content.replace(block, new_block)
 
@@ -1285,7 +1540,7 @@ def inject_student_data_html(html_content, student, inst, logos):
             if 'cert-nombre-firma' not in new_block:
                 new_block = new_block.replace(
                     '<p>',
-                    f'<p class="cert-nombre-firma font-bold text-slate-800 mt-1" style="font-size: 0.75rem;">{rector_name}</p>\n            <p>'
+                    f'<p class="cert-nombre-firma font-bold text-slate-800 mt-1" style="font-size: 0.75rem;">{rector_html}</p>\n            <p>'
                 )
             html_content = html_content.replace(block, new_block)
 
@@ -1540,7 +1795,7 @@ def inject_asistencia_anual(
     curso_id_esperado=None,
     estudiante_id_esperado=None,
 ):
-    """Completa asistencia sólo cuando corresponde al curso y estudiante esperados."""
+    """Completa T1, T2, T3 y el anual sin recalcular sus resúmenes."""
     datos = asistencia if isinstance(asistencia, dict) else {}
     curso_id = mostrar_valor(datos.get("cursoId"))
     estudiante_id = mostrar_valor(datos.get("estudianteId"))
@@ -1554,22 +1809,58 @@ def inject_asistencia_anual(
         or not estudiante_id
         or estudiante_id == mostrar_valor(estudiante_id_esperado)
     )
-    configurada = bool(
-        datos.get("configurada") and curso_coincide and estudiante_coincide
-    )
-    valores = {
-        "registro": datos.get("totalFaltas") if configurada else "",
-        "justificadas": datos.get("justificadas") if configurada else "",
-        "injustificadas": datos.get("injustificadas") if configurada else "",
-        "total": datos.get("totalAsistencia") if configurada else "",
+    identidad_coincide = curso_coincide and estudiante_coincide
+    campos = {
+        "registro": "totalFaltas",
+        "justificacion": "justificadas",
+        "injustificado": "injustificadas",
+        "total": "totalAsistencia",
     }
-    for clave, valor in valores.items():
-        patron = re.compile(
-            rf'(<td[^>]*\bdata-asistencia=["\']{clave}["\'][^>]*>)[\s\S]*?(</td>)',
-            re.IGNORECASE,
+    resumen_anual = datos.get("anual")
+    if not isinstance(resumen_anual, dict):
+        resumen_anual = datos
+
+    periodos = {
+        "T1": (datos.get("T1"), "configurado"),
+        "T2": (datos.get("T2"), "configurado"),
+        "T3": (datos.get("T3"), "configurado"),
+        "ANUAL": (resumen_anual, "configurada"),
+    }
+    for periodo, (resumen, clave_configuracion) in periodos.items():
+        resumen = resumen if isinstance(resumen, dict) else {}
+        configurado = bool(
+            identidad_coincide and resumen.get(clave_configuracion)
         )
-        texto = escapar_html(mostrar_valor(valor))
-        html_content = patron.sub(rf"\g<1>{texto}\g<2>", html_content)
+        for campo, clave_dato in campos.items():
+            valor = resumen.get(clave_dato) if configurado else ""
+            patron = re.compile(
+                rf'(<td\b'
+                rf'(?=[^>]*\bdata-asistencia-periodo=["\']{periodo}["\'])'
+                rf'(?=[^>]*\bdata-asistencia-campo=["\']{campo}["\'])'
+                rf'[^>]*>)[\s\S]*?(</td>)',
+                re.IGNORECASE,
+            )
+            texto = escapar_html(mostrar_valor(valor))
+            html_content = patron.sub(rf"\g<1>{texto}\g<2>", html_content)
+
+    # Compatibilidad con plantillas antiguas: reciben únicamente el total anual.
+    if "data-asistencia-periodo" not in html_content.lower():
+        configurada = bool(
+            identidad_coincide and resumen_anual.get("configurada")
+        )
+        valores_anteriores = {
+            "registro": resumen_anual.get("totalFaltas") if configurada else "",
+            "justificadas": resumen_anual.get("justificadas") if configurada else "",
+            "injustificadas": resumen_anual.get("injustificadas") if configurada else "",
+            "total": resumen_anual.get("totalAsistencia") if configurada else "",
+        }
+        for clave, valor in valores_anteriores.items():
+            patron = re.compile(
+                rf'(<td[^>]*\bdata-asistencia=["\']{clave}["\'][^>]*>)[\s\S]*?(</td>)',
+                re.IGNORECASE,
+            )
+            texto = escapar_html(mostrar_valor(valor))
+            html_content = patron.sub(rf"\g<1>{texto}\g<2>", html_content)
     return html_content
 
 
@@ -1582,7 +1873,12 @@ def generar_certificados_inicial(payload):
     templates_dir = os.path.join(os.path.dirname(__file__), "assets", "certificados")
     
     # Directorio de salida para certificados generados (recibido de Electron o fallback)
-    cert_output_dir = payload.get("certOutputDir", os.path.join(os.path.dirname(__file__), "assets", "certificados_generados"))
+    cert_output_dir = os.path.abspath(
+        payload.get(
+            "certOutputDir",
+            os.path.join(os.path.dirname(__file__), "assets", "certificados_generados"),
+        )
+    )
     os.makedirs(cert_output_dir, exist_ok=True)
     
     # Plantilla: JS tiene prioridad, luego fallback a mapear_plantilla_python
@@ -1592,10 +1888,10 @@ def generar_certificados_inicial(payload):
     # Validar plantilla del JS contra lista blanca
     if plantilla_name_js and plantilla_name_js in PLANTILLAS_PERMITIDAS:
         plantilla_name = plantilla_name_js
-        print(f"[Certificados-PY] Usando plantilla de JS: {plantilla_name}", file=sys.stderr)
+        registrar_debug("[Certificados-PY] Plantilla autorizada recibida.")
     else:
         plantilla_name = mapear_plantilla_python(grado_canonico)
-        print(f"[Certificados-PY] Plantilla calculada por Python: {plantilla_name} (grado: {grado_canonico})", file=sys.stderr)
+        registrar_debug("[Certificados-PY] Plantilla determinada localmente.")
     
     if not plantilla_name:
         return {"error": f"No se encontró plantilla para el grado: {grado_canonico}", "supletorios": []}
@@ -1604,11 +1900,9 @@ def generar_certificados_inicial(payload):
     if not os.path.exists(plantilla_path):
         return {"error": f"Plantilla no encontrada en disco: {plantilla_name} → {plantilla_path}", "supletorios": []}
     
-    print(f"[Certificados-PY] Plantilla final: {plantilla_name}", file=sys.stderr)
-    print(f"[Certificados-PY] Ruta: {plantilla_path}", file=sys.stderr)
-    print(f"[Certificados-PY] Existe: {os.path.exists(plantilla_path)}", file=sys.stderr)
-    print(f"[Certificados-PY] Estudiantes: {len(estudiantes)}", file=sys.stderr)
-    print(f"[Certificados-PY] Output dir: {cert_output_dir}", file=sys.stderr)
+    registrar_debug(
+        f"[Certificados-PY] Generación autorizada para {len(estudiantes)} estudiante(s)."
+    )
     
     with open(plantilla_path, "r", encoding="utf-8") as f:
         template_html = f.read()
@@ -1620,10 +1914,8 @@ def generar_certificados_inicial(payload):
         materias = {}
         for sub_name, datos_originales in est.get("materias", {}).items():
             if not isinstance(datos_originales, dict):
-                print(
-                    f'[Certificados-PY] Advertencia: estructura inesperada para "{sub_name}"; '
-                    "sus celdas quedarán vacías.",
-                    file=sys.stderr,
+                registrar_debug(
+                    "[Certificados-PY] Se omitió una estructura académica inesperada."
                 )
                 materias[sub_name] = {}
                 continue
@@ -1638,10 +1930,8 @@ def generar_certificados_inicial(payload):
                 for periodo in ("t1", "t2", "t3"):
                     valor = m_data.get(periodo)
                     if valor is not None and not isinstance(valor, str):
-                        print(
-                            f'[Certificados-PY] Advertencia: "{sub_name}" {periodo} '
-                            "se esperaba como texto; se mostrará sin conversión numérica.",
-                            file=sys.stderr,
+                        registrar_debug(
+                            "[Certificados-PY] Se conservó una valoración cualitativa no textual."
                         )
                 m_data["t1"] = mostrar_valor(m_data.get("t1"))
                 m_data["t2"] = mostrar_valor(m_data.get("t2"))
@@ -1700,12 +1990,17 @@ def generar_certificados_inicial(payload):
         )
         
         # Guardar en directorio de salida, NO en plantillas
-        output_filename = f"certificado_{est['id_real']}.html"
-        output_path = os.path.join(cert_output_dir, output_filename)
-        with open(output_path, "w", encoding="utf-8") as f:
+        student_id = str(est.get("id_real", "")).strip()
+        if not es_segmento_ruta_seguro(student_id):
+            raise ValueError("El identificador del estudiante no es válido.")
+        output_filename = f"certificado_{student_id}.html"
+        output_path = resolver_ruta_hija(cert_output_dir, output_filename)
+        if output_path is None:
+            raise ValueError("La ruta del certificado no es válida.")
+        with output_path.open("w", encoding="utf-8") as f:
             f.write(student_html)
         
-        archivos_generados.append(output_path)
+        archivos_generados.append(str(output_path))
             
     return {
         "supletorios": supletorios_detectados,
@@ -1716,12 +2011,20 @@ def generar_certificados_inicial(payload):
 
 def actualizar_certificado_supletorio(student_id, asignatura, nota_supletorio, cert_output_dir=None):
     """Actualiza un certificado HTML existente con la nota de supletorio."""
+    if not es_segmento_ruta_seguro(student_id):
+        return False
     metadatos = completar_metadatos_asignatura(asignatura)
     if metadatos["tipo"] == "cualitativa" or not metadatos["permite_supletorio"]:
         return False
     # Buscar en el directorio de salida proporcionado, o fallback
     if cert_output_dir:
-        file_path = os.path.join(cert_output_dir, f"certificado_{student_id}.html")
+        ruta_segura = resolver_ruta_hija(
+            cert_output_dir,
+            f"certificado_{student_id}.html",
+        )
+        if ruta_segura is None:
+            return False
+        file_path = str(ruta_segura)
     else:
         # Fallback: buscar en assets/certificados_generados y luego en assets/certificados (legacy)
         base_dir = os.path.dirname(__file__)
@@ -1730,7 +2033,7 @@ def actualizar_certificado_supletorio(student_id, asignatura, nota_supletorio, c
             file_path = os.path.join(base_dir, "assets", "certificados", f"certificado_{student_id}.html")
     
     if not os.path.exists(file_path):
-        print(f"[actualizar_certificado_supletorio] No existe el certificado para {student_id} en {file_path}", file=sys.stderr)
+        registrar_debug("[actualizar_certificado_supletorio] Certificado no localizado.")
         return False
         
     with open(file_path, "r", encoding="utf-8") as f:
@@ -1805,7 +2108,13 @@ def main():
     parser.add_argument('--analizar', action='store_true', help='Analiza los excels y devuelve la lista de estudiantes en JSON')
     parser.add_argument('--generar', action='store_true', help='Genera los PDF recibiendo el payload por stdin')
     parser.add_argument('--certificados', action='store_true', help='Genera los certificados HTML iniciales y detecta supletorios')
-    parser.add_argument('--supletorios', type=str, help='JSON con las notas manuales de supletorio para actualizar')
+    parser.add_argument('--generar-formato-bgu3', action='store_true', help='Genera una copia XLSX de 3.º BGU con optativas')
+    parser.add_argument(
+        '--supletorios',
+        nargs='?',
+        const='-',
+        help='Actualiza supletorios leyendo JSON desde stdin; mantiene compatibilidad con JSON como argumento.',
+    )
     parser.add_argument('--t1', type=str, help='Ruta Excel Trimestre 1')
     parser.add_argument('--t2', type=str, help='Ruta Excel Trimestre 2')
     parser.add_argument('--t3', type=str, help='Ruta Excel Trimestre 3')
@@ -1814,9 +2123,33 @@ def main():
     
     args = parser.parse_args()
     
+    if args.generar_formato_bgu3:
+        try:
+            input_data = sys.stdin.read()
+            if not input_data:
+                raise ValueError("No se recibió la configuración del formato.")
+            payload = json.loads(input_data)
+            resultado = generar_formato_bgu3_con_optativas(
+                payload.get("origen"),
+                payload.get("destino"),
+                payload.get("optativas"),
+            )
+            print(json.dumps(resultado, ensure_ascii=False))
+        except Exception as error:
+            print(json.dumps({
+                "success": False,
+                "error": str(error),
+            }, ensure_ascii=False))
+        return
+
     if args.supletorios:
         try:
-            updates = json.loads(args.supletorios)
+            contenido_updates = (
+                sys.stdin.read()
+                if args.supletorios == '-'
+                else args.supletorios
+            )
+            updates = json.loads(contenido_updates)
             success_count = 0
             # Extract cert_output_dir from the first entry if provided
             cert_output_dir = None
@@ -1831,8 +2164,11 @@ def main():
                         if actualizar_certificado_supletorio(student_id, asignatura, nota_su, cert_output_dir):
                             success_count += 1
             print(json.dumps({"success": True, "updated": success_count}, ensure_ascii=False))
-        except Exception as e:
-            print(json.dumps({"success": False, "error": str(e)}, ensure_ascii=False))
+        except Exception:
+            print(json.dumps({
+                "success": False,
+                "error": "No se pudieron validar o actualizar las notas de supletorio.",
+            }, ensure_ascii=False))
         return
 
     if args.certificados:
@@ -1851,8 +2187,11 @@ def main():
                 print(json.dumps({"success": False, "error": result["error"]}, ensure_ascii=False))
             else:
                 print(json.dumps({"success": True, **result}, ensure_ascii=False))
-        except Exception as e:
-            print(json.dumps({"success": False, "error": str(e)}, ensure_ascii=False))
+        except Exception:
+            print(json.dumps({
+                "success": False,
+                "error": "No se pudieron generar los certificados.",
+            }, ensure_ascii=False))
         return
 
     elif args.analizar:
@@ -1948,21 +2287,29 @@ def main():
                 print(json.dumps({"success": False, "error": "No se encontraron datos para los estudiantes seleccionados"}, ensure_ascii=False))
                 return
                 
-            # Definir la ruta de salida en Descargas del usuario
-            home_dir = str(Path.home())
-            descargas_path = os.path.join(home_dir, "Downloads")
-            if not os.path.exists(descargas_path):
-                descargas_path = home_dir # Fallback al home
-                
-            pdf_filename = f"Boletines_Consolidados_{inst.get('grado', 'Curso').replace(' ', '_')}_{inst.get('paralelo', 'P')}.pdf"
-            output_pdf = os.path.join(descargas_path, pdf_filename)
+            output_pdf = payload.get("outputPath")
+            if (
+                not isinstance(output_pdf, str)
+                or not os.path.isabs(output_pdf)
+                or Path(output_pdf).suffix.lower() != ".pdf"
+                or not Path(output_pdf).parent.is_dir()
+            ):
+                print(json.dumps({
+                    "success": False,
+                    "error": "No se recibió un destino PDF autorizado.",
+                }, ensure_ascii=False))
+                return
+            output_pdf = str(Path(output_pdf).resolve())
             
             generar_boletin_pdf(seleccionados_data, inst, logos, output_pdf)
             
             print(json.dumps({"success": True, "path": output_pdf}, ensure_ascii=False))
             
-        except Exception as e:
-            print(json.dumps({"success": False, "error": str(e)}, ensure_ascii=False))
+        except Exception:
+            print(json.dumps({
+                "success": False,
+                "error": "No se pudo generar el PDF solicitado.",
+            }, ensure_ascii=False))
     else:
         parser.print_help()
 

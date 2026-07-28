@@ -21,52 +21,109 @@ class AsistenciaReportesTests(unittest.TestCase):
     def tearDown(self):
         self.temporal.cleanup()
 
-    def extraer_valor(self, html, clave):
+    def extraer_valor(self, html, periodo, campo):
         patron = re.compile(
-            rf'<td[^>]*data-asistencia="{clave}"[^>]*>([\s\S]*?)</td>',
+            rf'<td\b'
+            rf'(?=[^>]*data-asistencia-periodo="{periodo}")'
+            rf'(?=[^>]*data-asistencia-campo="{campo}")'
+            rf'[^>]*>([\s\S]*?)</td>',
             re.IGNORECASE,
         )
-        return re.sub(r"<[^>]+>", "", patron.search(html).group(1)).strip()
+        coincidencia = patron.search(html)
+        self.assertIsNotNone(coincidencia, f"Falta {periodo}/{campo}")
+        return re.sub(r"<[^>]+>", "", coincidencia.group(1)).strip()
+
+    @staticmethod
+    def resumen_pruebas():
+        return {
+            "cursoId": "curso_a",
+            "estudianteId": "estudiante_a",
+            "T1": {
+                "configurado": True,
+                "totalFaltas": 3,
+                "justificadas": 0,
+                "injustificadas": 3,
+                "totalAsistencia": 19,
+            },
+            "T2": {
+                "configurado": True,
+                "totalFaltas": 2,
+                "justificadas": 1,
+                "injustificadas": 1,
+                "totalAsistencia": 20,
+            },
+            "T3": {
+                "configurado": True,
+                "totalFaltas": 1,
+                "justificadas": 0,
+                "injustificadas": 1,
+                "totalAsistencia": 21,
+            },
+            "anual": {
+                "configurada": True,
+                "totalFaltas": 6,
+                "justificadas": 1,
+                "injustificadas": 5,
+                "totalAsistencia": 60,
+            },
+        }
 
     def test_todas_las_plantillas_de_asistencia_tienen_identificadores_y_sin_ejemplos(self):
         encontradas = 0
         for ruta in self.plantillas.glob("*.html"):
             html = ruta.read_text(encoding="utf-8")
-            if "Asistencia Anual" not in html:
+            if "data-asistencia-periodo" not in html:
                 continue
             encontradas += 1
             with self.subTest(plantilla=ruta.name):
-                for clave in ("registro", "justificadas", "injustificadas", "total"):
-                    self.assertIn(f'data-asistencia="{clave}"', html)
-                    self.assertEqual(self.extraer_valor(html, clave), "")
+                for periodo in ("T1", "T2", "T3", "ANUAL"):
+                    for campo in (
+                        "registro",
+                        "justificacion",
+                        "injustificado",
+                        "total",
+                    ):
+                        self.assertEqual(
+                            self.extraer_valor(html, periodo, campo),
+                            "",
+                        )
+                for etiqueta in (
+                    "PRIMER TRIMESTRE",
+                    "SEGUNDO TRIMESTRE",
+                    "TERCER TRIMESTRE",
+                    "TOTAL ANUAL",
+                ):
+                    self.assertIn(etiqueta, html)
         self.assertEqual(encontradas, 6)
 
-    def test_inyecta_acumulado_anual_en_las_celdas_correctas(self):
+    def test_inyecta_trimestres_y_acumulado_anual_en_las_celdas_correctas(self):
         plantilla = (self.plantillas / "FORMATO DE 3 DE BGU.html").read_text(encoding="utf-8")
-        html = inject_asistencia_anual(plantilla, {
-            "configurada": True,
-            "justificadas": 0,
-            "injustificadas": 6,
-            "totalFaltas": 6,
-            "diasLectivos": 68,
-            "totalAsistencia": 62,
-        })
-        self.assertEqual(self.extraer_valor(html, "registro"), "6")
-        self.assertEqual(self.extraer_valor(html, "justificadas"), "0")
-        self.assertEqual(self.extraer_valor(html, "injustificadas"), "6")
-        self.assertEqual(self.extraer_valor(html, "total"), "62")
+        html = inject_asistencia_anual(
+            plantilla,
+            self.resumen_pruebas(),
+            "curso_a",
+            "estudiante_a",
+        )
+        esperados = {
+            "T1": ("3", "0", "3", "19"),
+            "T2": ("2", "1", "1", "20"),
+            "T3": ("1", "0", "1", "21"),
+            "ANUAL": ("6", "1", "5", "60"),
+        }
+        for periodo, valores in esperados.items():
+            with self.subTest(periodo=periodo):
+                for campo, valor in zip(
+                    ("registro", "justificacion", "injustificado", "total"),
+                    valores,
+                ):
+                    self.assertEqual(
+                        self.extraer_valor(html, periodo, campo),
+                        valor,
+                    )
 
     def test_no_inyecta_resumen_de_otro_curso_o_estudiante(self):
         plantilla = (self.plantillas / "FORMATO DE 3 DE BGU.html").read_text(encoding="utf-8")
-        resumen = {
-            "configurada": True,
-            "cursoId": "curso_a",
-            "estudianteId": "estudiante_a",
-            "justificadas": 0,
-            "injustificadas": 6,
-            "totalFaltas": 6,
-            "totalAsistencia": 62,
-        }
+        resumen = self.resumen_pruebas()
         for curso, estudiante in (
             ("curso_b", "estudiante_a"),
             ("curso_a", "estudiante_b"),
@@ -78,18 +135,58 @@ class AsistenciaReportesTests(unittest.TestCase):
                     curso,
                     estudiante,
                 )
-                for clave in ("registro", "justificadas", "injustificadas", "total"):
-                    self.assertEqual(self.extraer_valor(html, clave), "")
+                for periodo in ("T1", "T2", "T3", "ANUAL"):
+                    for campo in (
+                        "registro",
+                        "justificacion",
+                        "injustificado",
+                        "total",
+                    ):
+                        self.assertEqual(
+                            self.extraer_valor(html, periodo, campo),
+                            "",
+                        )
 
-    def test_sin_configuracion_mantiene_celdas_vacias(self):
+    def test_trimestre_sin_configuracion_queda_vacio_y_configurado_sin_faltas_muestra_ceros(self):
+        plantilla = (self.plantillas / "FORMATO DE 3 DE BGU.html").read_text(encoding="utf-8")
+        resumen = self.resumen_pruebas()
+        resumen["T2"] = {
+            "configurado": True,
+            "totalFaltas": 0,
+            "justificadas": 0,
+            "injustificadas": 0,
+            "totalAsistencia": 22,
+        }
+        resumen["T3"] = {
+            "configurado": False,
+            "totalFaltas": 0,
+            "justificadas": 0,
+            "injustificadas": 0,
+            "totalAsistencia": 0,
+        }
+        html = inject_asistencia_anual(plantilla, resumen)
+        self.assertEqual(
+            tuple(
+                self.extraer_valor(html, "T2", campo)
+                for campo in ("registro", "justificacion", "injustificado", "total")
+            ),
+            ("0", "0", "0", "22"),
+        )
+        for campo in ("registro", "justificacion", "injustificado", "total"):
+            self.assertEqual(self.extraer_valor(html, "T3", campo), "")
+        self.assertNotRegex(html, r">\s*(None|NaN|null|undefined|200|199)\s*</td>")
+
+    def test_sin_configuracion_mantiene_todas_las_celdas_vacias(self):
         plantilla = (self.plantillas / "FORMATO DE 3 DE BGU.html").read_text(encoding="utf-8")
         html = inject_asistencia_anual(plantilla, None)
-        for clave in ("registro", "justificadas", "injustificadas", "total"):
-            self.assertEqual(self.extraer_valor(html, clave), "")
-        self.assertNotRegex(html, r">\s*(None|NaN|null|undefined|200|199)\s*</td>")
+        for periodo in ("T1", "T2", "T3", "ANUAL"):
+            for campo in ("registro", "justificacion", "injustificado", "total"):
+                self.assertEqual(self.extraer_valor(html, periodo, campo), "")
 
     def test_generador_de_certificados_propaga_asistencia(self):
         salida = self.directorio / "certificados"
+        resumen = self.resumen_pruebas()
+        resumen["estudianteId"] = "estudiante_1"
         resultado = generar_certificados_inicial({
             "datos_consolidados": [{
                 "id_real": "estudiante_1",
@@ -97,14 +194,7 @@ class AsistenciaReportesTests(unittest.TestCase):
                 "nombre": "ESTUDIANTE PRUEBA",
                 "materias": {},
                 "evaluacion_comportamental": {},
-                "asistencia": {
-                    "configurada": True,
-                    "justificadas": 1,
-                    "injustificadas": 2,
-                    "totalFaltas": 3,
-                    "diasLectivos": 60,
-                    "totalAsistencia": 57,
-                },
+                "asistencia": resumen,
             }],
             "institucion": {"grado": "3RO BGU", "nivel": "BGU"},
             "logos": {},
@@ -113,10 +203,11 @@ class AsistenciaReportesTests(unittest.TestCase):
             "certOutputDir": str(salida),
         })
         html = Path(resultado["archivos"][0]).read_text(encoding="utf-8")
-        self.assertEqual(self.extraer_valor(html, "registro"), "3")
-        self.assertEqual(self.extraer_valor(html, "justificadas"), "1")
-        self.assertEqual(self.extraer_valor(html, "injustificadas"), "2")
-        self.assertEqual(self.extraer_valor(html, "total"), "57")
+        self.assertEqual(self.extraer_valor(html, "T1", "registro"), "3")
+        self.assertEqual(self.extraer_valor(html, "T2", "justificacion"), "1")
+        self.assertEqual(self.extraer_valor(html, "T3", "total"), "21")
+        self.assertEqual(self.extraer_valor(html, "ANUAL", "registro"), "6")
+        self.assertEqual(self.extraer_valor(html, "ANUAL", "total"), "60")
 
     def test_boletin_pdf_se_genera_con_asistencia(self):
         salida = self.directorio / "boletin_asistencia.pdf"

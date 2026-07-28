@@ -11,7 +11,9 @@ const vm = require('node:vm');
 const {
     FORMATOS_NOTAS,
     MENSAJES_FORMATOS_NOTAS,
+    CAPACIDAD_MATERIAS_FORMATO_BGU3,
     obtenerDirectorioFormatosNotas,
+    validarSeleccionOptativasBgu3,
     descargarFormatoNotasSeguro
 } = require('../main.js');
 
@@ -20,6 +22,13 @@ const recursos = path.join(raiz, 'assets', 'formatos-notas');
 const indexSource = fs.readFileSync(path.join(raiz, 'index.html'), 'utf8');
 const preloadSource = fs.readFileSync(path.join(raiz, 'preload.js'), 'utf8');
 const packageJson = JSON.parse(fs.readFileSync(path.join(raiz, 'package.json'), 'utf8'));
+const catalogoAsignaturas = JSON.parse(
+    fs.readFileSync(path.join(raiz, 'catalogo_asignaturas.json'), 'utf8')
+);
+const optativasBgu3 = catalogoAsignaturas
+    .filter(entrada => entrada.es_optativa_bgu3 === true)
+    .sort((a, b) => a.orden - b.orden)
+    .map(entrada => entrada.nombre);
 
 const hashesEsperadosPorId = {
     egb_2_7: 'be04d082453ad9fc4cf90113fa4909fba556380e09c1e3053ecda685739bb037',
@@ -45,17 +54,20 @@ function extraerFuncion(nombre) {
     throw new Error(`No se pudo extraer ${nombre}`);
 }
 
-function crearDependencias(directorioFormatos, dialogo) {
+function crearDependencias(directorioFormatos, dialogo, adicionales = {}) {
     return {
         fs,
         path,
         directorioFormatos,
+        directorioAplicacion: raiz,
+        catalogoAsignaturas,
         app: {
             isPackaged: false,
-            getPath: () => os.tmpdir()
+            getPath: tipo => tipo === 'temp' ? os.tmpdir() : os.tmpdir()
         },
         mainWindow: {},
-        dialog: dialogo
+        dialog: dialogo,
+        ...adicionales
     };
 }
 
@@ -104,7 +116,14 @@ test('cada ID descarga únicamente su recurso y sugiere el nombre visible correc
             };
             const resultado = await descargarFormatoNotasSeguro(
                 formatoId,
-                crearDependencias(recursos, dialogo)
+                formatoId === 'bgu_3'
+                    ? { cursoId: 'curso_bgu3', optativas: optativasBgu3.slice(0, 3) }
+                    : {},
+                crearDependencias(recursos, dialogo, {
+                    generarFormatoBgu3: async payload => {
+                        fs.copyFileSync(payload.origen, payload.destino);
+                    }
+                })
             );
             assert.deepEqual(
                 {
@@ -154,6 +173,7 @@ test('todos los identificadores arbitrarios y traversal se rechazan antes del di
     for (const valor of invalidos) {
         const resultado = await descargarFormatoNotasSeguro(
             valor,
+            {},
             crearDependencias(recursos, dialogo)
         );
         assert.equal(resultado.code, 'FORMATO_INVALIDO');
@@ -178,6 +198,7 @@ test('un recurso faltante devuelve mensaje controlado y no abre diálogo', async
     try {
         const resultado = await descargarFormatoNotasSeguro(
             'bgu_3',
+            { cursoId: 'curso_bgu3', optativas: optativasBgu3.slice(0, 3) },
             crearDependencias(temporal, {
                 showSaveDialog: async () => {
                     dialogos += 1;
@@ -219,6 +240,13 @@ test('el modal es único, accesible y contiene exactamente las cuatro tarjetas',
         );
     });
     assert.equal((indexSource.match(/<article data-formato-card/g) || []).length, 4);
+    assert.equal((indexSource.match(/id="optativas-bgu3-modal"/g) || []).length, 1);
+    assert.match(indexSource, /id="optativas-bgu3-modal"[\s\S]*?aria-modal="true"/);
+    assert.match(indexSource, /id="btn-generar-formato-bgu3"[^>]*disabled/);
+    assert.match(indexSource, /entrada\?\.es_optativa_bgu3 === true/);
+    assert.match(indexSource, /Number\(a\.orden \|\| 999\) - Number\(b\.orden \|\| 999\)/);
+    assert.match(indexSource, /curso\.optativasFormatoBgu3 = estado\.seleccion\.slice\(\)/);
+    assert.match(indexSource, /await saveStateToDB\(\)/);
     assert.match(indexSource, /event\.key !== 'Escape'/);
     assert.equal((indexSource.match(/document\.addEventListener\('keydown'/g) || []).length, 1);
 
@@ -270,10 +298,10 @@ test('la recomendación reutiliza la normalización real del curso activo', () =
     });
 });
 
-test('el contrato preload solo transmite formatoId y conserva el aislamiento', () => {
+test('el contrato preload transmite opciones validadas sin exponer APIs peligrosas', () => {
     assert.match(
         preloadSource,
-        /descargarFormato:\s*\(formatoId\)\s*=>\s*ipcRenderer\.invoke\('descargar-formato', formatoId\)/
+        /descargarFormato:\s*\(formatoId,\s*opciones = \{\}\)\s*=>\s*ipcRenderer\.invoke\('descargar-formato', formatoId, opciones\)/
     );
     assert.doesNotMatch(preloadSource, /\bfs\s*:/);
     assert.doesNotMatch(preloadSource, /\bpath\s*:/);
@@ -281,6 +309,137 @@ test('el contrato preload solo transmite formatoId y conserva el aislamiento', (
     const mainSource = fs.readFileSync(path.join(raiz, 'main.js'), 'utf8');
     assert.match(mainSource, /contextIsolation:\s*true/);
     assert.match(mainSource, /nodeIntegration:\s*false/);
+});
+
+test('3.º BGU exige optativas, las ordena por catálogo y respeta la capacidad de 16 materias', () => {
+    assert.equal(CAPACIDAD_MATERIAS_FORMATO_BGU3, 16);
+    const vacia = validarSeleccionOptativasBgu3([], catalogoAsignaturas);
+    assert.equal(vacia.valida, false);
+    assert.equal(vacia.code, 'OPTATIVAS_REQUERIDAS');
+
+    const seleccionDesordenada = [
+        optativasBgu3[7],
+        optativasBgu3[0],
+        optativasBgu3[3]
+    ];
+    const tres = validarSeleccionOptativasBgu3(seleccionDesordenada, catalogoAsignaturas);
+    assert.equal(tres.valida, true);
+    assert.deepEqual(tres.optativas, [
+        optativasBgu3[0],
+        optativasBgu3[3],
+        optativasBgu3[7]
+    ]);
+    assert.equal(tres.totalMaterias, 14);
+
+    const exceso = validarSeleccionOptativasBgu3(
+        optativasBgu3.slice(0, 6),
+        catalogoAsignaturas
+    );
+    assert.equal(exceso.valida, false);
+    assert.equal(exceso.code, 'CAPACIDAD_EXCEDIDA');
+});
+
+test('la descarga personalizada usa una copia temporal, conserva el original y limpia al finalizar', async () => {
+    const temporal = fs.mkdtempSync(path.join(os.tmpdir(), 'certi-bgu3-descarga-'));
+    const destino = path.join(temporal, 'formato_personalizado.xlsx');
+    const hashOriginal = sha256(path.join(recursos, FORMATOS_NOTAS.bgu_3.archivoInterno));
+    let temporalGenerado = null;
+    try {
+        const resultado = await descargarFormatoNotasSeguro(
+            'bgu_3',
+            {
+                cursoId: 'curso_bgu3',
+                optativas: optativasBgu3.slice(0, 3)
+            },
+            crearDependencias(
+                recursos,
+                {
+                    showSaveDialog: async () => ({
+                        canceled: false,
+                        filePath: destino
+                    })
+                },
+                {
+                    directorioTemporalBase: temporal,
+                    generarFormatoBgu3: async payload => {
+                        temporalGenerado = payload.destino;
+                        fs.copyFileSync(payload.origen, payload.destino);
+                    }
+                }
+            )
+        );
+        assert.equal(resultado.success, true);
+        assert.deepEqual(resultado.optativas, optativasBgu3.slice(0, 3));
+        assert.equal(sha256(destino), hashOriginal);
+        assert.equal(
+            sha256(path.join(recursos, FORMATOS_NOTAS.bgu_3.archivoInterno)),
+            hashOriginal
+        );
+        assert.equal(fs.existsSync(temporalGenerado), false);
+        assert.equal(fs.readdirSync(temporal).includes('formato_personalizado.xlsx'), true);
+    } finally {
+        fs.rmSync(temporal, { recursive: true, force: true });
+    }
+});
+
+test('la selección guardada se recupera por curso y el resto de formatos sigue directo', () => {
+    const contexto = {
+        catalogoAsignaturas,
+        cursoA: { id: 'curso_a', optativasFormatoBgu3: optativasBgu3.slice(0, 2) },
+        cursoB: { id: 'curso_b', optativasFormatoBgu3: optativasBgu3.slice(4, 5) }
+    };
+    vm.createContext(contexto);
+    vm.runInContext([
+        extraerFuncion('obtenerOptativasBgu3Disponibles'),
+        extraerFuncion('obtenerSeleccionOptativasBgu3Curso')
+    ].join('\n'), contexto);
+    assert.deepEqual(
+        Array.from(contexto.obtenerSeleccionOptativasBgu3Curso(contexto.cursoA)),
+        optativasBgu3.slice(0, 2)
+    );
+    assert.deepEqual(
+        Array.from(contexto.obtenerSeleccionOptativasBgu3Curso(contexto.cursoB)),
+        optativasBgu3.slice(4, 5)
+    );
+    assert.match(
+        extraerFuncion('descargarFormatoNotas'),
+        /formatoId === 'bgu_3'[\s\S]*abrirModalOptativasBgu3\(\)[\s\S]*return;[\s\S]*ejecutarDescargaFormatoNotas\(formatoId\)/
+    );
+});
+
+test('el botón Generar y descargar permanece bloqueado sin selección', () => {
+    const boton = { disabled: false };
+    const estado = {
+        textContent: '',
+        classList: { toggle() {} }
+    };
+    const contexto = {
+        catalogoAsignaturas,
+        CAPACIDAD_MATERIAS_FORMATO_BGU3: 16,
+        descargaFormatoNotasEnCurso: false,
+        seleccion: [],
+        document: {
+            querySelectorAll: () => contexto.seleccion.map(value => ({ value })),
+            getElementById: id => id === 'btn-generar-formato-bgu3' ? boton : estado
+        }
+    };
+    vm.createContext(contexto);
+    vm.runInContext([
+        extraerFuncion('obtenerOptativasBgu3Disponibles'),
+        extraerFuncion('cantidadMateriasFijasBgu3'),
+        extraerFuncion('seleccionOptativasBgu3Actual'),
+        extraerFuncion('actualizarEstadoOptativasBgu3')
+    ].join('\n'), contexto);
+
+    const vacia = contexto.actualizarEstadoOptativasBgu3();
+    assert.equal(vacia.valida, false);
+    assert.equal(boton.disabled, true);
+
+    contexto.seleccion = optativasBgu3.slice(0, 3);
+    const tres = contexto.actualizarEstadoOptativasBgu3();
+    assert.equal(tres.valida, true);
+    assert.equal(tres.total, 14);
+    assert.equal(boton.disabled, false);
 });
 
 test('electron-builder incluye los XLSX como extraResources fuera del ASAR', () => {

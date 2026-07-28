@@ -7,7 +7,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     obtenerEscalaCualitativa: () => ipcRenderer.invoke('obtener-escala-cualitativa'),
     generarBoletines: (datos) => ipcRenderer.invoke('generar-boletines', datos),
     seleccionarArchivo: (opciones) => ipcRenderer.invoke('seleccionar-archivo', opciones),
-    descargarFormato: (formatoId) => ipcRenderer.invoke('descargar-formato', formatoId),
+    descargarFormato: (formatoId, opciones = {}) => ipcRenderer.invoke('descargar-formato', formatoId, opciones),
     leerPlantilla: (nombre) => ipcRenderer.invoke('leer-plantilla', nombre),
     imprimirCertificados: (html) => ipcRenderer.invoke('imprimir-certificados', html),
     abrirVistaPreviaCertificado: (html) => ipcRenderer.invoke('abrir-vista-previa-certificado', html),

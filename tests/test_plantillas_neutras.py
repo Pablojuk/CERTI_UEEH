@@ -188,13 +188,16 @@ class PlantillasNeutrasTests(unittest.TestCase):
                 self.assertNotIn(PARTICIPACION, html)
                 for campo, valor in (
                     ("registro", "6"),
-                    ("justificadas", "0"),
-                    ("injustificadas", "6"),
+                    ("justificacion", "0"),
+                    ("injustificado", "6"),
                     ("total", "62"),
                 ):
                     self.assertRegex(
                         html,
-                        rf'data-asistencia="{campo}"[^>]*>{valor}</td>',
+                        rf'<td\b'
+                        rf'(?=[^>]*data-asistencia-periodo="ANUAL")'
+                        rf'(?=[^>]*data-asistencia-campo="{campo}")'
+                        rf'[^>]*>{valor}</td>',
                     )
 
     def test_todas_las_plantillas_inyectan_tutor_y_rector_con_claves_compatibles(self):

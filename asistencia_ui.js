@@ -112,12 +112,18 @@ function obtenerEstudianteIdAsistencia(estudiante) {
 }
 
 function resumenAsistenciaAnualCurso(curso, estudianteId) {
-    const resumen = AsistenciaUtils.resumenAnual(
-        curso ? asegurarAsistenciaCurso(curso) : null,
-        estudianteId
-    );
+    const asistenciaCurso = curso ? asegurarAsistenciaCurso(curso) : null;
+    const T1 = AsistenciaUtils.resumenEstudiante(asistenciaCurso?.T1, estudianteId);
+    const T2 = AsistenciaUtils.resumenEstudiante(asistenciaCurso?.T2, estudianteId);
+    const T3 = AsistenciaUtils.resumenEstudiante(asistenciaCurso?.T3, estudianteId);
+    const anual = AsistenciaUtils.resumenAnual(asistenciaCurso, estudianteId);
     return {
-        ...resumen,
+        // Conserva los campos anuales planos para consumidores existentes.
+        ...anual,
+        T1,
+        T2,
+        T3,
+        anual,
         cursoId: mostrarValorSeguro(curso?.id),
         estudianteId: mostrarValorSeguro(estudianteId)
     };
@@ -617,46 +623,91 @@ function cerrarModalAsistencia() {
     asistenciaModalEstado = null;
 }
 
-function inyectarAsistenciaDocumento(doc, estudiante, cursoId = '') {
-    const resumen = estudiante?.asistencia || {
-        configurada: false,
-        totalFaltas: null,
-        justificadas: null,
-        injustificadas: null,
-        totalAsistencia: null
-    };
-    const estudianteId = obtenerEstudianteIdAsistencia(estudiante);
+function obtenerValoresAsistenciaDocumento(resumenEntrada, estudianteId = '', cursoId = '') {
+    const resumen = resumenEntrada && typeof resumenEntrada === 'object'
+        ? resumenEntrada
+        : {};
     const cursoEsperado = mostrarValorSeguro(cursoId);
+    const estudianteEsperado = mostrarValorSeguro(estudianteId);
     const perteneceAlCurso = (
         !cursoEsperado || !resumen.cursoId || resumen.cursoId === cursoEsperado
     );
     const perteneceAlEstudiante = (
-        !resumen.estudianteId || resumen.estudianteId === estudianteId
+        !estudianteEsperado || !resumen.estudianteId || resumen.estudianteId === estudianteEsperado
     );
-    const configurada = Boolean(
-        resumen.configurada && perteneceAlCurso && perteneceAlEstudiante
-    );
+
+    const vacio = () => ({
+        registro: '',
+        justificacion: '',
+        injustificado: '',
+        total: ''
+    });
     const valores = {
-        registro: configurada ? resumen.totalFaltas : '',
-        justificadas: configurada ? resumen.justificadas : '',
-        injustificadas: configurada ? resumen.injustificadas : '',
-        total: configurada ? resumen.totalAsistencia : ''
+        T1: vacio(),
+        T2: vacio(),
+        T3: vacio(),
+        ANUAL: vacio()
     };
-    let celdas = Array.from(doc.querySelectorAll('[data-asistencia]'));
-    if (celdas.length === 0) {
-        const titulo = Array.from(doc.querySelectorAll('h3')).find(
-            item => normalizarTextoAsignatura(item.textContent) === 'ASISTENCIA ANUAL'
-        );
-        const fila = titulo?.parentElement?.querySelector('tbody tr');
-        celdas = fila ? Array.from(fila.cells) : [];
-        ['registro', 'justificadas', 'injustificadas', 'total'].forEach((clave, indice) => {
-            if (celdas[indice]) celdas[indice].dataset.asistencia = clave;
-        });
+
+    if (!perteneceAlCurso || !perteneceAlEstudiante) return valores;
+
+    ['T1', 'T2', 'T3'].forEach(periodo => {
+        const datos = resumen[periodo];
+        if (!datos?.configurado) return;
+        valores[periodo] = {
+            registro: datos.totalFaltas,
+            justificacion: datos.justificadas,
+            injustificado: datos.injustificadas,
+            total: datos.totalAsistencia
+        };
+    });
+
+    const anual = resumen.anual && typeof resumen.anual === 'object'
+        ? resumen.anual
+        : resumen;
+    if (anual.configurada) {
+        valores.ANUAL = {
+            registro: anual.totalFaltas,
+            justificacion: anual.justificadas,
+            injustificado: anual.injustificadas,
+            total: anual.totalAsistencia
+        };
     }
+
+    return valores;
+}
+
+function inyectarAsistenciaDocumento(doc, estudiante, cursoId = '') {
+    const resumen = estudiante?.asistencia || {};
+    const valores = obtenerValoresAsistenciaDocumento(
+        resumen,
+        obtenerEstudianteIdAsistencia(estudiante),
+        cursoId
+    );
+    const celdasPeriodo = Array.from(
+        doc.querySelectorAll('[data-asistencia-periodo][data-asistencia-campo]')
+    );
+    celdasPeriodo.forEach(celda => {
+        const periodo = String(celda.dataset.asistenciaPeriodo || '').toUpperCase();
+        const campo = celda.dataset.asistenciaCampo;
+        if (Object.prototype.hasOwnProperty.call(valores[periodo] || {}, campo)) {
+            celda.textContent = String(valores[periodo][campo]);
+        }
+    });
+
+    // Compatibilidad con plantillas antiguas: reciben únicamente el total anual.
+    if (celdasPeriodo.length > 0) return;
+    const valoresAnuales = {
+        registro: valores.ANUAL.registro,
+        justificadas: valores.ANUAL.justificacion,
+        injustificadas: valores.ANUAL.injustificado,
+        total: valores.ANUAL.total
+    };
+    const celdas = Array.from(doc.querySelectorAll('[data-asistencia]'));
     celdas.forEach(celda => {
         const clave = celda.dataset.asistencia;
-        if (Object.prototype.hasOwnProperty.call(valores, clave)) {
-            celda.textContent = String(valores[clave]);
+        if (Object.prototype.hasOwnProperty.call(valoresAnuales, clave)) {
+            celda.textContent = String(valoresAnuales[clave]);
         }
     });
 }
@@ -667,6 +718,8 @@ if (typeof module === 'object' && module.exports) {
         obtenerEstudianteIdAsistencia,
         resumenAsistenciaAnualCurso,
         enriquecerEstudiantesConAsistencia,
+        obtenerValoresAsistenciaDocumento,
+        inyectarAsistenciaDocumento,
         actualizarFaltaPorClic
     };
 }
