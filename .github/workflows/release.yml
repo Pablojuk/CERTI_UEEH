@@ -1,0 +1,63 @@
+name: Publicar versión para Windows
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Comprobar versión y etiqueta
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: npm run verify:release-version
+
+      - name: Instalar dependencias de Node.js
+        run: npm ci
+
+      - name: Instalar dependencias de Python
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-build.txt
+
+      - name: Ejecutar pruebas JavaScript
+        run: npm test
+
+      - name: Ejecutar pruebas Python
+        run: python -m unittest discover -s tests -p "test_*.py"
+
+      - name: Preparar Python y publicar instalador NSIS
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run release
+
+      - name: Verificar artefactos de actualización
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".Substring(1)
+          Get-Item "dist\CERTI_UEEH-Setup-$version.exe"
+          Get-Item "dist\CERTI_UEEH-Setup-$version.exe.blockmap"
+          Get-Item "dist\latest.yml"

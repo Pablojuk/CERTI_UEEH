@@ -4,6 +4,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     obtenerEstadoLicencia: () => ipcRenderer.invoke('obtener-estado-licencia'),
     activarLicencia: (licencia) => ipcRenderer.invoke('activar-licencia', licencia),
     iniciarPrueba: () => ipcRenderer.invoke('iniciar-prueba'),
+    buscarActualizaciones: () => ipcRenderer.invoke('actualizaciones:buscar'),
+    descargarActualizacion: () => ipcRenderer.invoke('actualizaciones:descargar'),
+    reiniciarEInstalarActualizacion: () => ipcRenderer.invoke('actualizaciones:instalar'),
+    onEstadoActualizacion: (callback) => {
+        if (typeof callback !== 'function') return () => {};
+        const listener = (_event, estado) => callback(estado);
+        ipcRenderer.on('actualizaciones:estado', listener);
+        return () => ipcRenderer.removeListener('actualizaciones:estado', listener);
+    },
     analizarExcel: (solicitud) => ipcRenderer.invoke('analizar-excel', solicitud),
     obtenerCatalogoAsignaturas: () => ipcRenderer.invoke('obtener-catalogo-asignaturas'),
     obtenerEscalaCualitativa: () => ipcRenderer.invoke('obtener-escala-cualitativa'),

@@ -26,6 +26,12 @@
         #licencia-overlay:not(.hidden) {
             display: flex;
         }
+        #actualizacion-modal.hidden {
+            display: none !important;
+        }
+        #actualizacion-modal:not(.hidden) {
+            display: flex;
+        }
         #licencia-overlay {
             position: fixed;
             inset: 0;
@@ -99,6 +105,12 @@
             </div>
         </div>
         <div class="flex items-center gap-4">
+            <div class="flex flex-col items-stretch gap-1">
+                <button id="btn-buscar-actualizaciones" type="button" onclick="buscarActualizacionesManual()" class="text-xs font-bold text-emerald-700 hover:text-emerald-900 flex items-center justify-center gap-1.5 transition-all bg-emerald-50 hover:bg-emerald-100 px-3 py-2 rounded-full border border-emerald-200">
+                    <i class="fa-solid fa-rotate"></i> Buscar actualizaciones
+                </button>
+                <span id="actualizacion-estado-breve" class="text-[10px] text-slate-500 text-center max-w-48" role="status" aria-live="polite">Actualizaciones listas</span>
+            </div>
             <button id="btn-abrir-formatos-notas" type="button" onclick="abrirModalFormatosNotas()" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 transition-all bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-full border border-indigo-200">
                 <i class="fa-solid fa-file-arrow-down"></i> Descargar formatos
             </button>
@@ -121,6 +133,51 @@
             </div>
         </div>
     </nav>
+
+    <div id="actualizacion-modal" class="hidden fixed inset-0 z-[90] bg-slate-950/70 items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="actualizacion-titulo">
+        <div class="w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
+            <div class="bg-emerald-600 px-6 py-5 text-white">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center">
+                        <i class="fa-solid fa-cloud-arrow-down text-xl"></i>
+                    </div>
+                    <div>
+                        <h2 id="actualizacion-titulo" class="text-xl font-bold">Actualización de CERTI_UEEH</h2>
+                        <p id="actualizacion-mensaje" class="text-emerald-50 text-sm mt-1" aria-live="polite">Comprobando el estado...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="p-6">
+                <div id="actualizacion-versiones" class="grid grid-cols-2 gap-3 mb-5">
+                    <div class="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3">
+                        <p class="text-xs uppercase tracking-wide font-bold text-slate-500">Versión instalada</p>
+                        <p id="actualizacion-version-instalada" class="text-lg font-bold text-slate-900 mt-1">—</p>
+                    </div>
+                    <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3">
+                        <p class="text-xs uppercase tracking-wide font-bold text-emerald-700">Nueva versión</p>
+                        <p id="actualizacion-version-nueva" class="text-lg font-bold text-emerald-900 mt-1">—</p>
+                    </div>
+                </div>
+                <div id="actualizacion-notas-contenedor" class="mb-5">
+                    <h3 class="text-sm font-bold text-slate-800 mb-2">Notas de la versión</h3>
+                    <p id="actualizacion-notas" class="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600"></p>
+                </div>
+                <div id="actualizacion-progreso" class="hidden mb-5">
+                    <div class="flex justify-between text-xs font-semibold text-slate-600 mb-2">
+                        <span>Descargando</span>
+                        <span id="actualizacion-porcentaje">0 %</span>
+                    </div>
+                    <div class="h-3 rounded-full bg-slate-200 overflow-hidden">
+                        <div id="actualizacion-barra" class="h-full bg-emerald-500 transition-all" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="flex flex-col-reverse sm:flex-row justify-end gap-3">
+                    <button id="btn-actualizacion-mas-tarde" type="button" onclick="cerrarModalActualizacion()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-md text-sm font-semibold hover:bg-slate-200">Más tarde</button>
+                    <button id="btn-actualizacion-accion" type="button" class="hidden px-4 py-2 bg-emerald-600 text-white rounded-md text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-wait">Actualizar ahora</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 mt-8 space-y-6">
         
@@ -983,6 +1040,181 @@
                 console.error("No se pudo cargar el estado local.");
                 return false;
             }
+        }
+
+        let estadoActualizacionPantalla = null;
+        let versionActualizacionPospuesta = null;
+
+        function abrirModalActualizacion() {
+            document.getElementById('actualizacion-modal').classList.remove('hidden');
+        }
+
+        function cerrarModalActualizacion() {
+            if (estadoActualizacionPantalla?.estado === 'disponible') {
+                versionActualizacionPospuesta = estadoActualizacionPantalla.nuevaVersion;
+            }
+            document.getElementById('actualizacion-modal').classList.add('hidden');
+        }
+
+        function textoBreveActualizacion(estado) {
+            const mensajes = {
+                buscando: 'Buscando actualización',
+                disponible: 'Nueva versión disponible',
+                'no-disponible': 'La aplicación está actualizada',
+                descargando: 'Descargando actualización',
+                descargada: 'Actualización lista',
+                instalando: 'Reiniciando para instalar',
+                'sin-conexion': 'Sin conexión',
+                error: 'Error al comprobar',
+                deshabilitado: 'Solo disponible en la app instalada',
+                listo: 'Actualizaciones listas'
+            };
+            return mensajes[estado] || 'Actualizaciones listas';
+        }
+
+        function manejarEstadoActualizacion(estado) {
+            if (!estado || typeof estado !== 'object') return;
+            estadoActualizacionPantalla = {
+                estado: String(estado.estado || 'error'),
+                versionInstalada: typeof estado.versionInstalada === 'string'
+                    ? estado.versionInstalada
+                    : '',
+                nuevaVersion: typeof estado.nuevaVersion === 'string'
+                    ? estado.nuevaVersion
+                    : '',
+                notas: typeof estado.notas === 'string' ? estado.notas : '',
+                porcentaje: Number.isFinite(Number(estado.porcentaje))
+                    ? Math.max(0, Math.min(100, Number(estado.porcentaje)))
+                    : null,
+                manual: estado.manual === true,
+                mensaje: typeof estado.mensaje === 'string'
+                    ? estado.mensaje
+                    : 'Error al comprobar la actualización.'
+            };
+
+            const actual = estadoActualizacionPantalla;
+            const botonBuscar = document.getElementById('btn-buscar-actualizaciones');
+            const botonAccion = document.getElementById('btn-actualizacion-accion');
+            const botonMasTarde = document.getElementById('btn-actualizacion-mas-tarde');
+            const progreso = document.getElementById('actualizacion-progreso');
+            const tieneVersion = Boolean(actual.nuevaVersion);
+
+            document.getElementById('actualizacion-estado-breve').textContent =
+                textoBreveActualizacion(actual.estado);
+            document.getElementById('actualizacion-mensaje').textContent = actual.mensaje;
+            document.getElementById('actualizacion-version-instalada').textContent =
+                actual.versionInstalada || '—';
+            document.getElementById('actualizacion-version-nueva').textContent =
+                actual.nuevaVersion || '—';
+            document.getElementById('actualizacion-notas').textContent =
+                actual.notas || 'No se proporcionaron notas para esta versión.';
+            document.getElementById('actualizacion-versiones')
+                .classList.toggle('hidden', !tieneVersion);
+            document.getElementById('actualizacion-notas-contenedor')
+                .classList.toggle('hidden', !tieneVersion);
+
+            botonBuscar.disabled = actual.estado === 'buscando';
+            botonAccion.classList.add('hidden');
+            botonAccion.disabled = false;
+            botonAccion.onclick = null;
+            botonMasTarde.textContent = [
+                'no-disponible',
+                'sin-conexion',
+                'error',
+                'deshabilitado'
+            ].includes(actual.estado) ? 'Cerrar' : 'Más tarde';
+
+            const descargando = actual.estado === 'descargando';
+            progreso.classList.toggle('hidden', !descargando && actual.estado !== 'descargada');
+            const porcentaje = actual.porcentaje ?? 0;
+            document.getElementById('actualizacion-porcentaje').textContent =
+                `${porcentaje.toFixed(1)} %`;
+            document.getElementById('actualizacion-barra').style.width = `${porcentaje}%`;
+
+            if (actual.estado === 'disponible') {
+                botonAccion.textContent = 'Actualizar ahora';
+                botonAccion.onclick = descargarActualizacionDesdePantalla;
+                botonAccion.classList.remove('hidden');
+            } else if (descargando) {
+                botonAccion.textContent = 'Descargando...';
+                botonAccion.disabled = true;
+                botonAccion.classList.remove('hidden');
+            } else if (actual.estado === 'descargada') {
+                botonAccion.textContent = 'Reiniciar e instalar';
+                botonAccion.onclick = reiniciarEInstalarActualizacion;
+                botonAccion.classList.remove('hidden');
+            }
+
+            const debeAbrir = (
+                (actual.estado === 'disponible'
+                    && (
+                        actual.manual
+                        || versionActualizacionPospuesta !== actual.nuevaVersion
+                    ))
+                || ['descargando', 'descargada', 'instalando'].includes(actual.estado)
+                || (
+                    actual.manual
+                    && ['buscando', 'no-disponible', 'sin-conexion', 'error', 'deshabilitado']
+                        .includes(actual.estado)
+                )
+            );
+            if (debeAbrir) abrirModalActualizacion();
+        }
+
+        async function buscarActualizacionesManual() {
+            versionActualizacionPospuesta = null;
+            manejarEstadoActualizacion({
+                estado: 'buscando',
+                manual: true,
+                versionInstalada: estadoActualizacionPantalla?.versionInstalada || '',
+                mensaje: 'Buscando actualización...'
+            });
+            try {
+                const estado = await window.electronAPI.buscarActualizaciones();
+                manejarEstadoActualizacion(estado);
+            } catch {
+                manejarEstadoActualizacion({
+                    estado: navigator.onLine ? 'error' : 'sin-conexion',
+                    manual: true,
+                    versionInstalada: estadoActualizacionPantalla?.versionInstalada || '',
+                    mensaje: navigator.onLine
+                        ? 'Error al comprobar la actualización.'
+                        : 'Sin conexión. No se pudo buscar una actualización.'
+                });
+            }
+        }
+
+        async function descargarActualizacionDesdePantalla() {
+            try {
+                const estado = await window.electronAPI.descargarActualizacion();
+                manejarEstadoActualizacion(estado);
+            } catch {
+                manejarEstadoActualizacion({
+                    ...estadoActualizacionPantalla,
+                    estado: navigator.onLine ? 'error' : 'sin-conexion',
+                    mensaje: navigator.onLine
+                        ? 'Error al descargar la actualización.'
+                        : 'Sin conexión. La descarga no pudo continuar.'
+                });
+            }
+        }
+
+        async function reiniciarEInstalarActualizacion() {
+            if (estadoActualizacionPantalla?.estado !== 'descargada') return;
+            try {
+                const estado = await window.electronAPI.reiniciarEInstalarActualizacion();
+                manejarEstadoActualizacion(estado);
+            } catch {
+                manejarEstadoActualizacion({
+                    ...estadoActualizacionPantalla,
+                    estado: 'error',
+                    mensaje: 'No se pudo iniciar la instalación.'
+                });
+            }
+        }
+
+        if (window.electronAPI?.onEstadoActualizacion) {
+            window.electronAPI.onEstadoActualizacion(manejarEstadoActualizacion);
         }
 
         let aplicacionInicializada = false;

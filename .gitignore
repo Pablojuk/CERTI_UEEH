@@ -8,4 +8,7 @@ __pycache__/
 dist/
 out/
 tmp/
+build/python/
+build/pyinstaller/
+build/certi-python.spec
 *.pdf

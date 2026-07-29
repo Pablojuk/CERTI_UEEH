@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, session, safeStorage } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, session, safeStorage, net } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -7,6 +7,14 @@ const { pathToFileURL } = require('url');
 
 let mainWindow;
 let descargaFormatoEnCurso = false;
+let autoUpdaterInstancia = null;
+let actualizadorConfigurado = false;
+let comprobacionActualizacionEnCurso = null;
+let descargaActualizacionEnCurso = null;
+let actualizacionDisponibleInfo = null;
+let actualizacionDescargada = false;
+let temporizadorActualizacionInicial = null;
+let temporizadorActualizacionPeriodica = null;
 const CAPACIDAD_MATERIAS_FORMATO_BGU3 = 16;
 const MAX_EXCEL_BYTES = 25 * 1024 * 1024;
 const MAX_HTML_BYTES = 20 * 1024 * 1024;
@@ -14,6 +22,8 @@ const MAX_PAYLOAD_BYTES = 20 * 1024 * 1024;
 const MAX_LOGO_BYTES = 5 * 1024 * 1024;
 const MAX_PYTHON_OUTPUT_BYTES = 25 * 1024 * 1024;
 const PYTHON_TIMEOUT_MS = 120000;
+const RETRASO_ACTUALIZACION_INICIAL_MS = 8 * 1000;
+const INTERVALO_ACTUALIZACIONES_MS = 4 * 60 * 60 * 1000;
 const DURACION_PRUEBA_MS = 15 * 24 * 60 * 60 * 1000;
 const TOLERANCIA_RELOJ_MS = 1000;
 const HASH_LICENCIA_ESPERADO = Buffer.from(
@@ -27,6 +37,20 @@ const CANALES_LICENCIA = new Set([
     'activar-licencia',
     'iniciar-prueba'
 ]);
+const CANALES_ACTUALIZACIONES = new Set([
+    'actualizaciones:buscar',
+    'actualizaciones:descargar',
+    'actualizaciones:instalar'
+]);
+let estadoActualizacion = {
+    estado: 'deshabilitado',
+    versionInstalada: null,
+    nuevaVersion: null,
+    notas: '',
+    porcentaje: null,
+    manual: false,
+    mensaje: 'Las actualizaciones solo se comprueban en la aplicación instalada.'
+};
 let estadoLicenciaMemoria = null;
 let colaOperacionesLicencia = Promise.resolve();
 const EXTENSIONES_EXCEL_PERMITIDAS = new Set(['.xlsx', '.xls']);
@@ -47,6 +71,7 @@ const PLANTILLAS_CERTIFICADO_PERMITIDAS = Object.freeze([
 ]);
 const CANALES_IPC_PERMITIDOS = Object.freeze([
     ...CANALES_LICENCIA,
+    ...CANALES_ACTUALIZACIONES,
     'seleccionar-archivo',
     'descargar-formato',
     'analizar-excel',
@@ -60,6 +85,315 @@ const CANALES_IPC_PERMITIDOS = Object.freeze([
     'imprimir-certificados',
     'abrir-vista-previa-certificado'
 ]);
+
+function normalizarNotasVersion(releaseNotes) {
+    if (typeof releaseNotes === 'string') return releaseNotes.trim();
+    if (!Array.isArray(releaseNotes)) return '';
+    return releaseNotes
+        .map(entrada => {
+            if (typeof entrada === 'string') return entrada.trim();
+            if (!entrada || typeof entrada !== 'object') return '';
+            const version = typeof entrada.version === 'string' ? entrada.version.trim() : '';
+            const nota = typeof entrada.note === 'string' ? entrada.note.trim() : '';
+            return [version && `Versión ${version}`, nota].filter(Boolean).join('\n');
+        })
+        .filter(Boolean)
+        .join('\n\n');
+}
+
+function esVersionSuperior(nuevaVersion, versionInstalada) {
+    const analizar = valor => {
+        const coincidencia = String(valor || '').trim().match(
+            /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/
+        );
+        if (!coincidencia) return null;
+        return {
+            numeros: coincidencia.slice(1, 4).map(Number),
+            prerelease: coincidencia[4] || ''
+        };
+    };
+    const nueva = analizar(nuevaVersion);
+    const instalada = analizar(versionInstalada);
+    if (!nueva || !instalada) return false;
+    for (let indice = 0; indice < 3; indice += 1) {
+        if (nueva.numeros[indice] !== instalada.numeros[indice]) {
+            return nueva.numeros[indice] > instalada.numeros[indice];
+        }
+    }
+    if (nueva.prerelease === instalada.prerelease) return false;
+    if (!nueva.prerelease) return true;
+    if (!instalada.prerelease) return false;
+    return nueva.prerelease.localeCompare(instalada.prerelease, undefined, {
+        numeric: true,
+        sensitivity: 'base'
+    }) > 0;
+}
+
+function esErrorSinConexion(error) {
+    const codigo = String(error?.code || '').toUpperCase();
+    const mensaje = String(error?.message || error || '').toLowerCase();
+    return [
+        'ENOTFOUND',
+        'EAI_AGAIN',
+        'ECONNREFUSED',
+        'ECONNRESET',
+        'ETIMEDOUT',
+        'ERR_INTERNET_DISCONNECTED',
+        'ERR_NAME_NOT_RESOLVED',
+        'ERR_NETWORK_CHANGED'
+    ].some(valor => codigo.includes(valor) || mensaje.includes(valor.toLowerCase()))
+        || /internet|network|conexi[oó]n|socket|dns|offline/.test(mensaje);
+}
+
+function obtenerEstadoActualizacionPublico() {
+    return {
+        estado: estadoActualizacion.estado,
+        versionInstalada: estadoActualizacion.versionInstalada,
+        nuevaVersion: estadoActualizacion.nuevaVersion,
+        notas: estadoActualizacion.notas,
+        porcentaje: estadoActualizacion.porcentaje,
+        manual: estadoActualizacion.manual,
+        mensaje: estadoActualizacion.mensaje
+    };
+}
+
+function publicarEstadoActualizacion(cambios) {
+    estadoActualizacion = {
+        ...estadoActualizacion,
+        ...cambios,
+        versionInstalada: app?.getVersion?.() || estadoActualizacion.versionInstalada
+    };
+    const publico = obtenerEstadoActualizacionPublico();
+    if (mainWindow && !mainWindow.isDestroyed?.()) {
+        mainWindow.webContents.send('actualizaciones:estado', publico);
+    }
+    return publico;
+}
+
+function obtenerActualizador() {
+    if (!app?.isPackaged) return null;
+    if (!autoUpdaterInstancia) {
+        const electronUpdater = require('electron-updater');
+        autoUpdaterInstancia = electronUpdater.autoUpdater;
+    }
+    return autoUpdaterInstancia;
+}
+
+function configurarActualizador() {
+    if (!app?.isPackaged || actualizadorConfigurado) return false;
+    const updater = obtenerActualizador();
+    if (!updater) return false;
+
+    updater.autoDownload = false;
+    updater.autoInstallOnAppQuit = false;
+    updater.allowDowngrade = false;
+
+    updater.on('checking-for-update', () => {
+        publicarEstadoActualizacion({
+            estado: 'buscando',
+            mensaje: 'Buscando actualización...',
+            porcentaje: null
+        });
+    });
+    updater.on('update-available', info => {
+        if (!esVersionSuperior(info?.version, app.getVersion())) {
+            actualizacionDisponibleInfo = null;
+            actualizacionDescargada = false;
+            publicarEstadoActualizacion({
+                estado: 'no-disponible',
+                nuevaVersion: null,
+                notas: '',
+                porcentaje: null,
+                mensaje: 'La aplicación está actualizada.'
+            });
+            return;
+        }
+        actualizacionDisponibleInfo = info;
+        actualizacionDescargada = false;
+        publicarEstadoActualizacion({
+            estado: 'disponible',
+            nuevaVersion: info?.version || null,
+            notas: normalizarNotasVersion(info?.releaseNotes),
+            porcentaje: null,
+            mensaje: 'Nueva versión disponible.'
+        });
+    });
+    updater.on('update-not-available', () => {
+        actualizacionDisponibleInfo = null;
+        actualizacionDescargada = false;
+        publicarEstadoActualizacion({
+            estado: 'no-disponible',
+            nuevaVersion: null,
+            notas: '',
+            porcentaje: null,
+            mensaje: 'La aplicación está actualizada.'
+        });
+    });
+    updater.on('download-progress', progreso => {
+        const porcentaje = Math.max(0, Math.min(100, Number(progreso?.percent) || 0));
+        publicarEstadoActualizacion({
+            estado: 'descargando',
+            porcentaje,
+            mensaje: `Descargando actualización: ${porcentaje.toFixed(1)} %.`
+        });
+    });
+    updater.on('update-downloaded', info => {
+        actualizacionDisponibleInfo = info || actualizacionDisponibleInfo;
+        actualizacionDescargada = true;
+        descargaActualizacionEnCurso = null;
+        publicarEstadoActualizacion({
+            estado: 'descargada',
+            nuevaVersion: actualizacionDisponibleInfo?.version || null,
+            notas: normalizarNotasVersion(actualizacionDisponibleInfo?.releaseNotes),
+            porcentaje: 100,
+            mensaje: 'La actualización está lista para instalar.'
+        });
+    });
+    updater.on('error', error => {
+        comprobacionActualizacionEnCurso = null;
+        descargaActualizacionEnCurso = null;
+        const sinConexion = esErrorSinConexion(error);
+        registrarErrorSeguro('actualizaciones', error);
+        publicarEstadoActualizacion({
+            estado: sinConexion ? 'sin-conexion' : 'error',
+            porcentaje: null,
+            mensaje: sinConexion
+                ? 'Sin conexión. La aplicación seguirá funcionando normalmente.'
+                : 'Error al comprobar la actualización.'
+        });
+    });
+
+    actualizadorConfigurado = true;
+    publicarEstadoActualizacion({
+        estado: 'listo',
+        mensaje: 'Actualizaciones automáticas activadas.'
+    });
+    return true;
+}
+
+async function comprobarActualizaciones({ manual = false } = {}) {
+    if (!app?.isPackaged) {
+        return publicarEstadoActualizacion({
+            estado: 'deshabilitado',
+            manual,
+            mensaje: 'Las actualizaciones solo se comprueban en la aplicación instalada.'
+        });
+    }
+    configurarActualizador();
+    if (comprobacionActualizacionEnCurso) {
+        return obtenerEstadoActualizacionPublico();
+    }
+    if (net?.isOnline && !net.isOnline()) {
+        return publicarEstadoActualizacion({
+            estado: 'sin-conexion',
+            manual,
+            mensaje: 'Sin conexión. No se pudo buscar una actualización.'
+        });
+    }
+
+    publicarEstadoActualizacion({
+        estado: 'buscando',
+        manual,
+        mensaje: 'Buscando actualización...',
+        porcentaje: null
+    });
+    const updater = obtenerActualizador();
+    comprobacionActualizacionEnCurso = Promise.resolve()
+        .then(() => updater.checkForUpdates())
+        .catch(error => {
+            const sinConexion = esErrorSinConexion(error);
+            registrarErrorSeguro('actualizaciones/comprobar', error);
+            return publicarEstadoActualizacion({
+                estado: sinConexion ? 'sin-conexion' : 'error',
+                manual,
+                mensaje: sinConexion
+                    ? 'Sin conexión. No se pudo buscar una actualización.'
+                    : 'Error al comprobar la actualización.'
+            });
+        })
+        .finally(() => {
+            comprobacionActualizacionEnCurso = null;
+        });
+    await comprobacionActualizacionEnCurso;
+    return obtenerEstadoActualizacionPublico();
+}
+
+async function descargarActualizacion() {
+    if (!app?.isPackaged || !actualizacionDisponibleInfo) {
+        return publicarEstadoActualizacion({
+            estado: 'error',
+            mensaje: 'No hay una actualización disponible para descargar.'
+        });
+    }
+    if (actualizacionDescargada) return obtenerEstadoActualizacionPublico();
+    if (descargaActualizacionEnCurso) return obtenerEstadoActualizacionPublico();
+
+    publicarEstadoActualizacion({
+        estado: 'descargando',
+        porcentaje: 0,
+        mensaje: 'Descargando actualización: 0 %.'
+    });
+    const updater = obtenerActualizador();
+    descargaActualizacionEnCurso = Promise.resolve()
+        .then(() => updater.downloadUpdate())
+        .catch(error => {
+            const sinConexion = esErrorSinConexion(error);
+            registrarErrorSeguro('actualizaciones/descargar', error);
+            return publicarEstadoActualizacion({
+                estado: sinConexion ? 'sin-conexion' : 'error',
+                porcentaje: null,
+                mensaje: sinConexion
+                    ? 'Sin conexión. La descarga no pudo continuar.'
+                    : 'Error al descargar la actualización.'
+            });
+        })
+        .finally(() => {
+            descargaActualizacionEnCurso = null;
+        });
+    await descargaActualizacionEnCurso;
+    return obtenerEstadoActualizacionPublico();
+}
+
+function instalarActualizacion() {
+    if (!app?.isPackaged || !actualizacionDescargada) {
+        return publicarEstadoActualizacion({
+            estado: 'error',
+            mensaje: 'La actualización debe descargarse correctamente antes de instalarla.'
+        });
+    }
+    const updater = obtenerActualizador();
+    const respuesta = publicarEstadoActualizacion({
+        estado: 'instalando',
+        mensaje: 'Reiniciando para instalar la actualización...'
+    });
+    setImmediate(() => updater.quitAndInstall(false, true));
+    return respuesta;
+}
+
+function programarActualizaciones() {
+    if (!app?.isPackaged) return false;
+    if (!actualizadorConfigurado && !configurarActualizador()) return false;
+    if (!temporizadorActualizacionInicial) {
+        temporizadorActualizacionInicial = setTimeout(() => {
+            temporizadorActualizacionInicial = null;
+            comprobarActualizaciones().catch(error => {
+                registrarErrorSeguro('actualizaciones/inicial', error);
+            });
+        }, RETRASO_ACTUALIZACION_INICIAL_MS);
+        temporizadorActualizacionInicial.unref?.();
+    }
+    if (!temporizadorActualizacionPeriodica) {
+        temporizadorActualizacionPeriodica = setInterval(() => {
+            if (!net?.isOnline || net.isOnline()) {
+                comprobarActualizaciones().catch(error => {
+                    registrarErrorSeguro('actualizaciones/periodica', error);
+                });
+            }
+        }, INTERVALO_ACTUALIZACIONES_MS);
+        temporizadorActualizacionPeriodica.unref?.();
+    }
+    return true;
+}
 
 function calcularSha256(valor, cryptoActual = crypto) {
     return cryptoActual.createHash('sha256').update(String(valor), 'utf8').digest();
@@ -917,6 +1251,12 @@ function createWindow() {
     });
 
     endurecerVentana(mainWindow);
+    mainWindow.webContents.once('did-finish-load', () => {
+        mainWindow.webContents.send(
+            'actualizaciones:estado',
+            obtenerEstadoActualizacionPublico()
+        );
+    });
     mainWindow.loadFile('index.html');
 }
 
@@ -928,6 +1268,7 @@ app.whenReady().then(() => {
         session.defaultSession.setPermissionCheckHandler(() => false);
     }
     createWindow();
+    programarActualizaciones();
 
     app.on('activate', function () {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -939,6 +1280,18 @@ app.on('window-all-closed', function () {
 });
 
 // IPC: Estado, activación e inicio de la prueba. La validación permanece en main.
+registrarManejadorIpcSeguro('actualizaciones:buscar', async () => {
+    return comprobarActualizaciones({ manual: true });
+});
+
+registrarManejadorIpcSeguro('actualizaciones:descargar', async () => {
+    return descargarActualizacion();
+});
+
+registrarManejadorIpcSeguro('actualizaciones:instalar', async () => {
+    return instalarActualizacion();
+});
+
 registrarManejadorIpcSeguro('obtener-estado-licencia', async () => {
     const evaluacion = await obtenerEstadoLicenciaInterno();
     return convertirEstadoLicenciaPublico(evaluacion);
@@ -1083,26 +1436,32 @@ function runPython(args, inputData = null) {
         }
 
         const ejecutableConfigurado = process.env.CERTI_PYTHON_EXECUTABLE;
-        const pythonEmpaquetado = process.platform === 'win32'
-            ? path.join(process.resourcesPath || '', 'python', 'python.exe')
-            : path.join(process.resourcesPath || '', 'python', 'bin', 'python3');
-        const pythonExecutable = (
+        const procesadorEmpaquetado = process.platform === 'win32'
+            ? path.join(process.resourcesPath || '', 'python', 'certi-python.exe')
+            : path.join(process.resourcesPath || '', 'python', 'certi-python');
+        const usaEjecutableConfigurado = (
             typeof ejecutableConfigurado === 'string'
             && path.isAbsolute(ejecutableConfigurado)
             && fs.existsSync(ejecutableConfigurado)
-        )
+        );
+        const usaProcesadorEmpaquetado = (
+            app.isPackaged
+            && !usaEjecutableConfigurado
+            && fs.existsSync(procesadorEmpaquetado)
+        );
+        const pythonExecutable = usaEjecutableConfigurado
             ? ejecutableConfigurado
-            : (app.isPackaged && fs.existsSync(pythonEmpaquetado)
-                ? pythonEmpaquetado
+            : (usaProcesadorEmpaquetado
+                ? procesadorEmpaquetado
                 : (process.platform === 'win32' ? 'python.exe' : 'python3'));
         const directorioProcesador = obtenerDirectorioProcesador();
         const scriptPath = path.join(directorioProcesador, 'procesador_notas.py');
-        if (!fs.existsSync(scriptPath)) {
+        if (!usaProcesadorEmpaquetado && !fs.existsSync(scriptPath)) {
             reject({ success: false, error: 'El procesador local no está disponible.' });
             return;
         }
 
-        const processArgs = [scriptPath, ...args];
+        const processArgs = usaProcesadorEmpaquetado ? args : [scriptPath, ...args];
         const pyProcess = spawn(pythonExecutable, processArgs, {
             cwd: directorioProcesador,
             shell: false,
@@ -1591,7 +1950,17 @@ module.exports = {
     CAPACIDAD_MATERIAS_FORMATO_BGU3,
     CANALES_IPC_PERMITIDOS,
     DURACION_PRUEBA_MS,
+    RETRASO_ACTUALIZACION_INICIAL_MS,
+    INTERVALO_ACTUALIZACIONES_MS,
     PLANTILLAS_CERTIFICADO_PERMITIDAS,
+    normalizarNotasVersion,
+    esVersionSuperior,
+    esErrorSinConexion,
+    obtenerEstadoActualizacionPublico,
+    comprobarActualizaciones,
+    descargarActualizacion,
+    instalarActualizacion,
+    programarActualizaciones,
     calcularSha256,
     validarLicenciaIngresada,
     normalizarEstadoLicencia,

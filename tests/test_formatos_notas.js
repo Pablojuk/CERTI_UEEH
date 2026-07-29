@@ -444,11 +444,26 @@ test('el botón Generar y descargar permanece bloqueado sin selección', () => {
 
 test('electron-builder incluye los XLSX como extraResources fuera del ASAR', () => {
     assert.equal(packageJson.build.asar, true);
-    assert.deepEqual(packageJson.build.extraResources, [{
-        from: 'assets/formatos-notas',
-        to: 'assets/formatos-notas',
-        filter: ['*.xlsx']
-    }]);
+    assert.deepEqual(
+        packageJson.build.extraResources.find(recurso => (
+            recurso.from === 'assets/formatos-notas'
+        )),
+        {
+            from: 'assets/formatos-notas',
+            to: 'assets/formatos-notas',
+            filter: ['*.xlsx']
+        }
+    );
+    assert.deepEqual(
+        packageJson.build.extraResources.find(recurso => (
+            recurso.from === 'build/python/certi-python'
+        )),
+        {
+            from: 'build/python/certi-python',
+            to: 'python',
+            filter: ['**/*']
+        }
+    );
     assert.match(packageJson.scripts.build, /electron-builder --win nsis/);
     assert.match(packageJson.scripts['build:dir'], /electron-builder --dir/);
 });
