@@ -1,0 +1,16 @@
+{
+  "minimo": 1.0,
+  "maximo": 10.0,
+  "rangos": [
+    {"desde": 9.5, "valor": "A+"},
+    {"desde": 8.5, "valor": "A-"},
+    {"desde": 7.5, "valor": "B+"},
+    {"desde": 6.5, "valor": "B-"},
+    {"desde": 5.5, "valor": "C+"},
+    {"desde": 4.5, "valor": "C-"},
+    {"desde": 3.5, "valor": "D+"},
+    {"desde": 2.5, "valor": "D-"},
+    {"desde": 1.5, "valor": "E+"},
+    {"desde": 1.0, "valor": "E-"}
+  ]
+}

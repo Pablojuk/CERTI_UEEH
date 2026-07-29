@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: file:; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: file:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none';">
     <title>Reporte de Calificaciones - 1ro EGB (Preparatoria)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -34,11 +35,11 @@
             </label>
             
             <div class="text-center flex-1 px-4">
-                <h2 class="font-bold text-base uppercase tracking-wide">Ministerio de Educación, Deporte y Cultura <span class="hidden no-print">[cite: 6]</span></h2>
-                <h1 class="font-bold text-lg uppercase mt-1 text-slate-800">UNIDAD EDUCATIVA EMILIANO HINOSTROZA <span class="hidden no-print">[cite: 6]</span></h1>
+                <h2 class="font-bold text-base uppercase tracking-wide">Ministerio de Educación, Deporte y Cultura </h2>
+                <h1 class="font-bold text-lg uppercase mt-1 text-slate-800" data-cert-field="institution-name"></h1>
                 <div class="mt-2 text-xs font-semibold flex justify-center gap-6">
-                    <span>AMIE: 01H01289 <span class="hidden no-print">[cite: 6]</span></span>
-                    <span>AÑO LECTIVO: COSTA - GALAPAGOS 2025-2026 <span class="hidden no-print">[cite: 6]</span></span>
+                    <span>AMIE: <span data-cert-field="amie"></span></span>
+                    <span>AÑO LECTIVO: <span data-cert-field="school-year"></span></span>
                 </div>
             </div>
 
@@ -55,17 +56,14 @@
     <!-- Datos del Estudiante -->
     <section class="mb-4 flex flex-wrap justify-between text-xs font-medium border border-slate-400 p-2 bg-slate-50">
         <div class="w-full md:w-1/2 mb-1">
-            <span class="font-bold">NOMBRE DEL ESTUDIANTE:</span> ALBARRASIN HERAS FABIANA SALOME <span class="hidden no-print">[cite: 6]</span>
-        </div>
+            <span class="font-bold">NOMBRE DEL ESTUDIANTE:</span> <span data-cert-field="student-name"></span></div>
         <div class="w-full md:w-1/2 mb-1 flex items-center">
-            <span class="font-bold mr-1">CÉDULA:</span> <div class="border-b border-slate-400 w-32 inline-block"></div>
+            <span class="font-bold mr-1">CÉDULA:</span> <div class="border-b border-slate-400 w-32 inline-block" data-cert-field="student-id"></div>
         </div>
         <div class="w-full md:w-1/2">
-            <span class="font-bold">GRADO:</span> 1RO DE EDUCACION GENERAL BASICA PARALELO: A <span class="hidden no-print">[cite: 6]</span>
-        </div>
+            <span class="font-bold">GRADO:</span> <span data-cert-field="grade"></span></div>
         <div class="w-full md:w-1/2">
-            <span class="font-bold">JORNADA:</span> MATUTINA <span class="hidden no-print">[cite: 6]</span>
-        </div>
+            <span class="font-bold">JORNADA:</span> <span data-cert-field="schedule"></span></div>
     </section>
 
     <!-- Tabla Principal de Evaluación de Destrezas -->
@@ -87,176 +85,176 @@
             <tbody>
                 <!-- COMPRESIÓN Y EXPRESION ARTISTICA -->
                 <tr>
-                    <td rowspan="5" class="font-bold bg-slate-50 text-left-cell">COMPRESIÓN Y EXPRESION ARTISTICA <span class="hidden no-print">[cite: 6]</span></td>
-                    <td class="text-left-cell">I.ECA.1.1.1. Explora y representa corporal, musical, gráfica o verbalmente ideas, sentimientos o emociones de forma libre y espontánea. (S.3., I.3.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>NE <span class="hidden no-print">[cite: 6]</span></td><td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td rowspan="5" class="font-bold bg-slate-50 text-left-cell">COMPRESIÓN Y EXPRESION ARTISTICA </td>
+                    <td class="text-left-cell">I.ECA.1.1.1. Explora y representa corporal, musical, gráfica o verbalmente ideas, sentimientos o emociones de forma libre y espontánea. (S.3., I.3.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.ECA.1.1.2. Experimenta con sus sentidos, cualidades o características para expresarse libremente en juegos y actividades que le permitan relacionarse con otros y su entorno próximo. (S.1., I.1.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.ECA.1.1.2. Experimenta con sus sentidos, cualidades o características para expresarse libremente en juegos y actividades que le permitan relacionarse con otros y su entorno próximo. (S.1., I.1.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.ECA.1.1.3. Dramatiza de manera creativa las acciones básicas a seguir en caso de un accidente de tránsito. (S.1., I.1.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>NE <span class="hidden no-print">[cite: 6]</span></td><td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.ECA.1.1.3. Dramatiza de manera creativa las acciones básicas a seguir en caso de un accidente de tránsito. (S.1., I.1.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.EFL.1.1.1. Learners can understand familiar words, and simple instructions about their own surroundings. (I.3) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>A+ <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.EFL.1.1.1. Learners can understand familiar words, and simple instructions about their own surroundings. (I.3) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.EFL.1.1.2. Learners can recognize and follow simple instructions to act upon them. (J.3., I.3., I.4.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>A+ <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.EFL.1.1.2. Learners can recognize and follow simple instructions to act upon them. (J.3., I.3., I.4.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
 
                 <!-- COMPRESIÓN Y EXPRESIÓN ORAL Y ESCRITA -->
                 <tr>
-                    <td rowspan="8" class="font-bold bg-slate-50 text-left-cell">COMPRESIÓN Y EXPRESIÓN ORAL Y ESCRITA <span class="hidden no-print">[cite: 6]</span></td>
-                    <td class="text-left-cell">I.EFL.1.1.2. Learners can recognize and follow simple instructions to act upon them. (J.3., I.3., I.4.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>NE <span class="hidden no-print">[cite: 6]</span></td><td>A- <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td rowspan="8" class="font-bold bg-slate-50 text-left-cell">COMPRESIÓN Y EXPRESIÓN ORAL Y ESCRITA </td>
+                    <td class="text-left-cell">I.EFL.1.1.2. Learners can recognize and follow simple instructions to act upon them. (J.3., I.3., I.4.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.EFL.1.2.1. Demonstrate courteous behavior, using appropriate polite expressions (e.g., "please," "thank you"). (S.1., J.3.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>NE <span class="hidden no-print">[cite: 6]</span></td><td>A- <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.EFL.1.2.1. Demonstrate courteous behavior, using appropriate polite expressions (e.g., "please," "thank you"). (S.1., J.3.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.LL.1.1.1. Interpreta la silueta y los paratextos de diversos textos escritos cotidianos, deduciendo su contenido y uso. (I.3., I.4.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>NE <span class="hidden no-print">[cite: 6]</span></td><td>A- <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.LL.1.1.1. Interpreta la silueta y los paratextos de diversos textos escritos cotidianos, deduciendo su contenido y uso. (I.3., I.4.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.LL.1.2.1. Distingue palabras y expresiones coloquiales de su localidad e indaga sobre sus significados. (J.2., S.3.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>A- <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.LL.1.2.1. Distingue palabras y expresiones coloquiales de su localidad e indaga sobre sus significados. (J.2., S.3.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.LL.1.3.1. Desarrolla la expresión oral en contextos cotidianos usando la conciencia lingüística. (J.3., I.3.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>A- <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.LL.1.3.1. Desarrolla la expresión oral en contextos cotidianos usando la conciencia lingüística. (J.3., I.3.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.LL.1.4.1. Elabora significados de diversos materiales impresos del entorno, a partir de diferenciar entre imagen y texto escrito. (I.3.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.LL.1.4.1. Elabora significados de diversos materiales impresos del entorno, a partir de diferenciar entre imagen y texto escrito. (I.3.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.LL.1.5.1. Accede a la lectura por placer y como medio para aprender, utilizando los recursos de la biblioteca. (J.2., I.3.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>A- <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.LL.1.5.1. Accede a la lectura por placer y como medio para aprender, utilizando los recursos de la biblioteca. (J.2., I.3.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.LL.1.7.1. Desarrolla su gusto por la escucha de textos literarios con disfrute de las palabras y las ideas. (I.1., I.2., S.3.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>A+ <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.LL.1.7.1. Desarrolla su gusto por la escucha de textos literarios con disfrute de las palabras y las ideas. (I.1., I.2., S.3.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
 
                 <!-- CONVIVENCIA -->
                 <tr>
-                    <td rowspan="6" class="font-bold bg-slate-50 text-left-cell">CONVIVENCIA <span class="hidden no-print">[cite: 6]</span></td>
-                    <td class="text-left-cell">I.CS.1.3.1. Practica normas de respeto consigo mismo y con los demás. (J.3., S.2., S.3., S.4.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td rowspan="6" class="font-bold bg-slate-50 text-left-cell">CONVIVENCIA </td>
+                    <td class="text-left-cell">I.CS.1.3.1. Practica normas de respeto consigo mismo y con los demás. (J.3., S.2., S.3., S.4.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.CS.1.3.2. Reconoce sus derechos y responsabilidades y la importancia de asumir compromisos. (J.2., S.1.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.CS.1.3.2. Reconoce sus derechos y responsabilidades y la importancia de asumir compromisos. (J.2., S.1.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.CS.1.3.3. Expresa con sus propias palabras los beneficios del intercambio (trueque). (J.4., S.1.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.CS.1.3.3. Expresa con sus propias palabras los beneficios del intercambio (trueque). (J.4., S.1.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.CS.1.4.1. Reconoce la organización y dependencias de la vivienda y de la escuela. (I.2.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>A+ <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.CS.1.4.1. Reconoce la organización y dependencias de la vivienda y de la escuela. (I.2.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.CS.1.4.2. Reconoce la función que cumplen las entidades que proporcionan los servicios básicos a la localidad. (J.3.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>NE <span class="hidden no-print">[cite: 6]</span></td><td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>A+ <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.CS.1.4.2. Reconoce la función que cumplen las entidades que proporcionan los servicios básicos a la localidad. (J.3.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.EFL.1.1.1. Learners can understand familiar words, and simple instructions about their own surroundings. (I.3) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>A+ <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.EFL.1.1.1. Learners can understand familiar words, and simple instructions about their own surroundings. (I.3) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
 
                 <!-- MEDIO NATURAL Y CULTURAL -->
                 <tr>
-                    <td rowspan="8" class="font-bold bg-slate-50 text-left-cell">DESCUBRIMIENTO Y COMPRESION DEL MEDIO NATURAL Y CULTURAL <span class="hidden no-print">[cite: 6]</span></td>
-                    <td class="text-left-cell">I.CN.1.1.1 Identifica las características, necesidades, hábitat e importancia de los seres vivos de su entorno. (J.3., I.2., I.3.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td rowspan="8" class="font-bold bg-slate-50 text-left-cell">DESCUBRIMIENTO Y COMPRESION DEL MEDIO NATURAL Y CULTURAL </td>
+                    <td class="text-left-cell">I.CN.1.1.1 Identifica las características, necesidades, hábitat e importancia de los seres vivos de su entorno. (J.3., I.2., I.3.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.CN.1.1.2. Diferencia objetos inertes de seres vivos de su entorno. (J.3., I.2.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>NE <span class="hidden no-print">[cite: 6]</span></td><td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.CN.1.1.2. Diferencia objetos inertes de seres vivos de su entorno. (J.3., I.2.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.CN.1.1.3. Discrimina, desde su propia experiencia, la importancia de las plantas y animales. (J.3., I.2.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.CN.1.1.3. Discrimina, desde su propia experiencia, la importancia de las plantas y animales. (J.3., I.2.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.CN.1.2.2. Promueve hábitos y medidas preventivas para una vida saludable. (J.3., I.2.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.CN.1.2.2. Promueve hábitos y medidas preventivas para una vida saludable. (J.3., I.2.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.CN.1.3.1. Distingue en objetos de uso cotidiano las propiedades físicas de la materia. (J.3., I.2.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.CN.1.3.1. Distingue en objetos de uso cotidiano las propiedades físicas de la materia. (J.3., I.2.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.CN.1.4.1. Detecta, desde la observación de su entorno inmediato, diferentes fuentes de luz. (J.3., I.2.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>NE <span class="hidden no-print">[cite: 6]</span></td><td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.CN.1.4.1. Detecta, desde la observación de su entorno inmediato, diferentes fuentes de luz. (J.3., I.2.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.CN.1.5.1. Explica las características de los elementos naturales construidos como parte del paisaje local. (J.3., I.2.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>NE <span class="hidden no-print">[cite: 6]</span></td><td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.CN.1.5.1. Explica las características de los elementos naturales construidos como parte del paisaje local. (J.3., I.2.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.CS.1.6.1. Identifica alguna de las manifestaciones culturales de la localidad y describe lugares. (J.1., I.2., S.2.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>A+ <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.CS.1.6.1. Identifica alguna de las manifestaciones culturales de la localidad y describe lugares. (J.1., I.2., S.2.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
 
                 <!-- IDENTIDAD Y AUTONOMÍA -->
                 <tr>
-                    <td rowspan="4" class="font-bold bg-slate-50 text-left-cell">IDENTIDAD Y AUTONOMÍA <span class="hidden no-print">[cite: 6]</span></td>
-                    <td class="text-left-cell">I.CN.1.2.1. Relaciona las partes principales de su cuerpo y los órganos de los sentidos con su función. (J.3., I.2.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td rowspan="4" class="font-bold bg-slate-50 text-left-cell">IDENTIDAD Y AUTONOMÍA </td>
+                    <td class="text-left-cell">I.CN.1.2.1. Relaciona las partes principales de su cuerpo y los órganos de los sentidos con su función. (J.3., I.2.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.CS.1.1.1. Expresa sus datos personales y reconoce que es un ser que siente, piensa, opina. (J.4.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.CS.1.1.1. Expresa sus datos personales y reconoce que es un ser que siente, piensa, opina. (J.4.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.CS.1.2.1. Practica con autonomía y responsabilidad actividades y tareas cotidianas. (J.3., I.4.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.CS.1.2.1. Practica con autonomía y responsabilidad actividades y tareas cotidianas. (J.3., I.4.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">Reconoce que tiene una historia personal, familiar y que forma parte de una comunidad. (Ref.I.CS.1.1.2.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>NE <span class="hidden no-print">[cite: 6]</span></td><td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">Reconoce que tiene una historia personal, familiar y que forma parte de una comunidad. (Ref.I.CS.1.1.2.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
 
                 <!-- RELACIÓN LÓGICO-MATEMÁTICA -->
                 <tr>
-                    <td rowspan="8" class="font-bold bg-slate-50 text-left-cell">RELACIÓN LÓGICO-MATEMÁTICA <span class="hidden no-print">[cite: 6]</span></td>
-                    <td class="text-left-cell">I.M.1.1.1. Compara y distingue objetos según su color, tamaño, longitud, textura y forma. (I.2.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td rowspan="8" class="font-bold bg-slate-50 text-left-cell">RELACIÓN LÓGICO-MATEMÁTICA </td>
+                    <td class="text-left-cell">I.M.1.1.1. Compara y distingue objetos según su color, tamaño, longitud, textura y forma. (I.2.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.M.1.1.2. Describe la ubicación de los objetos del entorno. (I.3) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.M.1.1.2. Describe la ubicación de los objetos del entorno. (I.3) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.M.1.2.1. Establece relaciones de orden y escribe secuencias numéricas ascendentes y descendentes. (I.3., I.4). <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>NE <span class="hidden no-print">[cite: 6]</span></td><td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.M.1.2.1. Establece relaciones de orden y escribe secuencias numéricas ascendentes y descendentes. (I.3., I.4). </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.M.1.2.2. Resuelve situaciones cotidianas mediante la adición y sustracción, con números naturales hasta el 10. (I.1., I.2.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.M.1.2.2. Resuelve situaciones cotidianas mediante la adición y sustracción, con números naturales hasta el 10. (I.1., I.2.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.M.1.3.2. Clasifica objetos del entorno y los agrupa considerando su tamaño, longitud, capacidad, peso. (I.2.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.M.1.3.2. Clasifica objetos del entorno y los agrupa considerando su tamaño, longitud, capacidad, peso. (I.2.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.M.1.4.1 Utiliza unidades de medida no convencionales y el conteo de cantidades hasta el 20. (I.2.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>A+ <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.M.1.4.1 Utiliza unidades de medida no convencionales y el conteo de cantidades hasta el 20. (I.2.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.M.1.4.3. Reconoce situaciones en las que se debe priorizar el uso del dinero para satisfacer necesidades. (I.1.) <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>NE <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td><td>A+ <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.M.1.4.3. Reconoce situaciones en las que se debe priorizar el uso del dinero para satisfacer necesidades. (I.1.) </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 <tr>
-                    <td class="text-left-cell">I.M.1.5.1. Soluciona problemas mediante la organización y representación de datos estadísticos. <span class="hidden no-print">[cite: 6]</span></td>
-                    <td>NE <span class="hidden no-print">[cite: 6]</span></td><td>A+ <span class="hidden no-print">[cite: 6]</span></td><td>NE <span class="hidden no-print">[cite: 6]</span></td>
+                    <td class="text-left-cell">I.M.1.5.1. Soluciona problemas mediante la organización y representación de datos estadísticos. </td>
+                    <td data-academic-value="true" data-academic-field="t1" data-term="t1"></td><td data-academic-value="true" data-academic-field="t2" data-term="t2"></td><td data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                 </tr>
                 
             </tbody>
@@ -280,11 +278,11 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td class="font-semibold text-left-cell">CÍVICA Y ACOMPAÑAMIENTO INTEGRAL EN EL AULA <span class="hidden no-print">[cite: 6]</span></td>
-                            <td class="font-bold">A+ <span class="hidden no-print">[cite: 6]</span></td>
-                            <td class="font-bold">A+ <span class="hidden no-print">[cite: 6]</span></td>
-                            <td class="font-bold">A+ <span class="hidden no-print">[cite: 6]</span></td>
+                        <tr data-subject="CÍVICA Y ACOMPAÑAMIENTO INTEGRAL EN EL AULA">
+                            <td class="font-semibold text-left-cell">CÍVICA Y ACOMPAÑAMIENTO INTEGRAL EN EL AULA </td>
+                            <td class="font-bold" data-academic-value="true" data-academic-field="t1" data-term="t1"></td>
+                            <td class="font-bold" data-academic-value="true" data-academic-field="t2" data-term="t2"></td>
+                            <td class="font-bold" data-academic-value="true" data-academic-field="t3" data-term="t3"></td>
                         </tr>
                     </tbody>
                 </table>
@@ -302,9 +300,9 @@
                     </thead>
                     <tbody>
                         <tr>
-                            <td class="text-xs">Transforma los desacuerdos en oportunidades de crecimiento y cooperación <span class="hidden no-print">[cite: 6]</span></td>
-                            <td class="text-xs">Transforma los desacuerdos en oportunidades de crecimiento y cooperación <span class="hidden no-print">[cite: 6]</span></td>
-                            <td class="text-xs">Transforma los desacuerdos en oportunidades de crecimiento y cooperación <span class="hidden no-print">[cite: 6]</span></td>
+                            <td class="text-xs">Transforma los desacuerdos en oportunidades de crecimiento y cooperación </td>
+                            <td class="text-xs">Transforma los desacuerdos en oportunidades de crecimiento y cooperación </td>
+                            <td class="text-xs">Transforma los desacuerdos en oportunidades de crecimiento y cooperación </td>
                         </tr>
                     </tbody>
                 </table>
@@ -313,10 +311,11 @@
 
         <!-- Asistencia -->
         <div>
-            <h3 class="font-bold text-xs mb-1 uppercase bg-slate-200 p-1 border border-slate-400">Asistencia Anual</h3>
+            <h3 class="font-bold text-xs mb-1 uppercase bg-slate-200 p-1 border border-slate-400">Asistencia Trimestral</h3>
             <table>
                 <thead>
                     <tr>
+                        <th>PERIODO</th>
                         <th>REGISTRO</th>
                         <th>JUSTIFICACIÓN</th>
                         <th>INJUSTIFICADO</th>
@@ -325,10 +324,32 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td class="font-semibold text-left-cell">ASISTENCIA</td>
-                        <td>0 <span class="hidden no-print">[cite: 6]</span></td>
-                        <td>0 <span class="hidden no-print">[cite: 6]</span></td>
-                        <td class="font-bold">200 <span class="hidden no-print">[cite: 6]</span></td>
+                        <td class="font-semibold text-left-cell">PRIMER TRIMESTRE</td>
+                        <td data-asistencia-periodo="T1" data-asistencia-campo="registro"></td>
+                        <td data-asistencia-periodo="T1" data-asistencia-campo="justificacion"></td>
+                        <td data-asistencia-periodo="T1" data-asistencia-campo="injustificado"></td>
+                        <td data-asistencia-periodo="T1" data-asistencia-campo="total" class="font-bold"></td>
+                    </tr>
+                    <tr>
+                        <td class="font-semibold text-left-cell">SEGUNDO TRIMESTRE</td>
+                        <td data-asistencia-periodo="T2" data-asistencia-campo="registro"></td>
+                        <td data-asistencia-periodo="T2" data-asistencia-campo="justificacion"></td>
+                        <td data-asistencia-periodo="T2" data-asistencia-campo="injustificado"></td>
+                        <td data-asistencia-periodo="T2" data-asistencia-campo="total" class="font-bold"></td>
+                    </tr>
+                    <tr>
+                        <td class="font-semibold text-left-cell">TERCER TRIMESTRE</td>
+                        <td data-asistencia-periodo="T3" data-asistencia-campo="registro"></td>
+                        <td data-asistencia-periodo="T3" data-asistencia-campo="justificacion"></td>
+                        <td data-asistencia-periodo="T3" data-asistencia-campo="injustificado"></td>
+                        <td data-asistencia-periodo="T3" data-asistencia-campo="total" class="font-bold"></td>
+                    </tr>
+                    <tr class="bg-slate-50">
+                        <td class="font-bold text-left-cell">TOTAL ANUAL</td>
+                        <td data-asistencia-periodo="ANUAL" data-asistencia-campo="registro"></td>
+                        <td data-asistencia-periodo="ANUAL" data-asistencia-campo="justificacion"></td>
+                        <td data-asistencia-periodo="ANUAL" data-asistencia-campo="injustificado"></td>
+                        <td data-asistencia-periodo="ANUAL" data-asistencia-campo="total" class="font-bold"></td>
                     </tr>
                 </tbody>
             </table>
@@ -340,10 +361,12 @@
     <section class="mt-8 pt-8 pb-4 flex justify-around text-xs font-semibold">
         <div class="text-center w-48">
             <div class="border-b border-slate-800 mb-2 h-6 w-full"></div>
+            <p data-cert-field="tutor-name" class="cert-nombre-firma font-bold text-slate-800 mt-1" style="font-size: 0.75rem;"></p>
             <p>TUTOR/A</p>
         </div>
         <div class="text-center w-48">
             <div class="border-b border-slate-800 mb-2 h-6 w-full"></div>
+            <p data-cert-field="rector-name" class="cert-nombre-firma font-bold text-slate-800 mt-1" style="font-size: 0.75rem;"></p>
             <p>RECTOR/A</p>
         </div>
     </section>

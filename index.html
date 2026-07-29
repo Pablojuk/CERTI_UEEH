@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob: file:; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: blob: file:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none';">
     <title>Módulo de Generación de Boletines</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -11,9 +12,81 @@
         body { font-family: 'Inter', sans-serif; }
         /* Animaciones suaves */
         .transition-all { transition-property: all; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 300ms; }
+        /* Respaldo funcional para el modal cuando Tailwind no está disponible sin conexión. */
+        #formatos-notas-modal.hidden,
+        #formatos-notas-modal .hidden {
+            display: none !important;
+        }
+        #formatos-notas-modal:not(.hidden) {
+            display: flex;
+        }
+        #licencia-overlay.hidden {
+            display: none !important;
+        }
+        #licencia-overlay:not(.hidden) {
+            display: flex;
+        }
+        #licencia-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            background: rgba(2, 6, 23, 0.82);
+        }
+        #licencia-overlay > div {
+            width: 100%;
+            max-width: 28rem;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+            border-radius: 1rem;
+            background: white;
+            box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.5);
+        }
+        body.licencia-bloqueada {
+            overflow: hidden;
+        }
+        body.licencia-bloqueada > :not(#licencia-overlay) {
+            pointer-events: none;
+            user-select: none;
+        }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen pb-12">
+<body class="bg-slate-50 text-slate-800 min-h-screen pb-12 licencia-bloqueada">
+
+    <div id="licencia-overlay" class="fixed inset-0 z-[100] bg-slate-950/80 items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="licencia-titulo">
+        <div class="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
+            <div class="bg-indigo-600 px-7 py-6 text-white">
+                <div class="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center mb-4">
+                    <i class="fa-solid fa-key text-xl"></i>
+                </div>
+                <h2 id="licencia-titulo" class="text-2xl font-bold">Activación de CERTI_UEEH</h2>
+                <p class="text-indigo-100 text-sm mt-1">Active esta instalación o continúe con la prueba gratuita.</p>
+            </div>
+            <div class="p-7">
+                <div class="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 mb-5">
+                    <p class="text-xs uppercase tracking-wide font-bold text-slate-500">Prueba disponible</p>
+                    <p id="licencia-dias" class="text-2xl font-bold text-slate-900 mt-1">Verificando…</p>
+                </div>
+                <label for="licencia-clave" class="block text-sm font-semibold text-slate-700 mb-2">Licencia</label>
+                <input id="licencia-clave" type="password" maxlength="256" autocomplete="off" spellcheck="false"
+                    class="w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Ingrese su licencia">
+                <p id="licencia-mensaje" class="text-sm text-slate-600 mt-3 min-h-[2.5rem]" aria-live="polite">Comprobando el estado de esta instalación…</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-5">
+                    <button id="btn-activar-licencia" type="button" disabled
+                        class="rounded-lg bg-indigo-600 text-white px-4 py-3 text-sm font-bold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-shield-halved mr-1"></i> Activar
+                    </button>
+                    <button id="btn-continuar-prueba" type="button" disabled
+                        class="rounded-lg bg-slate-100 text-slate-800 border border-slate-300 px-4 py-3 text-sm font-bold hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Continuar prueba
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <nav class="bg-white border-b border-slate-200 px-6 py-3 flex justify-between items-center sticky top-0 z-50 shadow-sm">
         <div class="flex items-center gap-3">
@@ -26,8 +99,8 @@
             </div>
         </div>
         <div class="flex items-center gap-4">
-            <button onclick="descargarFormatoExcel()" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 transition-all bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-full border border-indigo-200">
-                <i class="fa-solid fa-file-arrow-down"></i> Descargar Formato
+            <button id="btn-abrir-formatos-notas" type="button" onclick="abrirModalFormatosNotas()" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 transition-all bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-full border border-indigo-200">
+                <i class="fa-solid fa-file-arrow-down"></i> Descargar formatos
             </button>
             <div class="relative hidden md:block">
                 <i class="fa-solid fa-search absolute left-3 top-2.5 text-slate-400 text-sm"></i>
@@ -146,7 +219,7 @@
                 </div>
                 <div class="p-5 flex-grow flex flex-col gap-5">
                     <div class="flex-grow flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-xl p-4 hover:bg-slate-50 transition-all relative">
-                        <input type="file" id="file-logo1" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/*" onchange="previewImage(event, 'preview1', 'logo1')">
+                        <input type="file" id="file-logo1" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/png,image/jpeg,image/webp" onchange="previewImage(event, 'preview1', 'logo1')">
                         <div id="preview1-container" class="text-center">
                             <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-2 text-slate-400">
                                 <i class="fa-solid fa-building-columns text-2xl"></i>
@@ -157,7 +230,7 @@
                         <img id="preview1" class="hidden h-24 object-contain mx-auto pointer-events-none" />
                     </div>
                     <div class="flex-grow flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-xl p-4 hover:bg-slate-50 transition-all relative">
-                        <input type="file" id="file-logo2" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/*" onchange="previewImage(event, 'preview2', 'logo2')">
+                        <input type="file" id="file-logo2" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/png,image/jpeg,image/webp" onchange="previewImage(event, 'preview2', 'logo2')">
                         <div id="preview2-container" class="text-center">
                             <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-2 text-slate-400">
                                 <i class="fa-solid fa-landmark text-2xl"></i>
@@ -174,17 +247,28 @@
             </div>
         </div>
 
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div class="bg-slate-50 border-b border-slate-200 px-5 py-3 flex justify-between items-center">
-                <div class="flex items-center gap-2">
-                    <i class="fa-solid fa-school text-indigo-500"></i>
-                    <h3 class="font-semibold text-slate-800">Datos de la Institución (Encabezado)</h3>
+        <section id="institucion-modulo" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <button id="institucion-menu-btn" type="button" onclick="toggleDatosInstitucion()"
+                aria-expanded="false" aria-controls="institucion-content"
+                class="w-full bg-slate-50 border-b border-slate-200 px-5 py-4 flex items-center justify-between gap-4 text-left hover:bg-indigo-50 transition-all">
+                <div class="flex items-center gap-3">
+                    <div class="bg-indigo-100 text-indigo-600 w-9 h-9 rounded-lg flex items-center justify-center">
+                        <i class="fa-solid fa-school"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-slate-800">Datos de la Institución (Encabezado)</h3>
+                        <p class="text-xs text-slate-500">Configure la información institucional que aparecerá en los documentos</p>
+                    </div>
                 </div>
-                <button class="text-xs font-medium bg-white border border-slate-300 px-3 py-1 rounded text-slate-600 hover:bg-slate-50 transition-all">
-                    <i class="fa-solid fa-pen mr-1"></i> EDITABLE
-                </button>
-            </div>
-            <div class="p-6">
+                <i id="institucion-menu-icon" class="fa-solid fa-chevron-down text-slate-400 transition-transform duration-300"></i>
+            </button>
+            <div id="institucion-content" class="hidden">
+                <div class="px-6 pt-4 flex justify-end">
+                    <button class="text-xs font-medium bg-white border border-slate-300 px-3 py-1 rounded text-slate-600 hover:bg-slate-50 transition-all">
+                        <i class="fa-solid fa-pen mr-1"></i> EDITABLE
+                    </button>
+                </div>
+                <div class="p-6 pt-3">
                 <form id="inst-form" class="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-4">
                     <div class="md:col-span-2 xl:col-span-2">
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Nombre de la Institución</label>
@@ -223,20 +307,27 @@
                         <input type="text" id="inst-tutor" placeholder="Ingrese el nombre del tutor..." oninput="guardarDatosInstitucion()" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
                     </div>
                 </form>
+                </div>
             </div>
-        </div>
+        </section>
 
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div class="bg-slate-50 border-b border-slate-200 px-5 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div class="flex items-center gap-2">
-                    <div class="bg-indigo-100 text-indigo-600 w-8 h-8 rounded flex items-center justify-center">
+        <section id="gestion-estudiantes-modulo" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <button id="gestion-estudiantes-menu-btn" type="button" onclick="toggleGestionEstudiantes()"
+                aria-expanded="false" aria-controls="gestion-estudiantes-content"
+                class="w-full bg-slate-50 border-b border-slate-200 px-5 py-4 flex items-center justify-between gap-4 text-left hover:bg-indigo-50 transition-all">
+                <div class="flex items-center gap-3">
+                    <div class="bg-indigo-100 text-indigo-600 w-9 h-9 rounded-lg flex items-center justify-center">
                         <i class="fa-solid fa-users"></i>
                     </div>
                     <div>
                         <h3 class="font-semibold text-slate-800">Gestión de Estudiantes</h3>
-                        <p class="text-xs text-slate-500">Seleccione los estudiantes para generar sus certificados</p>
+                        <p class="text-xs text-slate-500">Consulte, seleccione y administre los estudiantes del curso</p>
                     </div>
                 </div>
+                <i id="gestion-estudiantes-menu-icon" class="fa-solid fa-chevron-down text-slate-400 transition-transform duration-300"></i>
+            </button>
+            <div id="gestion-estudiantes-content" class="hidden">
+                <div class="bg-white border-b border-slate-200 px-5 py-4 flex justify-end items-center">
                 <div class="flex items-center gap-3">
                     <div class="relative">
                         <i class="fa-solid fa-search absolute left-3 top-2.5 text-slate-400 text-sm"></i>
@@ -332,9 +423,338 @@
                     </button>
                 </div>
             </div>
-        </div>
+            </div>
+        </section>
+
+        <!-- Opción del módulo, ubicada inmediatamente después de Gestión de Estudiantes -->
+        <section id="asistencia-modulo" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <button id="asistencia-menu-btn" type="button" onclick="abrirModuloAsistencia()"
+                aria-expanded="false" aria-controls="asistencia-view"
+                class="w-full bg-slate-50 border-b border-slate-200 px-5 py-4 flex items-center justify-between gap-4 text-left hover:bg-indigo-50 transition-all">
+                <div class="flex items-center gap-3">
+                    <div class="bg-indigo-100 text-indigo-600 w-9 h-9 rounded-lg flex items-center justify-center">
+                        <i class="fa-solid fa-calendar-check"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-slate-800">Registrar asistencia</h3>
+                        <p class="text-xs text-slate-500">Configure los trimestres y gestione las faltas de los estudiantes</p>
+                    </div>
+                </div>
+                <i id="asistencia-menu-icon" class="fa-solid fa-chevron-down text-slate-400 transition-transform duration-300"></i>
+            </button>
+
+            <div id="asistencia-view" class="hidden p-5 space-y-5">
+                <div id="asistencia-sin-curso" class="hidden rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
+                    <i class="fa-solid fa-circle-info mr-2"></i>
+                    Seleccione un curso para registrar la asistencia de sus estudiantes.
+                </div>
+
+                <div id="asistencia-con-curso" class="space-y-5">
+                    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider text-indigo-600">Curso activo</p>
+                            <h4 id="asistencia-curso-nombre" class="text-xl font-bold text-slate-900"></h4>
+                            <p id="asistencia-anio-lectivo" class="text-sm text-slate-500"></p>
+                        </div>
+                        <label class="text-sm font-semibold text-slate-700">
+                            Trimestre
+                            <select id="asistencia-trimestre" onchange="cambiarTrimestreAsistencia()"
+                                class="ml-2 bg-white border border-slate-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <option value="T1">Primer trimestre</option>
+                                <option value="T2">Segundo trimestre</option>
+                                <option value="T3">Tercer trimestre</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <div class="flex items-center gap-2 mb-4">
+                            <i class="fa-solid fa-calendar-days text-indigo-500"></i>
+                            <h4 class="font-semibold text-slate-800">Configuración del trimestre</h4>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-end">
+                            <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                Fecha de inicio
+                                <input id="asistencia-fecha-inicio" type="date"
+                                    class="mt-1 w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                Fecha de finalización
+                                <input id="asistencia-fecha-fin" type="date"
+                                    class="mt-1 w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                            </label>
+                            <button type="button" onclick="guardarPeriodoAsistencia()"
+                                class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-semibold transition-all">
+                                <i class="fa-solid fa-floppy-disk mr-1"></i> Guardar periodo
+                            </button>
+                            <div class="text-xs text-slate-500">
+                                <span class="font-semibold">Rango guardado:</span>
+                                <span id="asistencia-rango-guardado">Sin configurar</span>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 pt-4 border-t border-slate-200">
+                            <div class="flex flex-col md:flex-row md:items-end gap-3">
+                                <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                    Días sin clases
+                                    <input id="asistencia-dia-sin-clase" type="date"
+                                        class="mt-1 block bg-white border border-slate-300 rounded-md px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                                </label>
+                                <button type="button" onclick="agregarDiaSinClase()"
+                                    class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-md text-sm font-semibold transition-all">
+                                    <i class="fa-solid fa-calendar-xmark mr-1"></i> Agregar día sin clases
+                                </button>
+                            </div>
+                            <div id="asistencia-dias-sin-clases-lista" class="mt-3 flex flex-wrap gap-2"></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                        <div class="rounded-lg border border-slate-200 p-3"><p class="text-xs text-slate-500">Estudiantes</p><p id="asistencia-resumen-estudiantes" class="text-xl font-bold">0</p></div>
+                        <div class="rounded-lg border border-slate-200 p-3"><p class="text-xs text-slate-500">Días lectivos</p><p id="asistencia-resumen-dias" class="text-xl font-bold">0</p></div>
+                        <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3"><p class="text-xs text-emerald-700">Justificadas</p><p id="asistencia-resumen-justificadas" class="text-xl font-bold text-emerald-800">0</p></div>
+                        <div class="rounded-lg border border-rose-200 bg-rose-50 p-3"><p class="text-xs text-rose-700">Injustificadas</p><p id="asistencia-resumen-injustificadas" class="text-xl font-bold text-rose-800">0</p></div>
+                        <div class="rounded-lg border border-amber-200 bg-amber-50 p-3"><p class="text-xs text-amber-700">Total faltas</p><p id="asistencia-resumen-total" class="text-xl font-bold text-amber-800">0</p></div>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row justify-between gap-3">
+                        <div class="relative max-w-md w-full">
+                            <i class="fa-solid fa-search absolute left-3 top-2.5 text-slate-400 text-sm"></i>
+                            <input id="asistencia-buscar" type="text" oninput="renderTablaAsistencia()" placeholder="Buscar estudiante"
+                                class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-md text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto max-h-[32rem] border border-slate-200 rounded-lg">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="sticky top-0 bg-slate-100 z-10 text-xs uppercase tracking-wider text-slate-600">
+                                <tr>
+                                    <th class="p-3">N.º</th>
+                                    <th class="p-3">Apellidos y nombres</th>
+                                    <th class="p-3">Identificación / código</th>
+                                    <th class="p-3 text-center">Justificadas</th>
+                                    <th class="p-3 text-center">Injustificadas</th>
+                                    <th class="p-3 text-center">Total faltas</th>
+                                    <th class="p-3 text-center">Días de asistencia</th>
+                                    <th class="p-3 text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="asistencia-estudiantes-body" class="divide-y divide-slate-100 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
 
     </main>
+
+    <!-- Modal único para gestionar faltas -->
+    <div id="asistencia-modal" class="hidden fixed inset-0 z-[70] overflow-y-auto bg-slate-900/60 p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-slate-200 max-w-5xl w-full mx-auto my-4 overflow-hidden">
+            <div class="p-5 border-b border-slate-200 flex justify-between gap-4">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-900">Gestionar faltas</h3>
+                    <p id="asistencia-modal-estudiante" class="text-sm font-semibold text-indigo-700"></p>
+                    <p id="asistencia-modal-contexto" class="text-xs text-slate-500 mt-1"></p>
+                </div>
+                <button type="button" onclick="cerrarModalAsistencia()" class="text-slate-400 hover:text-rose-600 p-2" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <div class="p-5 grid grid-cols-1 lg:grid-cols-5 gap-5">
+                <div class="lg:col-span-3">
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="moverMesAsistencia(-1)" class="border border-slate-300 rounded px-3 py-2" aria-label="Mes anterior"><i class="fa-solid fa-chevron-left"></i></button>
+                            <select id="asistencia-cal-mes" onchange="cambiarMesCalendario()" class="border border-slate-300 rounded px-3 py-2 text-sm"></select>
+                            <select id="asistencia-cal-anio" onchange="cambiarMesCalendario()" class="border border-slate-300 rounded px-3 py-2 text-sm"></select>
+                            <button type="button" onclick="moverMesAsistencia(1)" class="border border-slate-300 rounded px-3 py-2" aria-label="Mes siguiente"><i class="fa-solid fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2 mb-4" role="group" aria-label="Modo de selección">
+                        <button id="asistencia-modo-justificada" type="button" onclick="seleccionarModoAsistencia('justificada')" class="px-3 py-2 rounded border text-sm font-semibold">
+                            <i class="fa-solid fa-circle-check mr-1"></i> Marcar justificada
+                        </button>
+                        <button id="asistencia-modo-injustificada" type="button" onclick="seleccionarModoAsistencia('injustificada')" class="px-3 py-2 rounded border text-sm font-semibold">
+                            <i class="fa-solid fa-circle-xmark mr-1"></i> Marcar injustificada
+                        </button>
+                        <button id="asistencia-modo-borrar" type="button" onclick="seleccionarModoAsistencia('borrar')" class="px-3 py-2 rounded border text-sm font-semibold">
+                            <i class="fa-solid fa-eraser mr-1"></i> Borrar registro
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-7 text-center text-xs font-bold text-slate-500 mb-1">
+                        <span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span>
+                    </div>
+                    <div id="asistencia-calendario" class="grid grid-cols-7 gap-1"></div>
+
+                    <div class="mt-4 flex flex-wrap gap-3 text-xs">
+                        <span class="border border-emerald-300 bg-emerald-50 text-emerald-800 rounded px-2 py-1"><i class="fa-solid fa-circle-check mr-1"></i>Justificada</span>
+                        <span class="border border-rose-300 bg-rose-50 text-rose-800 rounded px-2 py-1"><i class="fa-solid fa-circle-xmark mr-1"></i>Injustificada</span>
+                        <span class="border border-slate-300 bg-white text-slate-700 rounded px-2 py-1">Sin falta</span>
+                        <span class="border border-slate-200 bg-slate-100 text-slate-400 rounded px-2 py-1"><i class="fa-solid fa-ban mr-1"></i>No habilitado</span>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-2">
+                    <h4 class="font-semibold text-slate-800 mb-3">Fechas registradas</h4>
+                    <div class="max-h-[28rem] overflow-y-auto border border-slate-200 rounded-lg">
+                        <table class="w-full text-left text-xs">
+                            <thead class="sticky top-0 bg-slate-100">
+                                <tr><th class="p-2">Fecha / día</th><th class="p-2">Tipo y observación</th><th class="p-2"></th></tr>
+                            </thead>
+                            <tbody id="asistencia-faltas-lista" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-5 border-t border-slate-200 flex justify-end gap-3">
+                <button type="button" onclick="cerrarModalAsistencia()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-md text-sm font-semibold">Cancelar</button>
+                <button type="button" onclick="guardarCambiosAsistencia()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm font-semibold">
+                    <i class="fa-solid fa-floppy-disk mr-1"></i> Guardar cambios
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de descarga de formatos oficiales de notas -->
+    <div id="formatos-notas-modal"
+        class="hidden fixed inset-0 z-[80] overflow-y-auto bg-slate-900/60 p-4 flex items-center justify-center"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="formatos-notas-modal-title"
+        aria-describedby="formatos-notas-modal-description"
+        aria-hidden="true"
+        onclick="if (event.target === event.currentTarget) cerrarModalFormatosNotas()">
+        <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-5xl w-full max-h-[92vh] overflow-y-auto">
+            <div class="p-5 sm:p-6 border-b border-slate-200 flex items-start justify-between gap-4">
+                <div>
+                    <h3 id="formatos-notas-modal-title" class="text-xl font-bold text-slate-900">Descargar formato de notas</h3>
+                    <p id="formatos-notas-modal-description" class="text-sm text-slate-500 mt-1">Seleccione el formato correspondiente al nivel o curso que va a registrar.</p>
+                </div>
+                <button id="btn-cerrar-formatos-notas" type="button" onclick="cerrarModalFormatosNotas()" class="text-slate-400 hover:text-rose-600 p-2 rounded-lg hover:bg-rose-50 transition-all" aria-label="Cerrar selección de formatos">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <div class="p-5 sm:p-6">
+                <div id="formatos-notas-sin-recomendacion" class="hidden mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
+                    <i class="fa-solid fa-circle-info mr-1"></i>
+                    Todavía no existe un formato específico para el curso activo. Puede seleccionar manualmente uno de los formatos disponibles si corresponde.
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <article data-formato-card data-formato-id="egb_2_7" class="relative rounded-xl border border-slate-200 p-5 bg-white transition-all">
+                        <span data-formato-recomendado class="hidden absolute right-4 top-4 rounded-full bg-emerald-100 text-emerald-700 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide">
+                            <i class="fa-solid fa-star mr-1"></i> Recomendado
+                        </span>
+                        <div class="w-11 h-11 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center mb-4">
+                            <i class="fa-solid fa-school text-xl"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-900 pr-24">2.º a 7.º de EGB</h4>
+                        <p class="text-sm text-slate-500 mt-2 min-h-[2.5rem]">Formato para los cursos desde segundo hasta séptimo de Educación General Básica.</p>
+                        <p class="mt-3 rounded-md bg-slate-50 border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 break-words">FORMATO PARA 2.º a 7.º EGB.xlsx</p>
+                        <button type="button" data-formato-descargar data-formato-id="egb_2_7" onclick="descargarFormatoNotas('egb_2_7')" class="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-wait text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-all">
+                            <i class="fa-solid fa-download mr-1"></i> <span data-formato-boton-texto>Descargar</span>
+                        </button>
+                    </article>
+
+                    <article data-formato-card data-formato-id="egb_8_10" class="relative rounded-xl border border-slate-200 p-5 bg-white transition-all">
+                        <span data-formato-recomendado class="hidden absolute right-4 top-4 rounded-full bg-emerald-100 text-emerald-700 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide">
+                            <i class="fa-solid fa-star mr-1"></i> Recomendado
+                        </span>
+                        <div class="w-11 h-11 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center mb-4">
+                            <i class="fa-solid fa-user-graduate text-xl"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-900 pr-24">8.º a 10.º de EGB</h4>
+                        <p class="text-sm text-slate-500 mt-2 min-h-[2.5rem]">Formato para los cursos desde octavo hasta décimo de Educación General Básica.</p>
+                        <p class="mt-3 rounded-md bg-slate-50 border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 break-words">FORMATO PARA 8.º a 10.º EGB.xlsx</p>
+                        <button type="button" data-formato-descargar data-formato-id="egb_8_10" onclick="descargarFormatoNotas('egb_8_10')" class="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-wait text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-all">
+                            <i class="fa-solid fa-download mr-1"></i> <span data-formato-boton-texto>Descargar</span>
+                        </button>
+                    </article>
+
+                    <article data-formato-card data-formato-id="bgu_1_2" class="relative rounded-xl border border-slate-200 p-5 bg-white transition-all">
+                        <span data-formato-recomendado class="hidden absolute right-4 top-4 rounded-full bg-emerald-100 text-emerald-700 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide">
+                            <i class="fa-solid fa-star mr-1"></i> Recomendado
+                        </span>
+                        <div class="w-11 h-11 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center mb-4">
+                            <i class="fa-solid fa-book-open-reader text-xl"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-900 pr-24">1.º y 2.º de BGU</h4>
+                        <p class="text-sm text-slate-500 mt-2 min-h-[2.5rem]">Formato para primero y segundo de Bachillerato General Unificado.</p>
+                        <p class="mt-3 rounded-md bg-slate-50 border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 break-words">FORMATO PARA 1.º y 2.º BGU.xlsx</p>
+                        <button type="button" data-formato-descargar data-formato-id="bgu_1_2" onclick="descargarFormatoNotas('bgu_1_2')" class="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-wait text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-all">
+                            <i class="fa-solid fa-download mr-1"></i> <span data-formato-boton-texto>Descargar</span>
+                        </button>
+                    </article>
+
+                    <article data-formato-card data-formato-id="bgu_3" class="relative rounded-xl border border-slate-200 p-5 bg-white transition-all">
+                        <span data-formato-recomendado class="hidden absolute right-4 top-4 rounded-full bg-emerald-100 text-emerald-700 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide">
+                            <i class="fa-solid fa-star mr-1"></i> Recomendado
+                        </span>
+                        <div class="w-11 h-11 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center mb-4">
+                            <i class="fa-solid fa-flask-vial text-xl"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-900 pr-24">3.º de BGU</h4>
+                        <p class="text-sm text-slate-500 mt-2 min-h-[2.5rem]">Formato específico para tercero de Bachillerato, compatible con sus asignaturas optativas.</p>
+                        <p class="mt-3 rounded-md bg-slate-50 border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 break-words">FORMATO PARA 3.º BGU.xlsx</p>
+                        <button type="button" data-formato-descargar data-formato-id="bgu_3" onclick="descargarFormatoNotas('bgu_3')" class="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-wait text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-all">
+                            <i class="fa-solid fa-download mr-1"></i> <span data-formato-boton-texto>Descargar</span>
+                        </button>
+                    </article>
+                </div>
+            </div>
+
+            <div class="p-5 sm:px-6 border-t border-slate-200 flex justify-end">
+                <button type="button" onclick="cerrarModalFormatosNotas()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-md text-sm font-semibold hover:bg-slate-200 transition-all">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de optativas para generar el formato de 3.º BGU -->
+    <div id="optativas-bgu3-modal"
+        class="hidden fixed inset-0 z-[90] overflow-y-auto bg-slate-900/70 p-4 flex items-center justify-center"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="optativas-bgu3-modal-title"
+        aria-describedby="optativas-bgu3-modal-description"
+        aria-hidden="true"
+        onclick="if (event.target === event.currentTarget) cerrarModalOptativasBgu3()">
+        <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-3xl w-full max-h-[92vh] overflow-y-auto">
+            <div class="p-5 sm:p-6 border-b border-slate-200 flex items-start justify-between gap-4">
+                <div>
+                    <h3 id="optativas-bgu3-modal-title" class="text-xl font-bold text-slate-900">Optativas de 3.º de BGU</h3>
+                    <p id="optativas-bgu3-modal-description" class="text-sm text-slate-500 mt-1">
+                        Seleccione las asignaturas que se incluirán en la copia del formato.
+                    </p>
+                </div>
+                <button id="btn-cerrar-optativas-bgu3" type="button" onclick="cerrarModalOptativasBgu3()" class="text-slate-400 hover:text-rose-600 p-2 rounded-lg hover:bg-rose-50 transition-all" aria-label="Cerrar selección de optativas">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <div class="p-5 sm:p-6">
+                <div class="mb-4 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
+                    <i class="fa-solid fa-circle-info mr-1"></i>
+                    El formato admite hasta <strong>16 asignaturas</strong> en total. Las materias generales, Cívica y Evaluación Comportamental se conservarán.
+                </div>
+                <div id="optativas-bgu3-lista" class="grid grid-cols-1 sm:grid-cols-2 gap-3" role="group" aria-label="Asignaturas optativas de 3.º BGU"></div>
+                <div id="optativas-bgu3-estado" class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600" role="status" aria-live="polite"></div>
+            </div>
+
+            <div class="p-5 sm:px-6 border-t border-slate-200 flex flex-col-reverse sm:flex-row justify-end gap-3">
+                <button type="button" onclick="cerrarModalOptativasBgu3()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-md text-sm font-semibold hover:bg-slate-200 transition-all">Cancelar</button>
+                <button id="btn-generar-formato-bgu3" type="button" onclick="generarDescargarFormatoBgu3()" disabled class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-md text-sm font-semibold transition-all">
+                    <i class="fa-solid fa-file-excel mr-1"></i>
+                    <span data-optativas-bgu3-boton-texto>Generar y descargar</span>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Modal de Vista Previa / Estado -->
     <div id="status-modal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 flex items-center justify-center p-4">
@@ -445,6 +865,7 @@
         </div>
     </div>
 
+    <script src="./asistencia.js"></script>
     <script>
         // DB Configuración (IndexedDB)
         const DB_NAME = 'SistemaAcademicoDB';
@@ -459,6 +880,10 @@
         let estudiantesCargados = []; // Consolidado de la tabla para buscar/filtrar
         let trasladoPendienteActual = null;
         let licenciaActiva = false;
+        let catalogoAsignaturas = [];
+        let escalaCualitativa = { minimo: 1, maximo: 10, rangos: [] };
+        let trimestreAsistenciaActivo = 'T1';
+        let asistenciaModalEstado = null;
 
         // Inicializar IndexedDB
         function initDB() {
@@ -489,8 +914,8 @@
                     tx.oncomplete = () => resolve(true);
                     tx.onerror = () => reject(tx.error);
                 });
-            } catch (err) {
-                console.error("Error al guardar estado en IndexedDB:", err);
+            } catch {
+                console.error("No se pudo guardar el estado local.");
             }
         }
 
@@ -554,34 +979,206 @@
                     };
                     req.onerror = () => reject(req.error);
                 });
-            } catch (err) {
-                console.error("Error al cargar estado de IndexedDB:", err);
+            } catch {
+                console.error("No se pudo cargar el estado local.");
                 return false;
+            }
+        }
+
+        let aplicacionInicializada = false;
+        let estadoLicenciaMostrado = null;
+        let monitorLicenciaId = null;
+
+        function actualizarInsigniaLicencia(estado) {
+            const badge = document.getElementById('license-badge');
+            const activada = estado?.activada === true;
+            badge.className = activada
+                ? "bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold tracking-wide flex items-center gap-1.5 shadow-sm"
+                : "bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1 rounded-full text-xs font-bold tracking-wide flex items-center gap-1.5 shadow-sm";
+            badge.replaceChildren();
+            const indicador = document.createElement('div');
+            indicador.className = activada
+                ? 'w-2 h-2 rounded-full bg-emerald-500'
+                : 'w-2 h-2 rounded-full bg-amber-500';
+            badge.appendChild(indicador);
+            badge.appendChild(document.createTextNode(
+                activada
+                    ? ' LICENCIA ACTIVA'
+                    : ` PRUEBA: ${estado?.diasRestantes ?? 0} DÍA(S)`
+            ));
+        }
+
+        function mostrarEstadoLicencia(estado) {
+            estadoLicenciaMostrado = estado;
+            const overlay = document.getElementById('licencia-overlay');
+            const dias = document.getElementById('licencia-dias');
+            const mensaje = document.getElementById('licencia-mensaje');
+            const activar = document.getElementById('btn-activar-licencia');
+            const continuar = document.getElementById('btn-continuar-prueba');
+            const restantes = Number.isInteger(estado?.diasRestantes)
+                ? estado.diasRestantes
+                : 0;
+
+            overlay.classList.remove('hidden');
+            document.body.classList.add('licencia-bloqueada');
+            document.querySelectorAll('body > :not(#licencia-overlay):not(script)')
+                .forEach(elemento => { elemento.inert = true; });
+            dias.textContent = estado?.estado === 'activada'
+                ? 'Licencia permanente'
+                : `${restantes} día${restantes === 1 ? '' : 's'} restante${restantes === 1 ? '' : 's'}`;
+            mensaje.textContent = estado?.mensaje || 'No fue posible verificar la licencia.';
+            activar.disabled = false;
+            continuar.classList.toggle('hidden', estado?.puedeIniciarPrueba !== true);
+            continuar.disabled = estado?.puedeIniciarPrueba !== true;
+        }
+
+        function establecerEsperaLicencia(enEspera) {
+            document.getElementById('btn-activar-licencia').disabled = enEspera;
+            const continuar = document.getElementById('btn-continuar-prueba');
+            continuar.disabled = enEspera || estadoLicenciaMostrado?.puedeIniciarPrueba !== true;
+        }
+
+        async function inicializarAplicacion() {
+            if (aplicacionInicializada) return;
+            aplicacionInicializada = true;
+            try {
+                const catalogo = await window.electronAPI.obtenerCatalogoAsignaturas();
+                catalogoAsignaturas = Array.isArray(catalogo) ? catalogo : [];
+            } catch {
+                console.error("No se pudo cargar el catálogo de asignaturas.");
+                catalogoAsignaturas = [];
+            }
+            try {
+                const escala = await window.electronAPI.obtenerEscalaCualitativa();
+                escalaCualitativa = (
+                    escala
+                    && Array.isArray(escala.rangos)
+                ) ? escala : { minimo: 1, maximo: 10, rangos: [] };
+            } catch {
+                console.error("No se pudo cargar la escala cualitativa.");
+                escalaCualitativa = { minimo: 1, maximo: 10, rangos: [] };
+            }
+
+            // Cargar base de datos local
+            await loadStateFromDB();
+            let huboNormalizacion = false;
+            appState.cursos.forEach(curso => {
+                if (normalizarAsignaturasPersistidasCurso(curso)) huboNormalizacion = true;
+            });
+            if (huboNormalizacion) await saveStateToDB();
+            actualizarSelectorCursosUI();
+            cargarCursoActivoEnPantalla();
+        }
+
+        async function concederAccesoLicencia(estado) {
+            licenciaActiva = estado?.autorizado === true;
+            actualizarInsigniaLicencia(estado);
+            document.getElementById('licencia-overlay').classList.add('hidden');
+            document.body.classList.remove('licencia-bloqueada');
+            document.querySelectorAll('body > :not(#licencia-overlay):not(script)')
+                .forEach(elemento => { elemento.inert = false; });
+            if (monitorLicenciaId) {
+                clearInterval(monitorLicenciaId);
+                monitorLicenciaId = null;
+            }
+            if (!estado?.activada) {
+                monitorLicenciaId = setInterval(async () => {
+                    try {
+                        const vigente = await window.electronAPI.obtenerEstadoLicencia();
+                        if (!vigente?.autorizado) {
+                            licenciaActiva = false;
+                            mostrarEstadoLicencia(vigente);
+                            clearInterval(monitorLicenciaId);
+                            monitorLicenciaId = null;
+                        } else {
+                            actualizarInsigniaLicencia(vigente);
+                        }
+                    } catch {
+                        licenciaActiva = false;
+                        mostrarEstadoLicencia({
+                            estado: 'error',
+                            diasRestantes: 0,
+                            puedeIniciarPrueba: false,
+                            mensaje: 'No fue posible verificar la vigencia de la prueba.'
+                        });
+                        clearInterval(monitorLicenciaId);
+                        monitorLicenciaId = null;
+                    }
+                }, 30 * 1000);
+            }
+            await inicializarAplicacion();
+        }
+
+        async function activarLicenciaDesdePantalla() {
+            establecerEsperaLicencia(true);
+            try {
+                const licencia = document.getElementById('licencia-clave').value;
+                const estado = await window.electronAPI.activarLicencia(licencia);
+                if (estado?.activada) {
+                    document.getElementById('licencia-clave').value = '';
+                    await concederAccesoLicencia(estado);
+                    return;
+                }
+                mostrarEstadoLicencia(estado);
+            } catch {
+                mostrarEstadoLicencia({
+                    estado: 'error',
+                    diasRestantes: 0,
+                    puedeIniciarPrueba: false,
+                    mensaje: 'No fue posible comprobar la licencia.'
+                });
+            } finally {
+                establecerEsperaLicencia(false);
+            }
+        }
+
+        async function continuarPruebaDesdePantalla() {
+            establecerEsperaLicencia(true);
+            try {
+                const estado = await window.electronAPI.iniciarPrueba();
+                if (estado?.autorizado) {
+                    await concederAccesoLicencia(estado);
+                    return;
+                }
+                mostrarEstadoLicencia(estado);
+            } catch {
+                mostrarEstadoLicencia({
+                    estado: 'error',
+                    diasRestantes: 0,
+                    puedeIniciarPrueba: false,
+                    mensaje: 'No fue posible iniciar o continuar la prueba.'
+                });
+            } finally {
+                establecerEsperaLicencia(false);
             }
         }
 
         // Inicialización al cargar la ventana
         window.onload = async () => {
+            document.querySelectorAll('body > :not(#licencia-overlay):not(script)')
+                .forEach(elemento => { elemento.inert = true; });
+            document.getElementById('btn-activar-licencia')
+                .addEventListener('click', activarLicenciaDesdePantalla);
+            document.getElementById('btn-continuar-prueba')
+                .addEventListener('click', continuarPruebaDesdePantalla);
+            document.getElementById('licencia-clave').addEventListener('keydown', event => {
+                if (event.key === 'Enter') activarLicenciaDesdePantalla();
+            });
             try {
-                const res = await window.electronAPI.verificarLicencia();
-                const badge = document.getElementById('license-badge');
-                if (res.valido) {
-                    licenciaActiva = true;
-                    badge.className = "bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold tracking-wide flex items-center gap-1.5 shadow-sm";
-                    badge.innerHTML = `<div class="w-2 h-2 rounded-full bg-emerald-500"></div> LICENCIA ACTIVA`;
+                const estado = await window.electronAPI.obtenerEstadoLicencia();
+                if (estado?.estado === 'activada' && estado.autorizado) {
+                    await concederAccesoLicencia(estado);
                 } else {
-                    licenciaActiva = false;
-                    badge.className = "bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1 rounded-full text-xs font-bold tracking-wide flex items-center gap-1.5 shadow-sm";
-                    badge.innerHTML = `<div class="w-2 h-2 rounded-full bg-amber-500"></div> PRUEBA OFFLINE (MAX 3)`;
+                    mostrarEstadoLicencia(estado);
                 }
-            } catch (err) {
-                console.error("Error al verificar licencia:", err);
+            } catch {
+                mostrarEstadoLicencia({
+                    estado: 'error',
+                    diasRestantes: 0,
+                    puedeIniciarPrueba: false,
+                    mensaje: 'No fue posible verificar la licencia de forma segura.'
+                });
             }
-
-            // Cargar base de datos local
-            await loadStateFromDB();
-            actualizarSelectorCursosUI();
-            cargarCursoActivoEnPantalla();
         };
 
         // UI Helpers
@@ -591,6 +1188,171 @@
                 .toUpperCase()
                 .replace(/\s+/g, ' ')
                 .trim();
+        }
+
+        function normalizarTextoAsignatura(txt) {
+            return String(txt || '')
+                .trim()
+                .toUpperCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[–—]/g, '-')
+                .replace(/[-_/|;:,]+/g, ' ')
+                .replace(/[^A-Z0-9\s]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function codigoGradoCatalogo(grado) {
+            const g = normalizarTextoAsignatura(grado);
+            if (!g) return null;
+            if (g.includes('INICIAL')) {
+                if (/(^|\s)(2|II)(\s|$)/.test(g)) return 'INICIAL_2';
+                if (/(^|\s)(1|I)(\s|$)/.test(g)) return 'INICIAL_1';
+            }
+            const esBgu = g.includes('BACHILLERATO') || /(^|\s)BGU(\s|$)/.test(g);
+            if (esBgu) {
+                if (/(^|\s)(3RO|3ER|3|TERCERO|TERCER)(\s|$)/.test(g)) return 'BGU_3';
+                if (/(^|\s)(2DO|2|SEGUNDO)(\s|$)/.test(g)) return 'BGU_2';
+                if (/(^|\s)(1RO|1ER|1|PRIMERO|PRIMER)(\s|$)/.test(g)) return 'BGU_1';
+            }
+            const esEgb = g.includes('EGB') || g.includes('EDUCACION GENERAL BASICA');
+            if (g.includes('PREPARATORIA') || (esEgb && /(^|\s)(1RO|1ER|1ERO|1|PRIMERO|PRIMER)(\s|$)/.test(g))) return 'EGB_1';
+            if (g.includes('ELEMENTAL') || (esEgb && /(^|\s)(2DO|3RO|3ER|4TO|2|3|4|SEGUNDO|TERCERO|TERCER|CUARTO)(\s|$)/.test(g))) return 'EGB_ELEMENTAL';
+            if (g.includes('MEDIA') || (esEgb && /(^|\s)(5TO|6TO|7MO|5|6|7|QUINTO|SEXTO|SEPTIMO)(\s|$)/.test(g))) return 'EGB_MEDIA';
+            if (g.includes('SUPERIOR') || (esEgb && /(^|\s)(8VO|9NO|10MO|8|9|10|OCTAVO|NOVENO|DECIMO)(\s|$)/.test(g))) return 'EGB_SUPERIOR';
+            return null;
+        }
+
+        function reconocerAsignaturaCatalogo(nombre) {
+            const original = String(nombre || '').trim();
+            const normalizada = normalizarTextoAsignatura(original);
+            if (!normalizada || catalogoAsignaturas.length === 0) return null;
+
+            // Prioridad absoluta: nombre canónico, luego alias y finalmente aproximación.
+            for (const entrada of catalogoAsignaturas) {
+                if (normalizarTextoAsignatura(entrada.nombre) === normalizada) return entrada;
+            }
+            for (const entrada of catalogoAsignaturas) {
+                if ((entrada.aliases || []).some(v => normalizarTextoAsignatura(v) === normalizada)) return entrada;
+            }
+
+            const similitudSecuencia = (a, b) => {
+                const anterior = new Array(b.length + 1).fill(0);
+                const actual = new Array(b.length + 1).fill(0);
+                for (let i = 1; i <= a.length; i++) {
+                    for (let j = 1; j <= b.length; j++) {
+                        actual[j] = a[i - 1] === b[j - 1] ? anterior[j - 1] + 1 : Math.max(anterior[j], actual[j - 1]);
+                    }
+                    for (let j = 0; j <= b.length; j++) { anterior[j] = actual[j]; actual[j] = 0; }
+                }
+                return a.length + b.length ? (2 * anterior[b.length]) / (a.length + b.length) : 1;
+            };
+
+            const puntajes = catalogoAsignaturas.map(entrada => {
+                let mejor = 0;
+                for (const variante of [entrada.nombre, ...(entrada.aliases || [])]) {
+                    const candidata = normalizarTextoAsignatura(variante);
+                    const palabrasEntrada = normalizada.split(' ');
+                    const palabrasCandidata = candidata.split(' ');
+                    const esExtension = palabrasEntrada.length > palabrasCandidata.length && palabrasCandidata.every(p => palabrasEntrada.includes(p));
+                    if (esExtension || Math.abs(palabrasEntrada.length - palabrasCandidata.length) > 1) continue;
+                    const similitud = similitudSecuencia(normalizada, candidata);
+                    mejor = Math.max(mejor, similitud);
+                }
+                return { entrada, puntaje: mejor };
+            }).sort((a, b) => b.puntaje - a.puntaje);
+
+            const longitud = normalizada.replace(/\s/g, '').length;
+            const umbral = longitud <= 5 ? 0.96 : longitud <= 8 ? 0.88 : longitud <= 14 ? 0.86 : 0.84;
+            if (!puntajes[0] || puntajes[0].puntaje < umbral) return null;
+            if (puntajes[1] && puntajes[0].puntaje - puntajes[1].puntaje < 0.06) return null;
+            return puntajes[0].entrada;
+        }
+
+        function canonicalizarAsignaturaPersistida(nombre, grado) {
+            const entrada = reconocerAsignaturaCatalogo(nombre);
+            const codigoGrado = codigoGradoCatalogo(grado);
+            if (!entrada || !codigoGrado || !(entrada.grados || []).includes(codigoGrado)) return String(nombre);
+            return entrada.nombre;
+        }
+
+        function tipoAsignaturaCatalogo(nombre) {
+            return metadatosAsignaturaCatalogo(nombre).tipo;
+        }
+
+        function metadatosAsignaturaCatalogo(nombre, propagados = null) {
+            const entrada = reconocerAsignaturaCatalogo(nombre) || {};
+            const fuente = propagados && typeof propagados === 'object' ? propagados : {};
+            return {
+                tipo: fuente.tipo ?? entrada.tipo ?? 'cuantitativa',
+                categoria: fuente.categoria ?? entrada.categoria ?? null,
+                es_optativa_bgu3: fuente.es_optativa_bgu3 ?? entrada.es_optativa_bgu3 ?? false,
+                presentacion_certificado: fuente.presentacion_certificado ?? entrada.presentacion_certificado ?? null,
+                permite_supletorio: fuente.permite_supletorio ?? entrada.permite_supletorio ?? true,
+                orden: Number(fuente.orden ?? entrada.orden ?? 999)
+            };
+        }
+
+        function ordenarAsignaturasCatalogo(nombres) {
+            const entradasPorNombre = new Map(
+                catalogoAsignaturas.map(entrada => [normalizarTextoAsignatura(entrada.nombre), entrada])
+            );
+            return Array.from(new Set(nombres)).sort((a, b) => {
+                const entradaA = entradasPorNombre.get(normalizarTextoAsignatura(a));
+                const entradaB = entradasPorNombre.get(normalizarTextoAsignatura(b));
+                const ordenA = Number(entradaA?.orden ?? 999);
+                const ordenB = Number(entradaB?.orden ?? 999);
+                return ordenA - ordenB || String(a).localeCompare(String(b), 'es');
+            });
+        }
+
+        function normalizarMapaAsignaturasPersistido(mapa, grado) {
+            if (!mapa || typeof mapa !== 'object' || Array.isArray(mapa)) return { mapa, cambio: false };
+            const salida = {};
+            let cambio = false;
+            Object.entries(mapa).forEach(([nombre, valor]) => {
+                const canonica = canonicalizarAsignaturaPersistida(nombre, grado);
+                cambio = cambio || canonica !== nombre;
+                if (!(canonica in salida) || salida[canonica] === null || salida[canonica] === '') salida[canonica] = valor;
+            });
+            return { mapa: salida, cambio };
+        }
+
+        function normalizarAsignaturasPersistidasCurso(curso) {
+            if (!curso) return false;
+            const grado = curso.datosInstitucion?.gradoCurso || curso.nombreVisible || '';
+            let cambio = false;
+            Object.values(curso.periodos || {}).forEach(periodo => {
+                if (Array.isArray(periodo.asignaturas)) {
+                    const nuevas = Array.from(new Set(periodo.asignaturas.map(nombre => canonicalizarAsignaturaPersistida(nombre, grado))));
+                    if (JSON.stringify(nuevas) !== JSON.stringify(periodo.asignaturas)) { periodo.asignaturas = nuevas; cambio = true; }
+                }
+                (periodo.estudiantes || []).forEach(estudiante => {
+                    ['notas', 'tipos_asignaturas', 'metadatos_asignaturas'].forEach(campo => {
+                        const normalizado = normalizarMapaAsignaturasPersistido(estudiante[campo], grado);
+                        if (normalizado.cambio) { estudiante[campo] = normalizado.mapa; cambio = true; }
+                    });
+                });
+            });
+            (curso.alumnosTraslado || []).forEach(alumno => {
+                Object.values(alumno.notas || {}).forEach(periodo => {
+                    ['asignaturas', 'tiposAsignaturas', 'metadatosAsignaturas'].forEach(campo => {
+                        const normalizado = normalizarMapaAsignaturasPersistido(periodo[campo], grado);
+                        if (normalizado.cambio) { periodo[campo] = normalizado.mapa; cambio = true; }
+                    });
+                });
+                const su = normalizarMapaAsignaturasPersistido(alumno.su_notas, grado);
+                if (su.cambio) { alumno.su_notas = su.mapa; cambio = true; }
+            });
+            Object.entries(curso.supletoriosManuales || {}).forEach(([clave, mapa]) => {
+                const normalizado = normalizarMapaAsignaturasPersistido(mapa, grado);
+                if (normalizado.cambio) {
+                    curso.supletoriosManuales[clave] = normalizado.mapa;
+                    cambio = true;
+                }
+            });
+            return cambio;
         }
 
         function generarCursoKey(curso) {
@@ -720,6 +1482,7 @@
                 estudiantesCargados = [];
                 renderEstudiantes();
                 renderEstudiantesNoEncontrados();
+                renderModuloAsistencia();
                 return;
             }
 
@@ -747,6 +1510,7 @@
 
             // Consolidar notas y renderizar estudiantes
             consolidarYRenderizar();
+            renderModuloAsistencia();
         }
 
         function updateFileLabel(id, periodData) {
@@ -779,19 +1543,348 @@
             }
         }
 
-        // Descargar Formato Excel
-        async function descargarFormatoExcel() {
-            try {
-                const res = await window.electronAPI.descargarFormato();
-                if (res.success) {
-                    mostrarAlerta("Formato Descargado", `El archivo oficial se guardó correctamente en:<br><strong class="text-xs break-all">${res.path}</strong>`, "success");
-                } else if (!res.cancelled) {
-                    mostrarAlerta("Error al descargar", res.error || "Ocurrió un error inesperado.", "error");
+        // Descarga segura de formatos oficiales de notas
+        const FORMATOS_NOTAS_IDS = Object.freeze(['egb_2_7', 'egb_8_10', 'bgu_1_2', 'bgu_3']);
+        const CAPACIDAD_MATERIAS_FORMATO_BGU3 = 16;
+        let descargaFormatoNotasEnCurso = false;
+        let focoAnteriorModalFormatos = null;
+        let focoAnteriorModalOptativasBgu3 = null;
+        let cursoIdModalOptativasBgu3 = null;
+
+        function obtenerFormatoRecomendadoCursoActivo() {
+            const curso = obtenerCursoActivo();
+            if (!curso) return null;
+            const grado = curso.datosInstitucion?.gradoCurso || curso.nombreVisible || '';
+            const codigo = codigoGradoCatalogo(grado);
+            const mapeo = {
+                EGB_ELEMENTAL: 'egb_2_7',
+                EGB_MEDIA: 'egb_2_7',
+                EGB_SUPERIOR: 'egb_8_10',
+                BGU_1: 'bgu_1_2',
+                BGU_2: 'bgu_1_2',
+                BGU_3: 'bgu_3'
+            };
+            return mapeo[codigo] || null;
+        }
+
+        function actualizarFormatoRecomendado() {
+            const recomendado = obtenerFormatoRecomendadoCursoActivo();
+            const nota = document.getElementById('formatos-notas-sin-recomendacion');
+            const curso = obtenerCursoActivo();
+
+            document.querySelectorAll('[data-formato-card]').forEach(tarjeta => {
+                const activo = tarjeta.dataset.formatoId === recomendado;
+                tarjeta.classList.toggle('border-emerald-400', activo);
+                tarjeta.classList.toggle('ring-2', activo);
+                tarjeta.classList.toggle('ring-emerald-200', activo);
+                tarjeta.classList.toggle('bg-emerald-50/30', activo);
+                tarjeta.querySelector('[data-formato-recomendado]')?.classList.toggle('hidden', !activo);
+                if (activo) tarjeta.setAttribute('aria-label', 'Formato recomendado para el curso activo');
+                else tarjeta.removeAttribute('aria-label');
+            });
+
+            if (!recomendado) {
+                nota.classList.remove('hidden');
+                if (!curso) {
+                    nota.textContent = 'Seleccione o cree un curso para obtener una recomendación. Puede elegir manualmente cualquiera de los formatos disponibles.';
+                } else {
+                    nota.textContent = 'Todavía no existe un formato específico para el curso activo. Puede seleccionar manualmente uno de los formatos disponibles si corresponde.';
                 }
-            } catch (err) {
-                mostrarAlerta("Error", "No se pudo comunicar con el proceso principal de Electron.", "error");
+            } else {
+                nota.classList.add('hidden');
+            }
+
+            return recomendado;
+        }
+
+        function obtenerOptativasBgu3Disponibles() {
+            return catalogoAsignaturas
+                .filter(entrada => entrada?.es_optativa_bgu3 === true)
+                .slice()
+                .sort((a, b) => Number(a.orden || 999) - Number(b.orden || 999));
+        }
+
+        function obtenerCursoActivoBgu3() {
+            const curso = obtenerCursoActivo();
+            if (!curso) return null;
+            const grado = curso.datosInstitucion?.gradoCurso || curso.nombreVisible || '';
+            return codigoGradoCatalogo(grado) === 'BGU_3' ? curso : null;
+        }
+
+        function obtenerSeleccionOptativasBgu3Curso(curso) {
+            const autorizadas = new Set(
+                obtenerOptativasBgu3Disponibles().map(entrada => entrada.nombre)
+            );
+            return Array.isArray(curso?.optativasFormatoBgu3)
+                ? curso.optativasFormatoBgu3.filter(nombre => autorizadas.has(nombre))
+                : [];
+        }
+
+        function cantidadMateriasFijasBgu3() {
+            return catalogoAsignaturas.filter(
+                entrada => (
+                    Array.isArray(entrada?.grados)
+                    && entrada.grados.includes('BGU_3')
+                    && entrada.es_optativa_bgu3 !== true
+                )
+            ).length + 1;
+        }
+
+        function seleccionOptativasBgu3Actual() {
+            return Array.from(
+                document.querySelectorAll('[data-optativa-bgu3]:checked'),
+                casilla => casilla.value
+            );
+        }
+
+        function actualizarEstadoOptativasBgu3() {
+            const seleccion = seleccionOptativasBgu3Actual();
+            const materiasFijas = cantidadMateriasFijasBgu3();
+            const total = materiasFijas + seleccion.length;
+            const disponibles = Math.max(
+                CAPACIDAD_MATERIAS_FORMATO_BGU3 - materiasFijas,
+                0
+            );
+            const catalogoDisponible = obtenerOptativasBgu3Disponibles().length > 0;
+            const estado = document.getElementById('optativas-bgu3-estado');
+            const boton = document.getElementById('btn-generar-formato-bgu3');
+            const excedida = total > CAPACIDAD_MATERIAS_FORMATO_BGU3;
+            const bloqueada = excedida || !catalogoDisponible;
+            if (boton) {
+                boton.disabled = (
+                    descargaFormatoNotasEnCurso
+                    || seleccion.length === 0
+                    || bloqueada
+                );
+            }
+            if (!estado) return {
+                valida: seleccion.length > 0 && !bloqueada,
+                seleccion,
+                total
+            };
+
+            estado.classList.toggle('border-rose-300', bloqueada);
+            estado.classList.toggle('bg-rose-50', bloqueada);
+            estado.classList.toggle('text-rose-700', bloqueada);
+            estado.classList.toggle('border-slate-200', !bloqueada);
+            estado.classList.toggle('bg-slate-50', !bloqueada);
+            estado.classList.toggle('text-slate-600', !bloqueada);
+            if (!catalogoDisponible) {
+                estado.textContent = 'No se pudo cargar el catálogo oficial de optativas. Cierre el modal e intente nuevamente.';
+            } else if (excedida) {
+                estado.textContent = `La selección suma ${total} asignaturas y supera el máximo de ${CAPACIDAD_MATERIAS_FORMATO_BGU3}.`;
+            } else if (seleccion.length === 0) {
+                estado.textContent = `Seleccione al menos una optativa. Puede elegir hasta ${disponibles}.`;
+            } else {
+                estado.textContent = `${seleccion.length} optativa(s) seleccionada(s). Total del formato: ${total} de ${CAPACIDAD_MATERIAS_FORMATO_BGU3} asignaturas.`;
+            }
+            return {
+                valida: seleccion.length > 0 && !bloqueada,
+                seleccion,
+                total
+            };
+        }
+
+        function renderOptativasBgu3(curso) {
+            const contenedor = document.getElementById('optativas-bgu3-lista');
+            if (!contenedor) return;
+            contenedor.replaceChildren();
+            const guardadas = new Set(obtenerSeleccionOptativasBgu3Curso(curso));
+            obtenerOptativasBgu3Disponibles().forEach((entrada, indice) => {
+                const etiqueta = document.createElement('label');
+                etiqueta.className = 'flex items-start gap-3 rounded-lg border border-slate-200 p-3 hover:border-emerald-300 hover:bg-emerald-50/40 cursor-pointer transition-colors';
+                const casilla = document.createElement('input');
+                casilla.type = 'checkbox';
+                casilla.id = `optativa-bgu3-${indice}`;
+                casilla.value = entrada.nombre;
+                casilla.checked = guardadas.has(entrada.nombre);
+                casilla.dataset.optativaBgu3 = 'true';
+                casilla.className = 'mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500';
+                casilla.addEventListener('change', actualizarEstadoOptativasBgu3);
+                const nombre = document.createElement('span');
+                nombre.className = 'text-sm font-semibold text-slate-700';
+                nombre.textContent = entrada.nombre;
+                etiqueta.append(casilla, nombre);
+                contenedor.appendChild(etiqueta);
+            });
+            actualizarEstadoOptativasBgu3();
+        }
+
+        function abrirModalOptativasBgu3() {
+            const curso = obtenerCursoActivoBgu3();
+            if (!curso) {
+                mostrarAlerta(
+                    'Curso de 3.º BGU requerido',
+                    'Seleccione o cree el curso de 3.º BGU para guardar su selección de optativas sin mezclarla con otros cursos.',
+                    'warning'
+                );
+                return;
+            }
+            const modal = document.getElementById('optativas-bgu3-modal');
+            if (!modal) return;
+            focoAnteriorModalOptativasBgu3 = document.activeElement;
+            cursoIdModalOptativasBgu3 = curso.id;
+            renderOptativasBgu3(curso);
+            modal.classList.remove('hidden');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('overflow-hidden');
+            document.getElementById('btn-cerrar-optativas-bgu3')?.focus();
+        }
+
+        function cerrarModalOptativasBgu3(devolverFoco = true) {
+            const modal = document.getElementById('optativas-bgu3-modal');
+            if (!modal || modal.classList.contains('hidden')) return;
+            modal.classList.add('hidden');
+            modal.setAttribute('aria-hidden', 'true');
+            cursoIdModalOptativasBgu3 = null;
+            const modalFormatos = document.getElementById('formatos-notas-modal');
+            if (!modalFormatos || modalFormatos.classList.contains('hidden')) {
+                document.body.classList.remove('overflow-hidden');
+            }
+            if (
+                devolverFoco
+                && focoAnteriorModalOptativasBgu3
+                && typeof focoAnteriorModalOptativasBgu3.focus === 'function'
+            ) {
+                focoAnteriorModalOptativasBgu3.focus();
+            }
+            focoAnteriorModalOptativasBgu3 = null;
+        }
+
+        function abrirModalFormatosNotas() {
+            const modal = document.getElementById('formatos-notas-modal');
+            if (!modal) return;
+            focoAnteriorModalFormatos = document.activeElement;
+            actualizarFormatoRecomendado();
+            modal.classList.remove('hidden');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('overflow-hidden');
+            document.getElementById('btn-cerrar-formatos-notas')?.focus();
+        }
+
+        function cerrarModalFormatosNotas() {
+            const modal = document.getElementById('formatos-notas-modal');
+            if (!modal || modal.classList.contains('hidden')) return;
+            cerrarModalOptativasBgu3(false);
+            modal.classList.add('hidden');
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('overflow-hidden');
+            if (focoAnteriorModalFormatos && typeof focoAnteriorModalFormatos.focus === 'function') {
+                focoAnteriorModalFormatos.focus();
+            }
+            focoAnteriorModalFormatos = null;
+        }
+
+        async function descargarFormatoNotas(formatoId) {
+            if (formatoId === 'bgu_3') {
+                abrirModalOptativasBgu3();
+                return;
+            }
+            await ejecutarDescargaFormatoNotas(formatoId);
+        }
+
+        async function generarDescargarFormatoBgu3() {
+            if (descargaFormatoNotasEnCurso) return;
+            const curso = obtenerCursoActivoBgu3();
+            if (!curso || curso.id !== cursoIdModalOptativasBgu3) {
+                cerrarModalOptativasBgu3(false);
+                mostrarAlerta(
+                    'El curso activo cambió',
+                    'Vuelva a abrir la selección de optativas para el curso actual.',
+                    'warning'
+                );
+                return;
+            }
+            const estado = actualizarEstadoOptativasBgu3();
+            if (!estado.valida) return;
+            curso.optativasFormatoBgu3 = estado.seleccion.slice();
+            await saveStateToDB();
+            await ejecutarDescargaFormatoNotas('bgu_3', {
+                cursoId: curso.id,
+                optativas: estado.seleccion
+            });
+        }
+
+        async function ejecutarDescargaFormatoNotas(formatoId, opciones = {}) {
+            if (!FORMATOS_NOTAS_IDS.includes(formatoId) || descargaFormatoNotasEnCurso) return;
+
+            const boton = formatoId === 'bgu_3'
+                ? document.getElementById('btn-generar-formato-bgu3')
+                : document.querySelector(`[data-formato-descargar][data-formato-id="${formatoId}"]`);
+            const textoBoton = formatoId === 'bgu_3'
+                ? boton?.querySelector('[data-optativas-bgu3-boton-texto]')
+                : boton?.querySelector('[data-formato-boton-texto]');
+            const botones = Array.from(document.querySelectorAll('[data-formato-descargar]'));
+            descargaFormatoNotasEnCurso = true;
+            botones.forEach(elemento => { elemento.disabled = true; });
+            if (boton) boton.disabled = true;
+            if (textoBoton) {
+                textoBoton.textContent = formatoId === 'bgu_3'
+                    ? 'Generando...'
+                    : 'Descargando...';
+            }
+
+            try {
+                const res = await window.electronAPI.descargarFormato(formatoId, opciones);
+                if (res?.success) {
+                    cerrarModalOptativasBgu3(false);
+                    cerrarModalFormatosNotas();
+                    mostrarAlerta(
+                        'Formato descargado',
+                        `El formato “${res.nombre || ''}” se guardó correctamente en:\n${res.path || ''}`,
+                        'success'
+                    );
+                    return;
+                }
+                if (res?.cancelled) return;
+
+                const titulosPorCodigo = {
+                    FORMATO_INVALIDO: 'Formato no válido',
+                    FORMATO_NO_DISPONIBLE: 'Formato no disponible',
+                    OPTATIVAS_REQUERIDAS: 'Seleccione una optativa',
+                    OPTATIVAS_INVALIDAS: 'Selección no válida',
+                    CAPACIDAD_EXCEDIDA: 'Capacidad excedida',
+                    GENERACION_FALLIDA: 'No se pudo generar el formato',
+                    DESTINO_NO_PERMITIDO: 'Ubicación no permitida',
+                    COPIA_FALLIDA: 'No se pudo guardar el formato',
+                    DESCARGA_EN_CURSO: 'Descarga en curso'
+                };
+                mostrarAlerta(
+                    titulosPorCodigo[res?.code] || 'No se pudo descargar el formato',
+                    res?.error || 'Ocurrió un error inesperado.',
+                    'error'
+                );
+            } catch {
+                console.error('No se pudo invocar la descarga del formato.');
+                mostrarAlerta(
+                    'No se pudo descargar el formato',
+                    'No fue posible comunicarse con el proceso principal de la aplicación.',
+                    'error'
+                );
+            } finally {
+                descargaFormatoNotasEnCurso = false;
+                botones.forEach(elemento => { elemento.disabled = false; });
+                if (textoBoton) {
+                    textoBoton.textContent = formatoId === 'bgu_3'
+                        ? 'Generar y descargar'
+                        : 'Descargar';
+                }
+                actualizarEstadoOptativasBgu3();
             }
         }
+
+        document.addEventListener('keydown', event => {
+            if (event.key !== 'Escape') return;
+            const modalOptativas = document.getElementById('optativas-bgu3-modal');
+            if (modalOptativas && !modalOptativas.classList.contains('hidden')) {
+                cerrarModalOptativasBgu3();
+                return;
+            }
+            const modal = document.getElementById('formatos-notas-modal');
+            if (modal && !modal.classList.contains('hidden')) {
+                cerrarModalFormatosNotas();
+            }
+        });
 
         // Modal de Curso: Crear/Editar
         let cursoModalMode = 'crear';
@@ -862,7 +1955,8 @@
                         trimestre2: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] },
                         trimestre3: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] },
                         supletorio: { nombreArchivo: '', fechaCarga: '', asignaturas: [], estudiantes: [] }
-                    }
+                    },
+                    asistencia: AsistenciaUtils.crearAsistenciaVacia()
                 };
                 nuevoCurso.cursoKey = generarCursoKey(nuevoCurso);
 
@@ -929,7 +2023,14 @@
 
         // Cambiar curso activo
         async function cambiarCursoActivo() {
-            const val = document.getElementById('selector-curso').value;
+            const selector = document.getElementById('selector-curso');
+            if (asistenciaModalEstado?.cambios && !confirm('Existen cambios de asistencia sin guardar. ¿Desea descartarlos y cambiar de curso?')) {
+                selector.value = appState.cursoActivoId || '';
+                return;
+            }
+            document.getElementById('asistencia-modal').classList.add('hidden');
+            asistenciaModalEstado = null;
+            const val = selector.value;
             appState.cursoActivoId = val || null;
             await saveStateToDB();
             cargarCursoActivoEnPantalla();
@@ -963,6 +2064,17 @@
             const containerText = document.getElementById(`${previewId}-container`);
 
             if (input.files && input.files[0]) {
+                const archivo = input.files[0];
+                const tiposPermitidos = new Set(['image/png', 'image/jpeg', 'image/webp']);
+                if (!tiposPermitidos.has(archivo.type) || archivo.size <= 0 || archivo.size > 5 * 1024 * 1024) {
+                    input.value = '';
+                    mostrarAlerta(
+                        'Logotipo no válido',
+                        'Seleccione una imagen PNG, JPEG o WEBP de hasta 5 MB.',
+                        'warning'
+                    );
+                    return;
+                }
                 const reader = new FileReader();
                 reader.onload = async function(e) {
                     const base64Str = e.target.result;
@@ -977,13 +2089,22 @@
                         await saveStateToDB();
                     }
                 }
-                reader.readAsDataURL(input.files[0]);
+                reader.readAsDataURL(archivo);
             }
         }
 
         // Truncar decimales en JS
         function truncar2Decimales(valor) {
-            return Math.trunc(valor * 100) / 100;
+            const numero = Number(valor);
+            const normalizado = Number(numero.toFixed(10));
+            return Math.trunc(normalizado * 100) / 100;
+        }
+
+        function mostrarValorSeguro(valor) {
+            if (valor === null || valor === undefined) return '';
+            if (typeof valor === 'number' && Number.isNaN(valor)) return '';
+            const texto = String(valor).trim();
+            return ['', 'nan', 'none', 'null', 'undefined'].includes(texto.toLowerCase()) ? '' : texto;
         }
 
         // Consolidación de estudiantes localmente (IndexedDB)
@@ -1056,9 +2177,9 @@
 
         function crearEstructuraNotasInicial() {
             return {
-                trimestre1: { origenRegistro: 'PENDIENTE', asignaturas: {} },
-                trimestre2: { origenRegistro: 'PENDIENTE', asignaturas: {} },
-                trimestre3: { origenRegistro: 'PENDIENTE', asignaturas: {} }
+                trimestre1: { origenRegistro: 'PENDIENTE', asignaturas: {}, tiposAsignaturas: {}, metadatosAsignaturas: {}, evaluacionComportamental: '' },
+                trimestre2: { origenRegistro: 'PENDIENTE', asignaturas: {}, tiposAsignaturas: {}, metadatosAsignaturas: {}, evaluacionComportamental: '' },
+                trimestre3: { origenRegistro: 'PENDIENTE', asignaturas: {}, tiposAsignaturas: {}, metadatosAsignaturas: {}, evaluacionComportamental: '' }
             };
         }
 
@@ -1122,7 +2243,10 @@
             if (nombreExcel && !(estudianteBase.aliases || []).includes(nombreExcel)) estudianteBase.aliases.push(nombreExcel);
             estudianteBase.notas[periodKey] = {
                 origenRegistro,
-                asignaturas: estudianteExcel.notas || {}
+                asignaturas: estudianteExcel.notas || {},
+                tiposAsignaturas: estudianteExcel.tipos_asignaturas || {},
+                metadatosAsignaturas: estudianteExcel.metadatos_asignaturas || {},
+                evaluacionComportamental: mostrarValorSeguro(estudianteExcel.evaluacion_comportamental)
             };
             estudianteBase.coincidencias[periodKey] = coincidencia;
         }
@@ -1173,13 +2297,14 @@
                 });
             });
             Object.keys(pendiente?.estudianteExcel?.notas || {}).forEach(asig => asignaturas.add(asig));
-            return Array.from(asignaturas);
+            return ordenarAsignaturasCatalogo(asignaturas);
         }
 
         function validarNotasManuales(notas) {
             for (const [periodKey, asignaturas] of Object.entries(notas)) {
                 for (const [asignatura, valor] of Object.entries(asignaturas)) {
                     if (valor === null || valor === '') return `Falta nota de ${asignatura} en ${obtenerPeriodoNombre(periodKey)}.`;
+                    if (tipoAsignaturaCatalogo(asignatura) === 'cualitativa') continue;
                     const numero = Number(valor);
                     if (Number.isNaN(numero) || numero < 0 || numero > 10) {
                         return `La nota de ${asignatura} en ${obtenerPeriodoNombre(periodKey)} debe estar entre 0 y 10.`;
@@ -1191,9 +2316,22 @@
 
         function guardarNotasManualExterno(alumno, notasManuales) {
             Object.entries(notasManuales).forEach(([periodKey, asignaturas]) => {
+                const tiposAsignaturas = Object.fromEntries(
+                    Object.keys(asignaturas).map(asig => [asig, tipoAsignaturaCatalogo(asig)])
+                );
+                const metadatosAsignaturas = Object.fromEntries(
+                    Object.keys(asignaturas).map(asig => [asig, metadatosAsignaturaCatalogo(asig)])
+                );
                 alumno.notas[periodKey] = {
                     origenRegistro: 'MANUAL_EXTERNO',
-                    asignaturas: Object.fromEntries(Object.entries(asignaturas).map(([asig, valor]) => [asig, truncar2Decimales(Number(valor))]))
+                    asignaturas: Object.fromEntries(Object.entries(asignaturas).map(([asig, valor]) => [
+                        asig,
+                        tiposAsignaturas[asig] === 'cualitativa'
+                            ? mostrarValorSeguro(valor)
+                            : truncar2Decimales(Number(valor))
+                    ])),
+                    tiposAsignaturas,
+                    metadatosAsignaturas
                 };
                 alumno.coincidencias[periodKey] = 'MANUAL';
             });
@@ -1313,10 +2451,15 @@
                     label.className = 'text-sm text-slate-600';
                     label.textContent = asig;
                     const input = document.createElement('input');
-                    input.type = 'number';
-                    input.min = '0';
-                    input.max = '10';
-                    input.step = '0.01';
+                    if (tipoAsignaturaCatalogo(asig) === 'cualitativa') {
+                        input.type = 'text';
+                        input.placeholder = 'Ej.: B+';
+                    } else {
+                        input.type = 'number';
+                        input.min = '0';
+                        input.max = '10';
+                        input.step = '0.01';
+                    }
                     input.dataset.periodKey = periodKey;
                     input.dataset.asignatura = asig;
                     input.className = 'bg-white border border-slate-300 text-slate-800 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all';
@@ -1378,13 +2521,25 @@
             mostrarAlerta('Alumno creado', 'El alumno por traslado fue creado y sus notas externas quedaron guardadas como MANUAL_EXTERNO.', 'success');
         }
 
-        function validarCargaTrimestre3(periodKey, periodoDetectadoStr, result, cursoEncontrado, fileName) {
-            if (periodKey !== 'trimestre3') return;
-            console.log('[T3] Archivo seleccionado:', fileName);
-            console.log('[T3] Periodo detectado:', periodoDetectadoStr);
-            console.log('[T3] periodKey final:', periodKey);
-            console.log('[T3] Estudiantes detectados:', result.estudiantes?.length || 0);
-            console.log('[T3] Guardado en curso:', cursoEncontrado.periodos.trimestre3);
+        function resumenCargaAsignaturas(result, grado) {
+            const optativas = Array.isArray(result.optativasDetectadas)
+                ? new Set(result.optativasDetectadas.map(item => item.canonica)).size
+                : 0;
+            const total = Array.isArray(result.asignaturas) ? result.asignaturas.length : 0;
+            const lineas = [
+                'Archivo procesado correctamente.',
+                `Se reconocieron ${Math.max(0, total - optativas)} asignaturas generales y ${optativas} asignaturas optativas.`
+            ];
+            (result.asignaturasReconocidas || [])
+                .filter(item => item.metodo !== 'coincidencia_exacta' && normalizarTextoAsignatura(item.original) !== normalizarTextoAsignatura(item.canonica))
+                .forEach(item => lineas.push(`Se corrigió “${item.original}” a “${item.canonica}”.`));
+            (result.asignaturasIgnoradasPorCurso || []).forEach(item => {
+                lineas.push(`Se ignoró “${item.original}” porque no corresponde a ${grado}.`);
+            });
+            (result.asignaturasNoReconocidas || []).forEach(item => {
+                lineas.push(`No se reconoció “${item.original}” y se omitió.`);
+            });
+            return lineas.join('\n');
         }
 
         function consolidarYRenderizar() {
@@ -1393,8 +2548,11 @@
                 estudiantesCargados = [];
                 renderEstudiantes();
                 renderEstudiantesNoEncontrados();
+                renderModuloAsistencia();
                 return;
             }
+
+            normalizarAsignaturasPersistidasCurso(curso);
 
             curso.estudiantesNoEncontrados = curso.estudiantesNoEncontrados || [];
             curso.alumnosTraslado = curso.alumnosTraslado || [];
@@ -1415,6 +2573,7 @@
                 estudiantesCargados = [];
                 renderEstudiantes();
                 renderEstudiantesNoEncontrados();
+                renderModuloAsistencia();
                 return;
             }
 
@@ -1460,6 +2619,9 @@
             const listaConsolidada = base.map(s => {
                 const manual_su_keys = Object.keys(supletoriosManuales[s.cedula] || supletoriosManuales[s.estudianteId] || {});
                 const subjects = new Set([
+                    ...(t1.asignaturas || []),
+                    ...(t2.asignaturas || []),
+                    ...(t3.asignaturas || []),
                     ...Object.keys(s.notas?.trimestre1?.asignaturas || {}),
                     ...Object.keys(s.notas?.trimestre2?.asignaturas || {}),
                     ...Object.keys(s.notas?.trimestre3?.asignaturas || {}),
@@ -1468,23 +2630,52 @@
                 ]);
 
                 const materias = {};
-                subjects.forEach(sub => {
+                ordenarAsignaturasCatalogo(subjects).forEach(sub => {
                     const g1 = s.notas?.trimestre1?.asignaturas?.[sub] ?? null;
                     const g2 = s.notas?.trimestre2?.asignaturas?.[sub] ?? null;
                     const g3 = s.notas?.trimestre3?.asignaturas?.[sub] ?? null;
+                    const metadatosPropagados = s.notas?.trimestre1?.metadatosAsignaturas?.[sub]
+                        || s.notas?.trimestre2?.metadatosAsignaturas?.[sub]
+                        || s.notas?.trimestre3?.metadatosAsignaturas?.[sub]
+                        || null;
+                    const metadatos = metadatosAsignaturaCatalogo(sub, metadatosPropagados);
+                    const tipo = metadatos.tipo;
                     
                     const manual_su_grade = supletoriosManuales[s.cedula]?.[sub] ?? supletoriosManuales[s.estudianteId]?.[sub] ?? null;
-                    const su_grade = manual_su_grade !== null ? manual_su_grade : (s.su_notas?.[sub] ?? null);
+                    const su_grade = tipo === 'cualitativa' || !metadatos.permite_supletorio
+                        ? null
+                        : (manual_su_grade !== null ? manual_su_grade : (s.su_notas?.[sub] ?? null));
+
+                    if (tipo === 'cualitativa') {
+                        materias[sub] = {
+                            ...metadatos,
+                            t1: mostrarValorSeguro(g1),
+                            t2: mostrarValorSeguro(g2),
+                            t3: mostrarValorSeguro(g3),
+                            promedio_anual: null,
+                            supletorio: null,
+                            nota_final: null,
+                            estado: null,
+                            origenRegistro: {
+                                trimestre1: s.notas?.trimestre1?.origenRegistro || 'PENDIENTE',
+                                trimestre2: s.notas?.trimestre2?.origenRegistro || 'PENDIENTE',
+                                trimestre3: s.notas?.trimestre3?.origenRegistro || 'PENDIENTE'
+                            }
+                        };
+                        return;
+                    }
                     
                     const pendiente = g1 === null || g2 === null || g3 === null;
 
                     let p_anual = null;
                     let nota_final = null;
-                    let estado = 'PENDIENTE DE NOTAS EXTERNAS';
+                    let estado = metadatos.permite_supletorio ? 'PENDIENTE DE NOTAS EXTERNAS' : null;
                     if (!pendiente) {
                         p_anual = truncar2Decimales((Number(g1) + Number(g2) + Number(g3)) / 3.0);
                         nota_final = p_anual;
-                        if (p_anual >= 7.0) {
+                        if (!metadatos.permite_supletorio) {
+                            estado = null;
+                        } else if (p_anual >= 7.0) {
                             estado = 'APROBADO';
                         } else if (su_grade !== null) {
                             estado = su_grade >= 7.0 ? 'APROBADO' : 'REPROBADO';
@@ -1495,6 +2686,7 @@
                     }
 
                     materias[sub] = {
+                        ...metadatos,
                         t1: g1,
                         t2: g2,
                         t3: g3,
@@ -1510,7 +2702,9 @@
                     };
                 });
 
-                const materiasList = Object.values(materias);
+                const materiasList = Object.values(materias).filter(
+                    m => m.tipo !== 'cualitativa' && m.permite_supletorio !== false
+                );
                 const tienePendiente = materiasList.some(m => m.estado === 'PENDIENTE DE NOTAS EXTERNAS') || ['trimestre1', 'trimestre2', 'trimestre3'].some(periodKey => s.notas?.[periodKey]?.origenRegistro === 'PENDIENTE');
                 const finalesValidos = materiasList.map(m => m.nota_final).filter(v => typeof v === 'number');
                 const prom_general = (!tienePendiente && finalesValidos.length > 0) ? (finalesValidos.reduce((a, b) => a + b, 0) / finalesValidos.length) : null;
@@ -1518,7 +2712,7 @@
                 const tiene_reprobado = materiasList.some(m => m.estado === 'REPROBADO');
 
                 let estado_general = 'APROBADO';
-                if (tienePendiente) estado_general = 'PENDIENTE DE NOTAS EXTERNAS';
+                if (materiasList.length === 0 || tienePendiente) estado_general = 'PENDIENTE DE NOTAS EXTERNAS';
                 else if (tiene_reprobado) estado_general = 'REPROBADO';
                 else if (tiene_supletorio) estado_general = 'SUPLETORIO';
 
@@ -1531,15 +2725,20 @@
                     estado: estado_general,
                     tipoIngreso: s.tipoIngreso,
                     periodoIngreso: s.periodoIngreso,
-                    materias: materias
+                    materias: materias,
+                    evaluacion_comportamental: {
+                        T1: mostrarValorSeguro(s.notas?.trimestre1?.evaluacionComportamental),
+                        T2: mostrarValorSeguro(s.notas?.trimestre2?.evaluacionComportamental),
+                        T3: mostrarValorSeguro(s.notas?.trimestre3?.evaluacionComportamental)
+                    }
                 };
             });
 
             listaConsolidada.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
             estudiantesCargados = listaConsolidada;
-            console.log('[consolidarYRenderizar] T3 estudiantes integrados:', t3.estudiantes?.length || 0);
             renderEstudiantes();
             renderEstudiantesNoEncontrados();
+            renderModuloAsistencia();
         }
 
         // Carga de Excel e Importación de datos
@@ -1559,8 +2758,6 @@
 
             if (!absolutePath) return;
 
-            console.log("[handleFileSelect] Ruta seleccionada desde Electron:", absolutePath);
-
             const fileName = absolutePath.split(/[\\/]/).pop() || '';
 
             // Validar extensión
@@ -1573,17 +2770,14 @@
 
             try {
                 // Analizar un solo archivo a la vez
-                const filePathsPayload = {};
+                const filePathsPayload = { grado: cursoActivo.datosInstitucion?.gradoCurso || '' };
                 filePathsPayload[id] = absolutePath;
 
-                console.log("[handleFileSelect] Payload enviado a analizarExcel:", filePathsPayload);
-
                 const result = await window.electronAPI.analizarExcel(filePathsPayload);
-                console.log("[handleFileSelect] Resultado recibido desde Python:", result);
                 document.getElementById('loading-overlay').classList.add('hidden');
 
                 if (result.error) {
-                    mostrarAlerta("Error de formato", "No se pudo leer el archivo. Asegúrese de que sea el formato oficial obtenido desde 'Descargar Formato'.<br><small class='text-rose-500'>" + result.error + "</small>", "error");
+                    mostrarAlerta("Error de formato", result.error, "error");
                     return;
                 }
 
@@ -1642,12 +2836,6 @@
                     }
                 }
 
-                if (id === 't3' || periodKey === 'trimestre3') {
-                    console.log("[T3] Periodo detectado:", periodoExcelDetectado || periodoExcelOriginal || 'NO DETECTADO');
-                    console.log("[T3] periodKey final:", periodKey);
-                    console.log("[T3] Estudiantes detectados:", result.estudiantes?.length || 0);
-                }
-
                 // Normalización para comparación
                 const excelGrado = normalizarTextoComparacion(inst.gradoCurso);
                 const excelParalelo = normalizarTextoComparacion(inst.paralelo);
@@ -1657,8 +2845,7 @@
                 const activoParalelo = normalizarTextoComparacion(cursoActivo.datosInstitucion?.paralelo);
                 const activoAnio = normalizarTextoComparacion(cursoActivo.datosInstitucion?.anioLectivo);
 
-                const coinciden = (excelGrado === activoGrado) &&
-                                  (excelParalelo === activoParalelo) &&
+                const coinciden = (excelParalelo === activoParalelo) &&
                                   (excelAnio === activoAnio);
 
                 if (!coinciden) {
@@ -1682,8 +2869,6 @@
                     }
                 }
 
-                console.log(`[Importación] Cantidad de cursos ANTES de importar: ${appState.cursos.length}`);
-
                 // Guardar la información en el período correcto del curso activo
                 const nowStr = new Date().toLocaleDateString();
                 cursoActivo.periodos[periodKey] = {
@@ -1693,8 +2878,6 @@
                     asignaturas: result.asignaturas || [],
                     estudiantes: result.estudiantes || []
                 };
-
-                validarCargaTrimestre3(periodKey, periodoDetectadoStr, result, cursoActivo, fileName);
 
                 // Actualizar cabeceras complementarias en el curso activo
                 if (!cursoActivo.datosInstitucion) {
@@ -1710,12 +2893,10 @@
                 // Actualizar cursoKey basándonos en los datos actuales
                 cursoActivo.cursoKey = generarCursoKey(cursoActivo);
 
-                console.log(`[Importación] Cantidad de cursos DESPUÉS de importar: ${appState.cursos.length}`);
-
                 await saveStateToDB();
                 actualizarSelectorCursosUI();
                 cargarCursoActivoEnPantalla();
-                mostrarAlerta("Éxito al cargar", `Notas importadas correctamente para el curso:<br><strong>${cursoActivo.nombreVisible}</strong><br>Período: <strong>${periodoDetectadoStr}</strong>`, "success");
+                mostrarAlerta("Carga completada", resumenCargaAsignaturas(result, cursoActivo.datosInstitucion?.gradoCurso || cursoActivo.nombreVisible), "success");
 
             } catch (err) {
                 document.getElementById('loading-overlay').classList.add('hidden');
@@ -1756,7 +2937,7 @@
             if (estudiantes.length === 0) {
                 const noCourses = appState.cursos.length === 0;
                 body.innerHTML = `
-                    <tr id="empty-row">
+                    <tr id="empty-row-rendered">
                         <td colspan="6" class="p-8 text-center text-slate-400">
                             <i class="fa-solid fa-folder-open text-2xl mb-2 block"></i>
                             ${noCourses ? 'Primero debe crear un curso antes de cargar las notas.' : 'Cargue los archivos de notas de los trimestres para visualizar los estudiantes.'}
@@ -1937,16 +3118,20 @@
             if (g.includes('INICIAL 2') || g.includes('INICIAL II') || g.includes('INFANTIL')) {
                 return 'FORMATO INICIAL 2.html';
             }
-            if (esBachillerato && (g.includes('TERCERO') || g.includes('3RO') || g.includes('3ER') || g.includes('TERCER'))) {
+            const esPrimeroBachillerato = g.includes('PRIMERO') || g.includes('PRIMER') || g.includes('1RO') || g.includes('1ER') || g.includes('1ERO');
+            const esSegundoBachillerato = g.includes('SEGUNDO') || g.includes('2DO');
+            const esTerceroBachillerato = g.includes('TERCERO') || g.includes('3RO') || g.includes('3ER') || g.includes('TERCER');
+
+            if (esBachillerato && esTerceroBachillerato) {
                 return 'FORMATO DE 3 DE BGU.html';
             }
-            if (esBachillerato) {
+            if (esBachillerato && (esPrimeroBachillerato || esSegundoBachillerato)) {
                 return 'FORMATO DE 1 Y 2 DE BGU.html';
             }
             if (g.includes('PRIMERO DE EGB') || g.includes('1RO DE EGB') || g.includes('1ERO DE EGB') || g.includes('1RO EGB') || g.includes('1ER GRADO') || g.includes('PREPARATORIA')) {
                 return 'PRIMERO DE EGB.html';
             }
-            if (g.includes('ELEMENTAL') || (esEgb && (g.includes('SEGUNDO') || g.includes('TERCERO') || g.includes('CUARTO') || g.includes('2DO') || g.includes('3RO') || g.includes('4TO')))) {
+            if (g.includes('ELEMENTAL') || (esEgb && (g.includes('SEGUNDO') || g.includes('TERCERO') || g.includes('TERCER') || g.includes('CUARTO') || g.includes('2DO') || g.includes('3RO') || g.includes('4TO')))) {
                 return 'FORMALO DE ELEMENTAL.html';
             }
             if (g.includes('MEDIA') || (esEgb && (g.includes('QUINTO') || g.includes('SEXTO') || g.includes('SEPTIMO') || g.includes('5TO') || g.includes('6TO') || g.includes('7MO')))) {
@@ -1960,6 +3145,43 @@
 
 
         // --- Helpers de inyección DOM para certificados ---
+
+        function _certLimpiarDatosDinamicos(doc) {
+            doc.querySelectorAll('[data-academic-value]').forEach(celda => {
+                celda.textContent = '';
+            });
+        }
+
+        function _certAsignarCampoTexto(doc, campo, valor) {
+            const elemento = doc.querySelector(`[data-cert-field="${campo}"]`);
+            if (!elemento) return false;
+            elemento.textContent = mostrarValorSeguro(valor);
+            return true;
+        }
+
+        function _certValidarMateriasCualitativas(est) {
+            const materias = est && est.materias && typeof est.materias === 'object'
+                ? est.materias
+                : {};
+            Object.entries(materias).forEach(([nombre, datos]) => {
+                if (!datos || typeof datos !== 'object') {
+                    if (typeof console !== 'undefined') {
+                        console.warn(`[Certificados] Estructura inesperada para la materia cualitativa "${nombre}".`);
+                    }
+                    return;
+                }
+                const tipo = datos.tipo || tipoAsignaturaCatalogo(nombre);
+                if (tipo !== 'cualitativa') return;
+                ['t1', 't2', 't3'].forEach(periodo => {
+                    const valor = datos[periodo];
+                    if (valor !== null && valor !== undefined && typeof valor !== 'string') {
+                        if (typeof console !== 'undefined') {
+                            console.warn(`[Certificados] ${nombre} ${periodo} se esperaba como texto; se mostrará sin conversión numérica.`);
+                        }
+                    }
+                });
+            });
+        }
 
         function _certInjectLogos(doc, logos) {
             const img1 = doc.getElementById('img-logo-1');
@@ -1984,44 +3206,171 @@
         }
 
         function _certInjectInstitucion(doc, inst) {
+            _certAsignarCampoTexto(doc, 'institution-name', inst.nombreInstitucion || inst.nombre || '');
+            _certAsignarCampoTexto(doc, 'amie', inst.codigoAmie || inst.amie || '');
+            _certAsignarCampoTexto(doc, 'school-year', (inst.anioLectivo || inst.anio || '').toUpperCase());
+
             const h1 = doc.querySelector('header h1');
-            if (h1) h1.textContent = inst.nombreInstitucion || '';
+            if (h1 && !h1.hasAttribute('data-cert-field')) {
+                h1.textContent = inst.nombreInstitucion || inst.nombre || '';
+            }
 
             const headerEl = doc.querySelector('header');
             if (headerEl) {
                 headerEl.querySelectorAll('span').forEach(span => {
+                    if (span.hasAttribute('data-cert-field')) return;
                     const t = span.textContent.trim();
                     if (t.includes('AMIE:')) {
-                        span.textContent = 'AMIE: ' + (inst.codigoAmie || '');
+                        span.textContent = 'AMIE: ' + (inst.codigoAmie || inst.amie || '');
                     } else if (t.includes('AÑO LECTIVO:') || t.includes('ANO LECTIVO:')) {
-                        span.textContent = 'AÑO LECTIVO: ' + (inst.anioLectivo || '').toUpperCase();
+                        span.textContent = 'AÑO LECTIVO: ' + (inst.anioLectivo || inst.anio || '').toUpperCase();
                     }
                 });
             }
         }
 
         function _certInjectEstudiante(doc, est, inst) {
+            const usaCamposEstables = _certAsignarCampoTexto(doc, 'student-name', est.nombre || '');
+            _certAsignarCampoTexto(doc, 'student-id', est.cedula || '');
+            _certAsignarCampoTexto(
+                doc,
+                'grade',
+                `${inst.gradoCurso || inst.grado || ''} PARALELO: ${inst.paralelo || ''}`.trim()
+            );
+            _certAsignarCampoTexto(doc, 'schedule', inst.jornada || '');
+            if (usaCamposEstables) return;
+
             const boldSpans = doc.querySelectorAll('section span.font-bold, section span[class*="font-bold"]');
             boldSpans.forEach(span => {
                 const t = span.textContent.trim().toUpperCase();
                 const parentDiv = span.closest('div');
                 if (!parentDiv) return;
+                const asignarTextoSeguro = (etiqueta, valor) => {
+                    const etiquetaEl = doc.createElement('span');
+                    etiquetaEl.className = 'font-bold';
+                    etiquetaEl.textContent = etiqueta;
+                    parentDiv.replaceChildren(
+                        etiquetaEl,
+                        doc.createTextNode(` ${String(valor || '')}`)
+                    );
+                };
 
                 if (t.includes('NOMBRE') && (t.includes('ESTUDIANTE') || t.includes('DEL'))) {
-                    parentDiv.innerHTML = `<span class="font-bold">${span.textContent.trim()}</span> ${est.nombre || ''}`;
+                    asignarTextoSeguro(span.textContent.trim(), est.nombre || '');
                 } else if (t.includes('DULA') || t.includes('CEDULA')) {
-                    parentDiv.innerHTML = `<span class="font-bold">CÉDULA:</span> ${est.cedula || 'S/C'}`;
+                    asignarTextoSeguro('CÉDULA:', est.cedula || 'S/C');
                     parentDiv.className = parentDiv.className.replace('flex', '').replace('items-center', '').trim();
                 } else if (t === 'GRADO:') {
-                    parentDiv.innerHTML = `<span class="font-bold">GRADO:</span> ${inst.gradoCurso || ''} PARALELO: ${inst.paralelo || ''}`;
+                    asignarTextoSeguro(
+                        'GRADO:',
+                        `${inst.gradoCurso || ''} PARALELO: ${inst.paralelo || ''}`
+                    );
                 } else if (t === 'JORNADA:') {
-                    parentDiv.innerHTML = `<span class="font-bold">JORNADA:</span> ${inst.jornada || 'MATUTINA'}`;
+                    asignarTextoSeguro('JORNADA:', inst.jornada || 'MATUTINA');
                 }
             });
         }
 
-        function _certInjectNotas(doc, est) {
-            if (!est.materias || Object.keys(est.materias).length === 0) return;
+        function gradoUsaEscalaCualitativa(grado) {
+            const texto = normalizarTextoAsignatura(grado);
+            if (!texto) return false;
+            if (texto.includes('PREPARATORIA')) return true;
+            const esEgb = texto.includes('EGB') || texto.includes('EDUCACION GENERAL BASICA');
+            if (!esEgb) return false;
+            return /(^|\s)(1RO|1ER|1ERO|1|PRIMERO|PRIMER|2DO|2|SEGUNDO|3RO|3ER|3|TERCERO|TERCER|4TO|4|CUARTO)(\s|$)/.test(texto);
+        }
+
+        function _certConvertirNotaCualitativa(valor) {
+            const texto = mostrarValorSeguro(valor);
+            if (!texto) return '';
+            const nota = Number(texto.replace(',', '.'));
+            if (!Number.isFinite(nota)) return texto;
+            const minimo = Number(escalaCualitativa.minimo);
+            const maximo = Number(escalaCualitativa.maximo);
+            if (nota < minimo || nota > maximo) return texto;
+            const rango = escalaCualitativa.rangos.find(item => nota >= Number(item.desde));
+            return rango ? String(rango.valor) : texto;
+        }
+
+        function _certConvertirNotaOptativa(valor) {
+            const texto = mostrarValorSeguro(valor);
+            if (!texto) return '';
+            const nota = Number(texto.replace(',', '.'));
+            const minimo = Number(escalaCualitativa.minimo);
+            const maximo = Number(escalaCualitativa.maximo);
+            if (!Number.isFinite(nota) || nota < minimo || nota > maximo) return '';
+            return _certConvertirNotaCualitativa(nota);
+        }
+
+        function _certFormatearNotaNumerica(valor) {
+            const texto = mostrarValorSeguro(valor);
+            if (!texto) return '';
+            const nota = Number(texto.replace(',', '.'));
+            return Number.isFinite(nota) ? nota.toFixed(2) : texto;
+        }
+
+        function _certPresentarNota(valor, grado, metadatos) {
+            const texto = mostrarValorSeguro(valor);
+            if (!texto) return '';
+            const datos = metadatos || {};
+            if (datos.tipo === 'cualitativa') return texto;
+            if (datos.presentacion_certificado === 'escala_cualitativa') {
+                return _certConvertirNotaOptativa(valor);
+            }
+            if (gradoUsaEscalaCualitativa(grado)) {
+                return _certConvertirNotaCualitativa(valor);
+            }
+            return _certFormatearNotaNumerica(valor);
+        }
+
+        function _certInjectOptativasBGU3(doc, est) {
+            const tbody = doc.querySelector('#optativas-bgu3');
+            if (!tbody) return;
+
+            // El marcador pertenece exclusivamente a las optativas; Cívica está en otro tbody.
+            tbody.replaceChildren();
+
+            const materias = est && est.materias && typeof est.materias === 'object'
+                ? est.materias
+                : {};
+            const optativas = Object.entries(materias)
+                .filter(([, datos]) => (
+                    datos
+                    && datos.es_optativa_bgu3 === true
+                    && datos.presentacion_certificado === 'escala_cualitativa'
+                ))
+                .sort(([nombreA, datosA], [nombreB, datosB]) => {
+                    const ordenA = Number.isFinite(Number(datosA.orden)) ? Number(datosA.orden) : 999;
+                    const ordenB = Number.isFinite(Number(datosB.orden)) ? Number(datosB.orden) : 999;
+                    if (ordenA !== ordenB) return ordenA - ordenB;
+                    if (nombreA === nombreB) return 0;
+                    return nombreA < nombreB ? -1 : 1;
+                });
+
+            optativas.forEach(([nombre, datos], indice) => {
+                const fila = doc.createElement('tr');
+                fila.dataset.optativaBgu3 = 'true';
+
+                const celdaNombre = doc.createElement('td');
+                celdaNombre.className = `text-left-cell font-semibold${indice === 0 ? ' w-1/3' : ''}`;
+                celdaNombre.style.whiteSpace = 'normal';
+                celdaNombre.style.overflowWrap = 'anywhere';
+                celdaNombre.textContent = nombre;
+                fila.appendChild(celdaNombre);
+
+                [datos.t1, datos.t2, datos.t3].forEach(valor => {
+                    const celdaNota = doc.createElement('td');
+                    celdaNota.textContent = _certConvertirNotaOptativa(valor);
+                    fila.appendChild(celdaNota);
+                });
+
+                tbody.appendChild(fila);
+            });
+        }
+
+        function _certInjectNotas(doc, est, gradoCurso = '') {
+            _certLimpiarDatosDinamicos(doc);
+            _certValidarMateriasCualitativas(est);
 
             // Helper para normalizar cadenas para comparación
             const normalizar = (texto) => {
@@ -2035,8 +3384,13 @@
 
             // Mapear cada materia por su nombre normalizado
             const materiasMap = {};
-            Object.entries(est.materias).forEach(([nombre, data]) => {
-                materiasMap[normalizar(nombre)] = data;
+            const materias = est && est.materias && typeof est.materias === 'object'
+                ? est.materias
+                : {};
+            Object.entries(materias).forEach(([nombre, data]) => {
+                if (data && typeof data === 'object') {
+                    materiasMap[normalizar(nombre)] = { nombre, data };
+                }
             });
 
             // Buscar y actualizar filas en todas las tablas
@@ -2045,50 +3399,105 @@
                 const cells = Array.from(row.cells);
                 if (cells.length < 2) return;
 
-                // Revisar si la primera o segunda celda coincide con alguna materia
+                // Los data-* son la vía estable; el texto visible queda como compatibilidad.
                 let matchedSubjectNorm = null;
                 let subjectCellIndex = -1;
+                const subjectData = row.dataset ? row.dataset.subject : '';
+                if (subjectData) {
+                    matchedSubjectNorm = normalizar(subjectData);
+                    subjectCellIndex = 0;
+                }
 
-                for (let i = 0; i < Math.min(cells.length, 2); i++) {
-                    const cellText = normalizar(cells[i].textContent);
-                    if (materiasMap[cellText]) {
-                        matchedSubjectNorm = cellText;
-                        subjectCellIndex = i;
-                        break;
+                if (!matchedSubjectNorm) {
+                    for (let i = 0; i < Math.min(cells.length, 2); i++) {
+                        const cellText = normalizar(cells[i].textContent);
+                        if (materiasMap[cellText]) {
+                            matchedSubjectNorm = cellText;
+                            subjectCellIndex = i;
+                            break;
+                        }
                     }
                 }
 
-                if (matchedSubjectNorm !== null && subjectCellIndex !== -1) {
-                    const data = materiasMap[matchedSubjectNorm];
-                    const gradeCells = cells.slice(subjectCellIndex + 1);
+                if (
+                    matchedSubjectNorm !== null
+                    && subjectCellIndex !== -1
+                    && materiasMap[matchedSubjectNorm]
+                ) {
+                    const materiaEncontrada = materiasMap[matchedSubjectNorm];
+                    const data = materiaEncontrada.data;
+                    if (
+                        data.es_optativa_bgu3 === true
+                        && data.presentacion_certificado === 'escala_cualitativa'
+                    ) {
+                        return;
+                    }
+                    const gradeCells = cells.filter(cell => (
+                        cell.dataset
+                        && cell.dataset.academicValue === 'true'
+                    ));
+                    const celdasNotas = gradeCells.length > 0
+                        ? gradeCells
+                        : cells.slice(subjectCellIndex + 1);
+                    const metadatos = metadatosAsignaturaCatalogo(
+                        materiaEncontrada.nombre,
+                        data
+                    );
+                    const esCualitativa = metadatos.tipo === 'cualitativa';
 
                     const fmt = (val, isSupletorio = false) => {
-                        if (val === null || val === undefined) {
-                            return isSupletorio ? '0' : '-';
-                        }
-                        return val;
+                        return _certPresentarNota(val, gradoCurso, metadatos);
                     };
 
-                    if (gradeCells.length === 3) {
+                    if (esCualitativa) {
+                        celdasNotas.forEach((cell, indice) => {
+                            const campo = cell.dataset ? cell.dataset.academicField : '';
+                            const periodo = campo || ['t1', 't2', 't3'][indice];
+                            cell.textContent = ['t1', 't2', 't3'].includes(periodo)
+                                ? mostrarValorSeguro(data[periodo])
+                                : '';
+                        });
+                        return;
+                    }
+
+                    const celdasPorCampo = Object.fromEntries(
+                        celdasNotas
+                            .filter(cell => cell.dataset && cell.dataset.academicField)
+                            .map(cell => [cell.dataset.academicField, cell])
+                    );
+                    if (Object.keys(celdasPorCampo).length > 0) {
+                        if (celdasPorCampo.t1) celdasPorCampo.t1.textContent = fmt(data.t1);
+                        if (celdasPorCampo.t2) celdasPorCampo.t2.textContent = fmt(data.t2);
+                        if (celdasPorCampo.t3) celdasPorCampo.t3.textContent = fmt(data.t3);
+                        if (celdasPorCampo.supletorio) {
+                            celdasPorCampo.supletorio.textContent = fmt(data.supletorio, true);
+                        }
+                        if (celdasPorCampo.final) {
+                            const valFinal = data.nota_final !== null && data.nota_final !== undefined
+                                ? data.nota_final
+                                : data.promedio_anual;
+                            celdasPorCampo.final.textContent = fmt(valFinal);
+                        }
+                    } else if (celdasNotas.length === 3) {
                         // Trimestres T1, T2, T3
-                        gradeCells[0].textContent = fmt(data.t1);
-                        gradeCells[1].textContent = fmt(data.t2);
-                        gradeCells[2].textContent = fmt(data.t3);
-                    } else if (gradeCells.length === 4) {
+                        celdasNotas[0].textContent = fmt(data.t1);
+                        celdasNotas[1].textContent = fmt(data.t2);
+                        celdasNotas[2].textContent = fmt(data.t3);
+                    } else if (celdasNotas.length === 4) {
                         // Trimestres T1, T2, T3 + Promedio Anual (sin supletorio)
-                        gradeCells[0].textContent = fmt(data.t1);
-                        gradeCells[1].textContent = fmt(data.t2);
-                        gradeCells[2].textContent = fmt(data.t3);
+                        celdasNotas[0].textContent = fmt(data.t1);
+                        celdasNotas[1].textContent = fmt(data.t2);
+                        celdasNotas[2].textContent = fmt(data.t3);
                         const valFinal = (data.nota_final !== null && data.nota_final !== undefined) ? data.nota_final : data.promedio_anual;
-                        gradeCells[3].textContent = fmt(valFinal);
-                    } else if (gradeCells.length === 5) {
+                        celdasNotas[3].textContent = fmt(valFinal);
+                    } else if (celdasNotas.length === 5) {
                         // Trimestres T1, T2, T3 + Supletorio + Promedio Anual
-                        gradeCells[0].textContent = fmt(data.t1);
-                        gradeCells[1].textContent = fmt(data.t2);
-                        gradeCells[2].textContent = fmt(data.t3);
-                        gradeCells[3].textContent = fmt(data.supletorio, true);
+                        celdasNotas[0].textContent = fmt(data.t1);
+                        celdasNotas[1].textContent = fmt(data.t2);
+                        celdasNotas[2].textContent = fmt(data.t3);
+                        celdasNotas[3].textContent = fmt(data.supletorio, true);
                         const valFinal = (data.nota_final !== null && data.nota_final !== undefined) ? data.nota_final : data.promedio_anual;
-                        gradeCells[4].textContent = fmt(valFinal);
+                        celdasNotas[4].textContent = fmt(valFinal);
                     }
                 }
             });
@@ -2106,7 +3515,11 @@
                 if (hasPromedioLabel) {
                     const lastCell = cells[cells.length - 1];
                     if (lastCell) {
-                        lastCell.textContent = (est.promedio !== null && est.promedio !== undefined) ? est.promedio : '-';
+                        lastCell.textContent = _certPresentarNota(
+                            est.promedio,
+                            gradoCurso,
+                            { tipo: 'cuantitativa' }
+                        );
                     }
                 }
             });
@@ -2120,7 +3533,27 @@
             });
         }
 
+        function _certInjectEvaluacionComportamental(doc, est, gradoCurso) {
+            if (['INICIAL_1', 'INICIAL_2', 'EGB_1'].includes(codigoGradoCatalogo(gradoCurso))) return;
+            const evaluacion = est.evaluacion_comportamental || {};
+            const fila = Array.from(doc.querySelectorAll('tr')).find(row => {
+                const primeraCelda = row.cells?.[0];
+                return primeraCelda && normalizarTextoAsignatura(primeraCelda.textContent) === 'EVALUACION COMPORTAMENTAL';
+            });
+            if (!fila || fila.cells.length < 4) return;
+
+            ['T1', 'T2', 'T3'].forEach((periodo, indice) => {
+                const celda = fila.cells[indice + 1];
+                celda.textContent = mostrarValorSeguro(evaluacion[periodo]);
+                celda.style.whiteSpace = 'normal';
+                celda.style.overflowWrap = 'anywhere';
+                celda.style.verticalAlign = 'top';
+            });
+        }
+
         function _certInjectFirmas(doc, inst) {
+            const tutorNombre = inst.tutorCurso || inst.tutor || '';
+            const rectorNombre = inst.rectorDirector || inst.rector || '';
             doc.querySelectorAll('section p').forEach(p => {
                 const t = p.textContent.trim().toUpperCase();
                 if (t === 'TUTOR/A' || t === 'TUTORA' || t === 'TUTOR') {
@@ -2131,18 +3564,15 @@
                         // Darle altura para dejar espacio de firma (aprox 4 enters de espacio)
                         lineDiv.style.height = '3.5rem';
                         
-                        // Eliminar nombre inyectado anteriormente para evitar duplicados
-                        const prevName = p.parentElement.querySelector('.cert-nombre-firma');
-                        if (prevName) prevName.remove();
-
-                        // Inyectar el nombre del Tutor justo encima de la etiqueta del rol
-                        if (inst.tutorCurso) {
-                            const nameEl = doc.createElement('p');
+                        // Actualizar el campo estable o crearlo para plantillas antiguas.
+                        let nameEl = p.parentElement.querySelector('.cert-nombre-firma');
+                        if (!nameEl && tutorNombre) {
+                            nameEl = doc.createElement('p');
                             nameEl.className = 'cert-nombre-firma font-bold text-slate-800 mt-1';
                             nameEl.style.fontSize = '0.75rem';
-                            nameEl.textContent = inst.tutorCurso;
                             p.parentNode.insertBefore(nameEl, p);
                         }
+                        if (nameEl) nameEl.textContent = tutorNombre;
                     }
                 } else if (t === 'RECTOR/A' || t === 'RECTORA' || t === 'RECTOR' || t === 'DIRECTOR') {
                     const lineDiv = p.parentElement?.querySelector('.border-b');
@@ -2152,18 +3582,15 @@
                         // Darle altura para dejar espacio de firma (aprox 4 enters de espacio)
                         lineDiv.style.height = '3.5rem';
                         
-                        // Eliminar nombre inyectado anteriormente para evitar duplicados
-                        const prevName = p.parentElement.querySelector('.cert-nombre-firma');
-                        if (prevName) prevName.remove();
-
-                        // Inyectar el nombre del Rector justo encima de la etiqueta del rol
-                        if (inst.rectorDirector) {
-                            const nameEl = doc.createElement('p');
+                        // Actualizar el campo estable o crearlo para plantillas antiguas.
+                        let nameEl = p.parentElement.querySelector('.cert-nombre-firma');
+                        if (!nameEl && rectorNombre) {
+                            nameEl = doc.createElement('p');
                             nameEl.className = 'cert-nombre-firma font-bold text-slate-800 mt-1';
                             nameEl.style.fontSize = '0.75rem';
-                            nameEl.textContent = inst.rectorDirector;
                             p.parentNode.insertBefore(nameEl, p);
                         }
+                        if (nameEl) nameEl.textContent = rectorNombre;
                     }
                 }
             });
@@ -2184,13 +3611,16 @@
 
         function estudianteTieneNotasCompletas(estudiante) {
             if (!estudiante || !estudiante.materias || Object.keys(estudiante.materias).length === 0) return false;
+            let tieneCuantitativas = false;
             for (const subName in estudiante.materias) {
                 const sub = estudiante.materias[subName];
+                if (sub.tipo === 'cualitativa' || sub.permite_supletorio === false) continue;
+                tieneCuantitativas = true;
                 if (!esNotaValida(sub.t1) || !esNotaValida(sub.t2) || !esNotaValida(sub.t3)) {
                     return false;
                 }
             }
-            return true;
+            return tieneCuantitativas;
         }
 
         function obtenerMateriasElegiblesSupletorio(estudiante) {
@@ -2198,6 +3628,7 @@
             if (!estudiante || !estudiante.materias) return elegibles;
             for (const subName in estudiante.materias) {
                 const sub = estudiante.materias[subName];
+                if (sub.tipo === 'cualitativa' || sub.permite_supletorio === false) continue;
                 const pa = sub.promedio_anual;
                 if (pa !== null && pa !== undefined) {
                     const numPa = Number(pa);
@@ -2251,10 +3682,18 @@
 
             supletorioEstudianteActivoId = estudianteId;
 
-            // Cambiar título del panel
-            document.getElementById('supletorios-titulo').innerHTML = `
-                <i class="fa-solid fa-square-poll-horizontal text-amber-500"></i> Exámenes supletorios — <strong class="text-indigo-600">${est.nombre}</strong>
-            `;
+            // Cambiar título del panel sin interpretar datos del Excel como HTML.
+            const tituloSupletorios = document.getElementById('supletorios-titulo');
+            const iconoTitulo = document.createElement('i');
+            iconoTitulo.className = 'fa-solid fa-square-poll-horizontal text-amber-500';
+            const nombreTitulo = document.createElement('strong');
+            nombreTitulo.className = 'text-indigo-600';
+            nombreTitulo.textContent = est.nombre;
+            tituloSupletorios.replaceChildren(
+                iconoTitulo,
+                document.createTextNode(' Exámenes supletorios — '),
+                nombreTitulo
+            );
 
             const tbody = document.getElementById('supletorios-body');
             tbody.innerHTML = '';
@@ -2392,6 +3831,7 @@
 
             rows.forEach(row => {
                 const subName = row.dataset.subject;
+                if (!metadatosAsignaturaCatalogo(subName).permite_supletorio) return;
                 const input = row.querySelector('input');
                 const val = input.value.trim();
 
@@ -2446,7 +3886,7 @@
                     consolidarYRenderizar(); // Recalcula promedios y actualiza la tabla de estudiantes
                     
                     // Mostrar mensaje de éxito
-                    mostrarAlerta("Éxito al guardar", `Se han guardado las notas de supletorio para el estudiante <strong>${est.nombre}</strong>.`, "success");
+                    mostrarAlerta("Éxito al guardar", `Se han guardado las notas de supletorio para el estudiante ${est.nombre}.`, "success");
                     
                     // Cerrar el panel
                     cerrarPanelSupletorio();
@@ -2584,19 +4024,10 @@
             const gradoCursoCanonico = curso.datosInstitucion?.gradoCurso || curso.nombreVisible || '';
             const plantillaName = mapearPlantilla(gradoCursoCanonico);
 
-            // Diagnósticos en consola
-            console.log(`[Certificados] Curso activo: ${curso.nombreVisible}`);
-            console.log(`[Certificados] ID del curso activo: ${curso.id}`);
-            console.log(`[Certificados] gradoCurso original: ${curso.datosInstitucion?.gradoCurso || ''}`);
-            console.log(`[Certificados] gradoCurso normalizado: ${gradoCursoCanonico}`);
-            console.log(`[Certificados] Plantilla seleccionada: ${plantillaName || 'Ninguna'}`);
-            console.log(`[Certificados] Tipo de generación: PDF`);
-            console.log(`[Certificados] Cantidad de estudiantes: ${estudiantesData.length}`);
-
             if (!plantillaName) {
                 document.getElementById('loading-overlay').classList.add('hidden');
                 mostrarAlerta("Sin Plantilla",
-                    `No se encontró una plantilla de certificado para el grado: "${gradoCursoCanonico || 'sin especificar'}".<br>Verifique que el campo "Grado/Curso" esté correctamente configurado.`,
+                    `No se encontró una plantilla de certificado para el grado: "${gradoCursoCanonico || 'sin especificar'}".\nVerifique que el campo "Grado/Curso" esté correctamente configurado.`,
                     "error");
                 return null;
             }
@@ -2604,14 +4035,12 @@
             // Verificar si el archivo de la plantilla existe
             const checkRes = await window.electronAPI.leerPlantilla(plantillaName);
             if (checkRes.error) {
-                console.log(`[Certificados] Existe: false`);
                 document.getElementById('loading-overlay').classList.add('hidden');
                 mostrarAlerta("Sin Plantilla",
-                    `No se encontró la plantilla de certificado: "${plantillaName}".<br>Verifique que el archivo exista en la carpeta del sistema.`,
+                    `No se encontró la plantilla de certificado: "${plantillaName}".\nVerifique que el archivo exista en la carpeta del sistema.`,
                     "error");
                 return null;
             }
-            console.log(`[Certificados] Existe: true`);
 
             const pythonPayload = {
                 cursoActivoId: curso.id,
@@ -2679,8 +4108,9 @@
             document.getElementById('loading-overlay').classList.remove('hidden');
 
             // Filtrar los datos consolidados de los estudiantes seleccionados
-            const datosConsolidadosSeleccionados = estudiantesCargados.filter(e =>
-                seleccionados.includes(e.id_real)
+            const datosConsolidadosSeleccionados = enriquecerEstudiantesConAsistencia(
+                curso,
+                estudiantesCargados.filter(e => seleccionados.includes(e.id_real))
             );
 
             // ===== RUTA A: CERTIFICADOS (Motor HTML local) =====
@@ -2691,7 +4121,7 @@
                     if (!res) return; // Error ya mostrado o usuario canceló
                     if (res.cancelled) return;
                     if (res.success) {
-                        mostrarAlerta("Éxito", `Certificados generados con éxito en la ruta:<br><strong class="text-xs break-all">${res.path}</strong>`, "success", res.path);
+                        mostrarAlerta("Éxito", `Certificados generados correctamente en la ruta:\n${res.path}`, "success");
                     } else {
                         mostrarAlerta("Error", "Ocurrió un error al generar los certificados: " + (res.error || ''), "error");
                     }
@@ -2729,8 +4159,9 @@
                 const res = await window.electronAPI.generarBoletines(payload);
                 document.getElementById('loading-overlay').classList.add('hidden');
 
+                if (res.cancelled) return;
                 if (res.success) {
-                    mostrarAlerta("Éxito", `Documentos generados con éxito en la ruta:<br><strong class="text-xs break-all">${res.path}</strong>`, "success", res.path);
+                    mostrarAlerta("Éxito", `Documentos generados con éxito en la ruta:\n${res.path}`, "success", res.path);
                 } else {
                     mostrarAlerta("Error", "Ocurrió un error al generar los PDF: " + res.error, "error");
                 }
@@ -2742,11 +4173,15 @@
 
         // Vista previa del certificado con plantilla HTML
         async function vistaPrevia(idReal) {
-            const est = estudiantesCargados.find(e => e.id_real === idReal);
-            if (!est) return;
+            const estBase = estudiantesCargados.find(e => e.id_real === idReal);
+            if (!estBase) return;
 
             const curso = obtenerCursoActivo();
             if (!curso) return;
+            const est = {
+                ...estBase,
+                asistencia: resumenAsistenciaAnualCurso(curso, obtenerEstudianteIdAsistencia(estBase))
+            };
 
             const inst = { ...curso.datosInstitucion };
             const logos = curso.logos || {};
@@ -2759,16 +4194,6 @@
             // Determinar la plantilla según el grado
             const plantillaName = mapearPlantilla(gradoCursoCanonico);
 
-            // Diagnósticos en consola
-            console.log(`[Certificados] Curso activo: ${curso.nombreVisible}`);
-            console.log(`[Certificados] ID del curso activo: ${curso.id}`);
-            console.log(`[Certificados] gradoCurso original: ${curso.datosInstitucion?.gradoCurso || ''}`);
-            console.log(`[Certificados] gradoCurso normalizado: ${gradoCursoCanonico}`);
-            console.log(`[Certificados] plantillaName seleccionada: ${plantillaName || 'Ninguna'}`);
-            console.log(`[Certificados] Ruta relativa: assets/certificados/${plantillaName || ''}`);
-            console.log(`[Certificados] Tipo de generación: preview`);
-            console.log(`[Certificados] Cantidad de estudiantes: 1`);
-
             if (!plantillaName) {
                 mostrarAlerta("Sin Plantilla",
                     `No se encontró una plantilla de certificado para el grado: "${gradoCursoCanonico || 'sin especificar'}".`,
@@ -2779,11 +4204,9 @@
             // Cargar la plantilla
             const result = await window.electronAPI.leerPlantilla(plantillaName);
             if (result.error) {
-                console.log(`[Certificados] Existe plantilla: false`);
                 mostrarAlerta("Error de Plantilla", result.error, "error");
                 return;
             }
-            console.log(`[Certificados] Existe plantilla: true`);
 
             const templateHTML = result.content;
             const parser = new DOMParser();
@@ -2793,7 +4216,10 @@
             _certInjectLogos(doc, logos);
             _certInjectInstitucion(doc, inst);
             _certInjectEstudiante(doc, est, inst);
-            _certInjectNotas(doc, est);
+            _certInjectOptativasBGU3(doc, est);
+            _certInjectNotas(doc, est, gradoCursoCanonico);
+            _certInjectEvaluacionComportamental(doc, est, gradoCursoCanonico);
+            inyectarAsistenciaDocumento(doc, est, curso.id);
             _certInjectFirmas(doc, inst);
 
             // Limpiar inputs de archivo (no necesarios en preview)
@@ -2875,8 +4301,9 @@
             const msgElem = document.getElementById('modal-message');
             const btnAction = document.getElementById('modal-btn-action');
 
-            titleElem.innerHTML = titulo;
-            msgElem.innerHTML = mensaje;
+            titleElem.textContent = String(titulo || '');
+            msgElem.textContent = String(mensaje || '');
+            msgElem.classList.add('whitespace-pre-line', 'break-words');
 
             btnAction.classList.add('hidden');
 
@@ -2905,5 +4332,6 @@
             document.getElementById('status-modal').classList.add('hidden');
         }
     </script>
+    <script src="./asistencia_ui.js"></script>
 </body>
 </html>

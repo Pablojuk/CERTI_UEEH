@@ -1,11 +1,15 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-    verificarLicencia: () => ipcRenderer.invoke('verificar-licencia'),
-    analizarExcel: (rutas) => ipcRenderer.invoke('analizar-excel', rutas),
+    obtenerEstadoLicencia: () => ipcRenderer.invoke('obtener-estado-licencia'),
+    activarLicencia: (licencia) => ipcRenderer.invoke('activar-licencia', licencia),
+    iniciarPrueba: () => ipcRenderer.invoke('iniciar-prueba'),
+    analizarExcel: (solicitud) => ipcRenderer.invoke('analizar-excel', solicitud),
+    obtenerCatalogoAsignaturas: () => ipcRenderer.invoke('obtener-catalogo-asignaturas'),
+    obtenerEscalaCualitativa: () => ipcRenderer.invoke('obtener-escala-cualitativa'),
     generarBoletines: (datos) => ipcRenderer.invoke('generar-boletines', datos),
     seleccionarArchivo: (opciones) => ipcRenderer.invoke('seleccionar-archivo', opciones),
-    descargarFormato: () => ipcRenderer.invoke('descargar-formato'),
+    descargarFormato: (formatoId, opciones = {}) => ipcRenderer.invoke('descargar-formato', formatoId, opciones),
     leerPlantilla: (nombre) => ipcRenderer.invoke('leer-plantilla', nombre),
     imprimirCertificados: (html) => ipcRenderer.invoke('imprimir-certificados', html),
     abrirVistaPreviaCertificado: (html) => ipcRenderer.invoke('abrir-vista-previa-certificado', html),
