@@ -1,6 +1,6 @@
 {
   "name": "certi-ueeh-boletines",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Modulo de Generación de Boletines Trimestrales - UEEH",
   "main": "main.js",
   "scripts": {
@@ -99,7 +99,7 @@
       "provider": "github",
       "owner": "Pablojuk",
       "repo": "CERTI_UEEH",
-      "releaseType": "release"
+      "releaseType": "draft"
     }
   },
   "dependencies": {
