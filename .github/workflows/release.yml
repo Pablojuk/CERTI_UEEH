@@ -79,7 +79,7 @@ jobs:
             --repo "${{ github.repository }}" `
             --verify-tag `
             --title "${{ github.ref_name }}" `
-            --notes-from-tag `
+            --notes "Actualización automática de CERTI_UEEH ${{ github.ref_name }}." `
             --latest 2>&1
           if ($LASTEXITCODE -ne 0) {
             Stop-Release "GitHub CLI no pudo crear la Release: $($createOutput | Out-String)"
