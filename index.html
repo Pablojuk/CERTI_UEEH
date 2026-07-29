@@ -20,9 +20,73 @@
         #formatos-notas-modal:not(.hidden) {
             display: flex;
         }
+        #licencia-overlay.hidden {
+            display: none !important;
+        }
+        #licencia-overlay:not(.hidden) {
+            display: flex;
+        }
+        #licencia-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            background: rgba(2, 6, 23, 0.82);
+        }
+        #licencia-overlay > div {
+            width: 100%;
+            max-width: 28rem;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+            border-radius: 1rem;
+            background: white;
+            box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.5);
+        }
+        body.licencia-bloqueada {
+            overflow: hidden;
+        }
+        body.licencia-bloqueada > :not(#licencia-overlay) {
+            pointer-events: none;
+            user-select: none;
+        }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen pb-12">
+<body class="bg-slate-50 text-slate-800 min-h-screen pb-12 licencia-bloqueada">
+
+    <div id="licencia-overlay" class="fixed inset-0 z-[100] bg-slate-950/80 items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="licencia-titulo">
+        <div class="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
+            <div class="bg-indigo-600 px-7 py-6 text-white">
+                <div class="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center mb-4">
+                    <i class="fa-solid fa-key text-xl"></i>
+                </div>
+                <h2 id="licencia-titulo" class="text-2xl font-bold">Activación de CERTI_UEEH</h2>
+                <p class="text-indigo-100 text-sm mt-1">Active esta instalación o continúe con la prueba gratuita.</p>
+            </div>
+            <div class="p-7">
+                <div class="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 mb-5">
+                    <p class="text-xs uppercase tracking-wide font-bold text-slate-500">Prueba disponible</p>
+                    <p id="licencia-dias" class="text-2xl font-bold text-slate-900 mt-1">Verificando…</p>
+                </div>
+                <label for="licencia-clave" class="block text-sm font-semibold text-slate-700 mb-2">Licencia</label>
+                <input id="licencia-clave" type="password" maxlength="256" autocomplete="off" spellcheck="false"
+                    class="w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Ingrese su licencia">
+                <p id="licencia-mensaje" class="text-sm text-slate-600 mt-3 min-h-[2.5rem]" aria-live="polite">Comprobando el estado de esta instalación…</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-5">
+                    <button id="btn-activar-licencia" type="button" disabled
+                        class="rounded-lg bg-indigo-600 text-white px-4 py-3 text-sm font-bold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-shield-halved mr-1"></i> Activar
+                    </button>
+                    <button id="btn-continuar-prueba" type="button" disabled
+                        class="rounded-lg bg-slate-100 text-slate-800 border border-slate-300 px-4 py-3 text-sm font-bold hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Continuar prueba
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <nav class="bg-white border-b border-slate-200 px-6 py-3 flex justify-between items-center sticky top-0 z-50 shadow-sm">
         <div class="flex items-center gap-3">
@@ -921,25 +985,62 @@
             }
         }
 
-        // Inicialización al cargar la ventana
-        window.onload = async () => {
-            try {
-                const res = await window.electronAPI.verificarLicencia();
-                const badge = document.getElementById('license-badge');
-                if (res.valido) {
-                    licenciaActiva = true;
-                    badge.className = "bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold tracking-wide flex items-center gap-1.5 shadow-sm";
-                    badge.innerHTML = `<div class="w-2 h-2 rounded-full bg-emerald-500"></div> LICENCIA ACTIVA`;
-                } else {
-                    licenciaActiva = false;
-                    badge.className = "bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1 rounded-full text-xs font-bold tracking-wide flex items-center gap-1.5 shadow-sm";
-                    badge.innerHTML = `<div class="w-2 h-2 rounded-full bg-amber-500"></div> PRUEBA OFFLINE (MAX 3)`;
-                }
-            } catch {
-                console.error("No se pudo verificar la licencia.");
-            }
+        let aplicacionInicializada = false;
+        let estadoLicenciaMostrado = null;
+        let monitorLicenciaId = null;
 
-            // Cargar el catálogo central antes de migrar/consolidar datos locales.
+        function actualizarInsigniaLicencia(estado) {
+            const badge = document.getElementById('license-badge');
+            const activada = estado?.activada === true;
+            badge.className = activada
+                ? "bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold tracking-wide flex items-center gap-1.5 shadow-sm"
+                : "bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1 rounded-full text-xs font-bold tracking-wide flex items-center gap-1.5 shadow-sm";
+            badge.replaceChildren();
+            const indicador = document.createElement('div');
+            indicador.className = activada
+                ? 'w-2 h-2 rounded-full bg-emerald-500'
+                : 'w-2 h-2 rounded-full bg-amber-500';
+            badge.appendChild(indicador);
+            badge.appendChild(document.createTextNode(
+                activada
+                    ? ' LICENCIA ACTIVA'
+                    : ` PRUEBA: ${estado?.diasRestantes ?? 0} DÍA(S)`
+            ));
+        }
+
+        function mostrarEstadoLicencia(estado) {
+            estadoLicenciaMostrado = estado;
+            const overlay = document.getElementById('licencia-overlay');
+            const dias = document.getElementById('licencia-dias');
+            const mensaje = document.getElementById('licencia-mensaje');
+            const activar = document.getElementById('btn-activar-licencia');
+            const continuar = document.getElementById('btn-continuar-prueba');
+            const restantes = Number.isInteger(estado?.diasRestantes)
+                ? estado.diasRestantes
+                : 0;
+
+            overlay.classList.remove('hidden');
+            document.body.classList.add('licencia-bloqueada');
+            document.querySelectorAll('body > :not(#licencia-overlay):not(script)')
+                .forEach(elemento => { elemento.inert = true; });
+            dias.textContent = estado?.estado === 'activada'
+                ? 'Licencia permanente'
+                : `${restantes} día${restantes === 1 ? '' : 's'} restante${restantes === 1 ? '' : 's'}`;
+            mensaje.textContent = estado?.mensaje || 'No fue posible verificar la licencia.';
+            activar.disabled = false;
+            continuar.classList.toggle('hidden', estado?.puedeIniciarPrueba !== true);
+            continuar.disabled = estado?.puedeIniciarPrueba !== true;
+        }
+
+        function establecerEsperaLicencia(enEspera) {
+            document.getElementById('btn-activar-licencia').disabled = enEspera;
+            const continuar = document.getElementById('btn-continuar-prueba');
+            continuar.disabled = enEspera || estadoLicenciaMostrado?.puedeIniciarPrueba !== true;
+        }
+
+        async function inicializarAplicacion() {
+            if (aplicacionInicializada) return;
+            aplicacionInicializada = true;
             try {
                 const catalogo = await window.electronAPI.obtenerCatalogoAsignaturas();
                 catalogoAsignaturas = Array.isArray(catalogo) ? catalogo : [];
@@ -967,6 +1068,117 @@
             if (huboNormalizacion) await saveStateToDB();
             actualizarSelectorCursosUI();
             cargarCursoActivoEnPantalla();
+        }
+
+        async function concederAccesoLicencia(estado) {
+            licenciaActiva = estado?.autorizado === true;
+            actualizarInsigniaLicencia(estado);
+            document.getElementById('licencia-overlay').classList.add('hidden');
+            document.body.classList.remove('licencia-bloqueada');
+            document.querySelectorAll('body > :not(#licencia-overlay):not(script)')
+                .forEach(elemento => { elemento.inert = false; });
+            if (monitorLicenciaId) {
+                clearInterval(monitorLicenciaId);
+                monitorLicenciaId = null;
+            }
+            if (!estado?.activada) {
+                monitorLicenciaId = setInterval(async () => {
+                    try {
+                        const vigente = await window.electronAPI.obtenerEstadoLicencia();
+                        if (!vigente?.autorizado) {
+                            licenciaActiva = false;
+                            mostrarEstadoLicencia(vigente);
+                            clearInterval(monitorLicenciaId);
+                            monitorLicenciaId = null;
+                        } else {
+                            actualizarInsigniaLicencia(vigente);
+                        }
+                    } catch {
+                        licenciaActiva = false;
+                        mostrarEstadoLicencia({
+                            estado: 'error',
+                            diasRestantes: 0,
+                            puedeIniciarPrueba: false,
+                            mensaje: 'No fue posible verificar la vigencia de la prueba.'
+                        });
+                        clearInterval(monitorLicenciaId);
+                        monitorLicenciaId = null;
+                    }
+                }, 30 * 1000);
+            }
+            await inicializarAplicacion();
+        }
+
+        async function activarLicenciaDesdePantalla() {
+            establecerEsperaLicencia(true);
+            try {
+                const licencia = document.getElementById('licencia-clave').value;
+                const estado = await window.electronAPI.activarLicencia(licencia);
+                if (estado?.activada) {
+                    document.getElementById('licencia-clave').value = '';
+                    await concederAccesoLicencia(estado);
+                    return;
+                }
+                mostrarEstadoLicencia(estado);
+            } catch {
+                mostrarEstadoLicencia({
+                    estado: 'error',
+                    diasRestantes: 0,
+                    puedeIniciarPrueba: false,
+                    mensaje: 'No fue posible comprobar la licencia.'
+                });
+            } finally {
+                establecerEsperaLicencia(false);
+            }
+        }
+
+        async function continuarPruebaDesdePantalla() {
+            establecerEsperaLicencia(true);
+            try {
+                const estado = await window.electronAPI.iniciarPrueba();
+                if (estado?.autorizado) {
+                    await concederAccesoLicencia(estado);
+                    return;
+                }
+                mostrarEstadoLicencia(estado);
+            } catch {
+                mostrarEstadoLicencia({
+                    estado: 'error',
+                    diasRestantes: 0,
+                    puedeIniciarPrueba: false,
+                    mensaje: 'No fue posible iniciar o continuar la prueba.'
+                });
+            } finally {
+                establecerEsperaLicencia(false);
+            }
+        }
+
+        // Inicialización al cargar la ventana
+        window.onload = async () => {
+            document.querySelectorAll('body > :not(#licencia-overlay):not(script)')
+                .forEach(elemento => { elemento.inert = true; });
+            document.getElementById('btn-activar-licencia')
+                .addEventListener('click', activarLicenciaDesdePantalla);
+            document.getElementById('btn-continuar-prueba')
+                .addEventListener('click', continuarPruebaDesdePantalla);
+            document.getElementById('licencia-clave').addEventListener('keydown', event => {
+                if (event.key === 'Enter') activarLicenciaDesdePantalla();
+            });
+            try {
+                const estado = await window.electronAPI.obtenerEstadoLicencia();
+                if (estado?.estado === 'activada' && estado.autorizado) {
+                    await concederAccesoLicencia(estado);
+                } else {
+                    mostrarEstadoLicencia(estado);
+                }
+            } catch {
+                mostrarEstadoLicencia({
+                    estado: 'error',
+                    diasRestantes: 0,
+                    puedeIniciarPrueba: false,
+                    mensaje: 'No fue posible verificar la licencia de forma segura.'
+                });
+            }
         };
 
         // UI Helpers

@@ -13,7 +13,9 @@ test('la lista blanca IPC es explícita y no expone canales genéricos', () => {
     assert.deepEqual(
         new Set(main.CANALES_IPC_PERMITIDOS),
         new Set([
-            'verificar-licencia',
+            'obtener-estado-licencia',
+            'activar-licencia',
+            'iniciar-prueba',
             'seleccionar-archivo',
             'descargar-formato',
             'analizar-excel',

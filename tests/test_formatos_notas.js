@@ -32,8 +32,8 @@ const optativasBgu3 = catalogoAsignaturas
 
 const hashesEsperadosPorId = {
     egb_2_7: 'be04d082453ad9fc4cf90113fa4909fba556380e09c1e3053ecda685739bb037',
-    egb_8_10: '15723e3328c6a3e1ea8552a7d7a2b72f13d6f0d0b2a889a863a2d47acbf49ad8',
-    bgu_1_2: 'ec0384cd3232c1bb5813aacdd3e620a639f1a6d6c91623141fc907dbbaf337e9',
+    egb_8_10: '38e7148cf0925266d9a1900f06b816e15313f4cd5300564556f44a74ad884f67',
+    bgu_1_2: 'b095f77f65a8373cb55c2c0168fa17f1bf6c8bf77fd3e05c27f38da0e1be42dc',
     bgu_3: 'e6a84c5b9acfb451eab0ff838f52c4303a225beb9d9ab3672bc2b49a0d8be753'
 };
 

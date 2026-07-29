@@ -1,7 +1,8 @@
-const { app, BrowserWindow, ipcMain, dialog, session } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, session, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { spawn } = require('child_process');
+const crypto = require('crypto');
+const { spawn, spawnSync } = require('child_process');
 const { pathToFileURL } = require('url');
 
 let mainWindow;
@@ -13,6 +14,21 @@ const MAX_PAYLOAD_BYTES = 20 * 1024 * 1024;
 const MAX_LOGO_BYTES = 5 * 1024 * 1024;
 const MAX_PYTHON_OUTPUT_BYTES = 25 * 1024 * 1024;
 const PYTHON_TIMEOUT_MS = 120000;
+const DURACION_PRUEBA_MS = 15 * 24 * 60 * 60 * 1000;
+const TOLERANCIA_RELOJ_MS = 1000;
+const HASH_LICENCIA_ESPERADO = Buffer.from(
+    '09fa7b2c0e4a19c7dc686f28d1eac2db8ed1824ee8f97fb4861886b45f2baad9',
+    'hex'
+);
+const CLAVE_REGISTRO_LICENCIA = 'HKCU\\Software\\CERTI_UEEH';
+const VALOR_REGISTRO_LICENCIA = 'LicenseStateV1';
+const CANALES_LICENCIA = new Set([
+    'obtener-estado-licencia',
+    'activar-licencia',
+    'iniciar-prueba'
+]);
+let estadoLicenciaMemoria = null;
+let colaOperacionesLicencia = Promise.resolve();
 const EXTENSIONES_EXCEL_PERMITIDAS = new Set(['.xlsx', '.xls']);
 const EXTENSIONES_IMAGEN_PERMITIDAS = Object.freeze({
     'image/png': 'png',
@@ -30,7 +46,7 @@ const PLANTILLAS_CERTIFICADO_PERMITIDAS = Object.freeze([
     'FORMATO DE 3 DE BGU.html'
 ]);
 const CANALES_IPC_PERMITIDOS = Object.freeze([
-    'verificar-licencia',
+    ...CANALES_LICENCIA,
     'seleccionar-archivo',
     'descargar-formato',
     'analizar-excel',
@@ -45,12 +61,375 @@ const CANALES_IPC_PERMITIDOS = Object.freeze([
     'abrir-vista-previa-certificado'
 ]);
 
+function calcularSha256(valor, cryptoActual = crypto) {
+    return cryptoActual.createHash('sha256').update(String(valor), 'utf8').digest();
+}
+
+function validarLicenciaIngresada(valor, cryptoActual = crypto) {
+    if (typeof valor !== 'string' || valor.length < 1 || valor.length > 256) return false;
+    const hashIngresado = calcularSha256(valor, cryptoActual);
+    return hashIngresado.length === HASH_LICENCIA_ESPERADO.length
+        && cryptoActual.timingSafeEqual(hashIngresado, HASH_LICENCIA_ESPERADO);
+}
+
+function normalizarEstadoLicencia(valor) {
+    if (!esObjetoPlano(valor)) return null;
+    const machineHash = typeof valor.machineHash === 'string'
+        ? valor.machineHash.toLowerCase()
+        : '';
+    const trialStart = Number(valor.trialStart);
+    const trialEnd = Number(valor.trialEnd);
+    const lastRun = Number(valor.lastRun);
+    if (
+        !/^[a-f0-9]{64}$/.test(machineHash)
+        || !Number.isSafeInteger(trialStart)
+        || !Number.isSafeInteger(trialEnd)
+        || !Number.isSafeInteger(lastRun)
+        || trialStart <= 0
+        || trialEnd < trialStart
+        || lastRun <= 0
+    ) {
+        return null;
+    }
+    return {
+        machineHash,
+        trialStart,
+        trialEnd,
+        lastRun,
+        activated: valor.activated === true,
+        expired: valor.expired === true
+    };
+}
+
+function crearEstadoPrueba(machineHash, ahora = Date.now()) {
+    return {
+        machineHash,
+        trialStart: ahora,
+        trialEnd: ahora + DURACION_PRUEBA_MS,
+        lastRun: ahora,
+        activated: false,
+        expired: false
+    };
+}
+
+function fusionarEstadosLicencia(estados, machineHash) {
+    const compatibles = (Array.isArray(estados) ? estados : [])
+        .map(normalizarEstadoLicencia)
+        .filter(estado => estado?.machineHash === machineHash);
+    if (compatibles.length === 0) return null;
+
+    const trialStart = Math.min(...compatibles.map(estado => estado.trialStart));
+    const limiteOriginal = trialStart + DURACION_PRUEBA_MS;
+    return {
+        machineHash,
+        trialStart,
+        trialEnd: Math.min(
+            limiteOriginal,
+            ...compatibles.map(estado => estado.trialEnd)
+        ),
+        lastRun: Math.max(...compatibles.map(estado => estado.lastRun)),
+        activated: compatibles.some(estado => estado.activated),
+        expired: compatibles.some(estado => estado.expired)
+    };
+}
+
+function evaluarEstadoLicencia(estado, ahora = Date.now()) {
+    const normalizado = normalizarEstadoLicencia(estado);
+    if (!normalizado) {
+        return {
+            tipo: 'no_iniciada',
+            autorizado: false,
+            activada: false,
+            diasRestantes: 15
+        };
+    }
+    if (normalizado.activated) {
+        return {
+            tipo: 'activada',
+            autorizado: true,
+            activada: true,
+            diasRestantes: null
+        };
+    }
+    if (normalizado.expired || ahora >= normalizado.trialEnd) {
+        return {
+            tipo: 'vencida',
+            autorizado: false,
+            activada: false,
+            diasRestantes: 0
+        };
+    }
+    if (ahora + TOLERANCIA_RELOJ_MS < normalizado.lastRun) {
+        return {
+            tipo: 'fecha_invalida',
+            autorizado: false,
+            activada: false,
+            diasRestantes: Math.max(
+                0,
+                Math.ceil((normalizado.trialEnd - normalizado.lastRun) / (24 * 60 * 60 * 1000))
+            )
+        };
+    }
+    return {
+        tipo: 'prueba',
+        autorizado: true,
+        activada: false,
+        diasRestantes: Math.max(
+            0,
+            Math.ceil((normalizado.trialEnd - ahora) / (24 * 60 * 60 * 1000))
+        )
+    };
+}
+
 function registrarErrorSeguro(contexto, error) {
     if (!app?.isPackaged) {
         console.error(`[${contexto}]`, error);
         return;
     }
     console.error(`[${contexto}] La operación no pudo completarse.`);
+}
+
+function obtenerEjecutableRegistro() {
+    const raizWindows = process.env.SystemRoot;
+    if (typeof raizWindows === 'string' && path.isAbsolute(raizWindows)) {
+        return path.join(raizWindows, 'System32', 'reg.exe');
+    }
+    return 'reg.exe';
+}
+
+function ejecutarRegistro(argumentos, spawnSyncActual = spawnSync) {
+    try {
+        return spawnSyncActual(obtenerEjecutableRegistro(), argumentos, {
+            shell: false,
+            windowsHide: true,
+            encoding: 'utf8',
+            timeout: 5000,
+            maxBuffer: 256 * 1024
+        });
+    } catch {
+        return null;
+    }
+}
+
+function obtenerHashMaquina(spawnSyncActual = spawnSync, cryptoActual = crypto) {
+    const resultado = ejecutarRegistro([
+        'query',
+        'HKLM\\SOFTWARE\\Microsoft\\Cryptography',
+        '/v',
+        'MachineGuid'
+    ], spawnSyncActual);
+    const coincidencia = resultado?.status === 0
+        ? String(resultado.stdout || '').match(/MachineGuid\s+REG_\w+\s+([^\r\n]+)/i)
+        : null;
+    const identificador = coincidencia?.[1]?.trim();
+    if (!identificador || identificador.length > 256) {
+        throw new Error('No se pudo obtener el identificador estable del equipo.');
+    }
+    return calcularSha256(identificador.toUpperCase(), cryptoActual).toString('hex');
+}
+
+function obtenerUbicacionesLicencia(appActual = app) {
+    const appData = appActual.getPath('appData');
+    const localAppData = (
+        typeof process.env.LOCALAPPDATA === 'string'
+        && path.isAbsolute(process.env.LOCALAPPDATA)
+    )
+        ? process.env.LOCALAPPDATA
+        : path.resolve(appData, '..', 'Local');
+    const programData = (
+        typeof process.env.PROGRAMDATA === 'string'
+        && path.isAbsolute(process.env.PROGRAMDATA)
+    )
+        ? process.env.PROGRAMDATA
+        : path.join(path.parse(appData).root, 'ProgramData');
+    return {
+        archivos: [
+            path.join(localAppData, 'CERTI_UEEH', 'license_state.dat'),
+            path.join(programData, 'CERTI_UEEH', 'license_state.dat')
+        ],
+        registro: {
+            clave: CLAVE_REGISTRO_LICENCIA,
+            valor: VALOR_REGISTRO_LICENCIA
+        }
+    };
+}
+
+function descifrarEstadoLicencia(textoCifrado, safeStorageActual = safeStorage) {
+    if (
+        typeof textoCifrado !== 'string'
+        || textoCifrado.length === 0
+        || textoCifrado.length > 256 * 1024
+        || !/^[A-Za-z0-9+/=]+$/.test(textoCifrado)
+    ) {
+        return null;
+    }
+    try {
+        const plano = safeStorageActual.decryptString(Buffer.from(textoCifrado, 'base64'));
+        if (Buffer.byteLength(plano, 'utf8') > 64 * 1024) return null;
+        return normalizarEstadoLicencia(JSON.parse(plano));
+    } catch {
+        return null;
+    }
+}
+
+function cifrarEstadoLicencia(estado, safeStorageActual = safeStorage) {
+    const normalizado = normalizarEstadoLicencia(estado);
+    if (!normalizado) throw new Error('El estado de licencia no es válido.');
+    return safeStorageActual.encryptString(JSON.stringify(normalizado)).toString('base64');
+}
+
+function leerEstadosLicencia(dependencias = {}) {
+    const fsActual = dependencias.fs || fs;
+    const safeStorageActual = dependencias.safeStorage || safeStorage;
+    const ubicaciones = dependencias.ubicaciones || obtenerUbicacionesLicencia();
+    const estados = [];
+
+    for (const rutaArchivo of ubicaciones.archivos) {
+        try {
+            const stat = fsActual.lstatSync(rutaArchivo);
+            if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 256 * 1024) continue;
+            const estado = descifrarEstadoLicencia(
+                fsActual.readFileSync(rutaArchivo, 'utf8').trim(),
+                safeStorageActual
+            );
+            if (estado) estados.push(estado);
+        } catch {
+            // Una copia ausente o dañada no invalida las otras copias redundantes.
+        }
+    }
+
+    const consulta = ejecutarRegistro([
+        'query',
+        ubicaciones.registro.clave,
+        '/v',
+        ubicaciones.registro.valor
+    ], dependencias.spawnSync || spawnSync);
+    if (consulta?.status === 0) {
+        const patron = new RegExp(
+            `${ubicaciones.registro.valor}\\s+REG_\\w+\\s+([^\\r\\n]+)`,
+            'i'
+        );
+        const estado = descifrarEstadoLicencia(
+            String(consulta.stdout || '').match(patron)?.[1]?.trim() || '',
+            safeStorageActual
+        );
+        if (estado) estados.push(estado);
+    }
+    return estados;
+}
+
+function escribirArchivoEstadoSeguro(rutaArchivo, contenido, fsActual = fs) {
+    const directorio = path.dirname(rutaArchivo);
+    const temporal = `${rutaArchivo}.tmp-${process.pid}`;
+    fsActual.mkdirSync(directorio, { recursive: true });
+    try {
+        fsActual.writeFileSync(temporal, contenido, { encoding: 'utf8', flag: 'w' });
+        fsActual.copyFileSync(temporal, rutaArchivo);
+    } finally {
+        try {
+            fsActual.unlinkSync(temporal);
+        } catch {
+            // La copia definitiva ya fue escrita; la limpieza se reintentará al guardar.
+        }
+    }
+}
+
+function guardarEstadoLicencia(estado, dependencias = {}) {
+    const fsActual = dependencias.fs || fs;
+    const safeStorageActual = dependencias.safeStorage || safeStorage;
+    if (!safeStorageActual?.isEncryptionAvailable?.()) {
+        throw new Error('El cifrado seguro del sistema no está disponible.');
+    }
+    const ubicaciones = dependencias.ubicaciones || obtenerUbicacionesLicencia();
+    const cifrado = cifrarEstadoLicencia(estado, safeStorageActual);
+    let copiasGuardadas = 0;
+
+    for (const rutaArchivo of ubicaciones.archivos) {
+        try {
+            escribirArchivoEstadoSeguro(rutaArchivo, cifrado, fsActual);
+            copiasGuardadas += 1;
+        } catch (error) {
+            registrarErrorSeguro('licencia/guardar-archivo', error);
+        }
+    }
+
+    const escrituraRegistro = ejecutarRegistro([
+        'add',
+        ubicaciones.registro.clave,
+        '/v',
+        ubicaciones.registro.valor,
+        '/t',
+        'REG_SZ',
+        '/d',
+        cifrado,
+        '/f'
+    ], dependencias.spawnSync || spawnSync);
+    if (escrituraRegistro?.status === 0) copiasGuardadas += 1;
+    if (copiasGuardadas === 0) {
+        throw new Error('No fue posible conservar el estado de licencia.');
+    }
+    return copiasGuardadas;
+}
+
+function mensajeEstadoLicencia(tipo) {
+    const mensajes = {
+        no_iniciada: 'Puede iniciar la prueba gratuita de 15 días o ingresar su licencia.',
+        prueba: 'La aplicación está funcionando en período de prueba.',
+        activada: 'Licencia activada permanentemente en este equipo.',
+        vencida: 'La prueba de 15 días terminó. Ingrese una licencia para continuar.',
+        fecha_invalida: 'La fecha del sistema retrocedió. Corríjala o ingrese una licencia.',
+        error: 'No fue posible verificar la licencia de forma segura.'
+    };
+    return mensajes[tipo] || mensajes.error;
+}
+
+function convertirEstadoLicenciaPublico(evaluacion) {
+    return {
+        success: evaluacion.tipo !== 'error',
+        estado: evaluacion.tipo,
+        autorizado: evaluacion.autorizado === true,
+        activada: evaluacion.activada === true,
+        diasRestantes: Number.isInteger(evaluacion.diasRestantes)
+            ? evaluacion.diasRestantes
+            : null,
+        puedeIniciarPrueba: evaluacion.tipo === 'no_iniciada'
+            || evaluacion.tipo === 'prueba',
+        mensaje: mensajeEstadoLicencia(evaluacion.tipo)
+    };
+}
+
+function encolarOperacionLicencia(operacion) {
+    const ejecucion = colaOperacionesLicencia.then(operacion, operacion);
+    colaOperacionesLicencia = ejecucion.catch(() => undefined);
+    return ejecucion;
+}
+
+async function obtenerEstadoLicenciaInterno({ registrarEjecucion = true } = {}) {
+    return encolarOperacionLicencia(async () => {
+        try {
+            if (!safeStorage?.isEncryptionAvailable?.()) {
+                return { tipo: 'error', autorizado: false, activada: false, diasRestantes: null };
+            }
+            const machineHash = obtenerHashMaquina();
+            if (!estadoLicenciaMemoria) {
+                estadoLicenciaMemoria = fusionarEstadosLicencia(
+                    leerEstadosLicencia(),
+                    machineHash
+                );
+            }
+            const ahora = Date.now();
+            const evaluacion = evaluarEstadoLicencia(estadoLicenciaMemoria, ahora);
+            if (estadoLicenciaMemoria && registrarEjecucion) {
+                if (evaluacion.tipo === 'vencida') estadoLicenciaMemoria.expired = true;
+                if (ahora >= estadoLicenciaMemoria.lastRun) estadoLicenciaMemoria.lastRun = ahora;
+                guardarEstadoLicencia(estadoLicenciaMemoria);
+            }
+            return evaluacion;
+        } catch (error) {
+            registrarErrorSeguro('licencia/verificar', error);
+            return { tipo: 'error', autorizado: false, activada: false, diasRestantes: null };
+        }
+    });
 }
 
 function esObjetoPlano(valor) {
@@ -155,6 +534,16 @@ function registrarManejadorIpcSeguro(canal, manejador) {
                 code: 'IPC_NO_AUTORIZADO',
                 error: 'La solicitud no proviene de una ventana autorizada.'
             };
+        }
+        if (!CANALES_LICENCIA.has(canal)) {
+            const estadoLicencia = await obtenerEstadoLicenciaInterno();
+            if (!estadoLicencia.autorizado) {
+                return {
+                    success: false,
+                    code: 'LICENCIA_REQUERIDA',
+                    error: mensajeEstadoLicencia(estadoLicencia.tipo)
+                };
+            }
         }
         return manejador(evento, ...argumentos);
     });
@@ -549,25 +938,95 @@ app.on('window-all-closed', function () {
     if (process.platform !== 'darwin') app.quit();
 });
 
-// IPC: Verificar Licencia
-registrarManejadorIpcSeguro('verificar-licencia', async () => {
-    const appDataPath = app.getPath('appData');
-    const licensePath = path.join(appDataPath, 'UEEH', 'license_info.dat');
-    try {
-        const stats = fs.lstatSync(licensePath);
-        const estructuraValida = stats.isFile() && !stats.isSymbolicLink() && stats.size <= 64 * 1024;
+// IPC: Estado, activación e inicio de la prueba. La validación permanece en main.
+registrarManejadorIpcSeguro('obtener-estado-licencia', async () => {
+    const evaluacion = await obtenerEstadoLicenciaInterno();
+    return convertirEstadoLicenciaPublico(evaluacion);
+});
+
+registrarManejadorIpcSeguro('activar-licencia', async (event, licenciaIngresada) => {
+    if (!validarLicenciaIngresada(licenciaIngresada)) {
+        const evaluacionActual = await obtenerEstadoLicenciaInterno({
+            registrarEjecucion: false
+        });
         return {
-            valido: estructuraValida && stats.size > 0,
-            mensaje: estructuraValida && stats.size > 0
-                ? "Licencia activa de la Fase 1 detectada."
-                : "El archivo de licencia no tiene una estructura válida."
-        };
-    } catch {
-        return {
-            valido: false,
-            mensaje: "No se detectó una licencia válida."
+            ...convertirEstadoLicenciaPublico(evaluacionActual),
+            success: false,
+            licenciaValida: false,
+            mensaje: 'La licencia ingresada no es válida.'
         };
     }
+    return encolarOperacionLicencia(async () => {
+        try {
+            if (!safeStorage?.isEncryptionAvailable?.()) {
+                throw new Error('El cifrado seguro del sistema no está disponible.');
+            }
+            const ahora = Date.now();
+            const machineHash = obtenerHashMaquina();
+            if (!estadoLicenciaMemoria) {
+                estadoLicenciaMemoria = fusionarEstadosLicencia(
+                    leerEstadosLicencia(),
+                    machineHash
+                );
+            }
+            if (!estadoLicenciaMemoria) {
+                estadoLicenciaMemoria = crearEstadoPrueba(machineHash, ahora);
+            }
+            estadoLicenciaMemoria.activated = true;
+            estadoLicenciaMemoria.lastRun = Math.max(estadoLicenciaMemoria.lastRun, ahora);
+            guardarEstadoLicencia(estadoLicenciaMemoria);
+            return convertirEstadoLicenciaPublico(
+                evaluarEstadoLicencia(estadoLicenciaMemoria, ahora)
+            );
+        } catch (error) {
+            registrarErrorSeguro('licencia/activar', error);
+            return convertirEstadoLicenciaPublico({
+                tipo: 'error',
+                autorizado: false,
+                activada: false,
+                diasRestantes: null
+            });
+        }
+    });
+});
+
+registrarManejadorIpcSeguro('iniciar-prueba', async () => {
+    return encolarOperacionLicencia(async () => {
+        try {
+            if (!safeStorage?.isEncryptionAvailable?.()) {
+                throw new Error('El cifrado seguro del sistema no está disponible.');
+            }
+            const ahora = Date.now();
+            const machineHash = obtenerHashMaquina();
+            if (!estadoLicenciaMemoria) {
+                estadoLicenciaMemoria = fusionarEstadosLicencia(
+                    leerEstadosLicencia(),
+                    machineHash
+                );
+            }
+            let evaluacion = evaluarEstadoLicencia(estadoLicenciaMemoria, ahora);
+            if (evaluacion.tipo === 'no_iniciada') {
+                estadoLicenciaMemoria = crearEstadoPrueba(machineHash, ahora);
+                guardarEstadoLicencia(estadoLicenciaMemoria);
+                evaluacion = evaluarEstadoLicencia(estadoLicenciaMemoria, ahora);
+            } else if (evaluacion.tipo === 'prueba' || evaluacion.tipo === 'activada') {
+                estadoLicenciaMemoria.lastRun = Math.max(
+                    estadoLicenciaMemoria.lastRun,
+                    ahora
+                );
+                guardarEstadoLicencia(estadoLicenciaMemoria);
+            }
+            return convertirEstadoLicenciaPublico(evaluacion);
+        } catch (error) {
+            registrarErrorSeguro('licencia/iniciar-prueba', error);
+            return convertirEstadoLicenciaPublico({
+                tipo: 'error',
+                autorizado: false,
+                activada: false,
+                diasRestantes: null
+            });
+        }
+    });
 });
 
 // IPC: Diálogo para seleccionar archivos (Logo o Excel)
@@ -1131,7 +1590,20 @@ module.exports = {
     MENSAJES_FORMATOS_NOTAS,
     CAPACIDAD_MATERIAS_FORMATO_BGU3,
     CANALES_IPC_PERMITIDOS,
+    DURACION_PRUEBA_MS,
     PLANTILLAS_CERTIFICADO_PERMITIDAS,
+    calcularSha256,
+    validarLicenciaIngresada,
+    normalizarEstadoLicencia,
+    crearEstadoPrueba,
+    fusionarEstadosLicencia,
+    evaluarEstadoLicencia,
+    convertirEstadoLicenciaPublico,
+    obtenerHashMaquina,
+    descifrarEstadoLicencia,
+    cifrarEstadoLicencia,
+    leerEstadosLicencia,
+    guardarEstadoLicencia,
     obtenerDirectorioFormatosNotas,
     obtenerDirectorioProcesador,
     validarSeleccionOptativasBgu3,
