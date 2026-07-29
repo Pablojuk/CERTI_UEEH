@@ -49,9 +49,7 @@ jobs:
       - name: Ejecutar pruebas Python
         run: python -m unittest discover -s tests -p "test_*.py"
 
-      - name: Preparar Python y subir instalador a borrador
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Preparar Python y construir instalador NSIS
         run: npm run release
 
       - name: Verificar artefactos de actualización
@@ -62,21 +60,27 @@ jobs:
           Get-Item "dist\CERTI_UEEH-Setup-$version.exe.blockmap"
           Get-Item "dist\latest.yml"
 
-      - name: Validar assets y publicar Release
+      - name: Publicar Release con todos los assets
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $releaseJson = gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" --json assets,isDraft,isPrerelease,url
+          $version = "${{ github.ref_name }}".Substring(1)
+          gh release create "${{ github.ref_name }}" `
+            "dist\CERTI_UEEH-Setup-$version.exe" `
+            "dist\CERTI_UEEH-Setup-$version.exe.blockmap" `
+            "dist\latest.yml" `
+            --repo "${{ github.repository }}" `
+            --verify-tag `
+            --title "${{ github.ref_name }}" `
+            --notes-from-tag `
+            --latest
           if ($LASTEXITCODE -ne 0) {
-            throw "No se encontró el borrador para ${{ github.ref_name }}."
-          }
-          $release = $releaseJson | ConvertFrom-Json
-          if (-not $release.isDraft) {
-            throw "La Release debe permanecer en borrador hasta validar todos los assets."
+            throw "GitHub no publicó la Release con todos los assets."
           }
 
-          $version = "${{ github.ref_name }}".Substring(1)
+          $releaseJson = gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" --json assets,isDraft,isPrerelease,url
+          $release = $releaseJson | ConvertFrom-Json
           $expectedAssets = @(
             "CERTI_UEEH-Setup-$version.exe",
             "CERTI_UEEH-Setup-$version.exe.blockmap",
@@ -88,14 +92,7 @@ jobs:
               throw "Falta el asset requerido: $asset"
             }
           }
-
-          gh release edit "${{ github.ref_name }}" --repo "${{ github.repository }}" --draft=false --prerelease=false --latest
-          if ($LASTEXITCODE -ne 0) {
+          if ($release.isDraft -or $release.isPrerelease) {
             throw "GitHub no publicó la Release final."
           }
-          $publishedJson = gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" --json isDraft,isPrerelease,url
-          $published = $publishedJson | ConvertFrom-Json
-          if ($published.isDraft -or $published.isPrerelease) {
-            throw "GitHub no publicó la Release final."
-          }
-          Write-Output "Release publicada: $($published.url)"
+          Write-Output "Release publicada: $($release.url)"

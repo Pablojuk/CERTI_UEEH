@@ -2,7 +2,7 @@
 
 ## Actualizaciones automáticas
 
-La versión `1.1.2` incorpora actualizaciones automáticas para las instalaciones
+La versión `1.1.3` incorpora actualizaciones automáticas para las instalaciones
 NSIS de Windows. Las instalaciones anteriores, que todavía no incluyen el
 actualizador, deben instalar manualmente esta versión una vez. A partir de ella,
 las siguientes versiones se pueden descargar e instalar desde la aplicación.

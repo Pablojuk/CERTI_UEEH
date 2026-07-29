@@ -91,7 +91,7 @@ test('NSIS, GitHub Releases y los recursos preservan datos y archivos actuales',
     assert.equal(paquete.build.publish.provider, 'github');
     assert.equal(paquete.build.publish.owner, 'Pablojuk');
     assert.equal(paquete.build.publish.repo, 'CERTI_UEEH');
-    assert.equal(paquete.build.publish.releaseType, 'draft');
+    assert.equal(paquete.build.publish.releaseType, 'release');
     assert.equal(paquete.build.nsis.deleteAppDataOnUninstall, false);
     assert.equal(paquete.build.nsis.differentialPackage, true);
     assert.ok(paquete.build.extraResources.some(recurso => (
@@ -113,8 +113,8 @@ test('el workflow valida la etiqueta, prueba, empaqueta y publica sin tokens pro
     assert.match(workflow, /unittest discover/);
     assert.match(workflow, /npm run release/);
     assert.match(workflow, /secrets\.GITHUB_TOKEN/);
-    assert.match(workflow, /gh release edit/);
-    assert.match(workflow, /--draft=false/);
+    assert.match(workflow, /gh release create/);
+    assert.match(workflow, /--notes-from-tag/);
     assert.match(workflow, /Falta el asset requerido/);
     assert.doesNotMatch(workflow, /PERSONAL_ACCESS_TOKEN|github_pat_|ghp_/i);
     assert.match(workflow, /latest\.yml/);

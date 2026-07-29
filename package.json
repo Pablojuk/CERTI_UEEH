@@ -1,6 +1,6 @@
 {
   "name": "certi-ueeh-boletines",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "description": "Modulo de Generación de Boletines Trimestrales - UEEH",
   "main": "main.js",
   "scripts": {
@@ -10,7 +10,7 @@
     "verify:release-version": "node scripts/verify-release-version.js",
     "build": "npm run prepare:python && electron-builder --win nsis",
     "build:dir": "npm run prepare:python && electron-builder --dir",
-    "release": "npm run prepare:python && electron-builder --win nsis --publish always",
+    "release": "npm run prepare:python && electron-builder --win nsis --publish never",
     "postinstall": "electron-builder install-app-deps || echo postinstall-skip"
   },
   "keywords": [
@@ -99,7 +99,7 @@
       "provider": "github",
       "owner": "Pablojuk",
       "repo": "CERTI_UEEH",
-      "releaseType": "draft"
+      "releaseType": "release"
     }
   },
   "dependencies": {
