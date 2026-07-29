@@ -65,8 +65,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          function Stop-Release([string]$Message) {
+            $escaped = $Message.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Output "::error title=Publicación de Release::$escaped"
+            throw $Message
+          }
+
           $version = "${{ github.ref_name }}".Substring(1)
-          gh release create "${{ github.ref_name }}" `
+          $createOutput = gh release create "${{ github.ref_name }}" `
             "dist\CERTI_UEEH-Setup-$version.exe" `
             "dist\CERTI_UEEH-Setup-$version.exe.blockmap" `
             "dist\latest.yml" `
@@ -74,12 +80,15 @@ jobs:
             --verify-tag `
             --title "${{ github.ref_name }}" `
             --notes-from-tag `
-            --latest
+            --latest 2>&1
           if ($LASTEXITCODE -ne 0) {
-            throw "GitHub no publicó la Release con todos los assets."
+            Stop-Release "GitHub CLI no pudo crear la Release: $($createOutput | Out-String)"
           }
 
-          $releaseJson = gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" --json assets,isDraft,isPrerelease,url
+          $releaseJson = gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" --json assets,isDraft,isPrerelease,url 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            Stop-Release "No se pudo leer la Release publicada: $($releaseJson | Out-String)"
+          }
           $release = $releaseJson | ConvertFrom-Json
           $expectedAssets = @(
             "CERTI_UEEH-Setup-$version.exe",
@@ -89,10 +98,10 @@ jobs:
           $assetNames = @($release.assets | ForEach-Object { $_.name })
           foreach ($asset in $expectedAssets) {
             if ($assetNames -notcontains $asset) {
-              throw "Falta el asset requerido: $asset"
+              Stop-Release "Falta el asset requerido: $asset. Assets presentes: $($assetNames -join ', ')"
             }
           }
           if ($release.isDraft -or $release.isPrerelease) {
-            throw "GitHub no publicó la Release final."
+            Stop-Release "GitHub dejó la Release como borrador o prerelease."
           }
           Write-Output "Release publicada: $($release.url)"
