@@ -14,16 +14,16 @@ jobs:
 
     steps:
       - name: Descargar código
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Configurar Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm
 
       - name: Configurar Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -65,21 +65,14 @@ jobs:
       - name: Validar assets y publicar Release
         shell: pwsh
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $headers = @{
-            Authorization = "Bearer $env:GITHUB_TOKEN"
-            Accept = "application/vnd.github+json"
-            "X-GitHub-Api-Version" = "2022-11-28"
-            "User-Agent" = "CERTI-UEEH-Release"
-          }
-          $releasesUri = "https://api.github.com/repos/${{ github.repository }}/releases?per_page=100"
-          $releases = Invoke-RestMethod -Uri $releasesUri -Headers $headers
-          $release = $releases | Where-Object { $_.tag_name -eq "${{ github.ref_name }}" } | Select-Object -First 1
-          if (-not $release) {
+          $releaseJson = gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" --json assets,isDraft,isPrerelease,url
+          if ($LASTEXITCODE -ne 0) {
             throw "No se encontró el borrador para ${{ github.ref_name }}."
           }
-          if (-not $release.draft) {
+          $release = $releaseJson | ConvertFrom-Json
+          if (-not $release.isDraft) {
             throw "La Release debe permanecer en borrador hasta validar todos los assets."
           }
 
@@ -96,13 +89,13 @@ jobs:
             }
           }
 
-          $body = @{
-            draft = $false
-            prerelease = $false
-            make_latest = "true"
-          } | ConvertTo-Json
-          $published = Invoke-RestMethod -Method Patch -Uri $release.url -Headers $headers -Body $body -ContentType "application/json"
-          if ($published.draft -or $published.prerelease) {
+          gh release edit "${{ github.ref_name }}" --repo "${{ github.repository }}" --draft=false --prerelease=false --latest
+          if ($LASTEXITCODE -ne 0) {
             throw "GitHub no publicó la Release final."
           }
-          Write-Output "Release publicada: $($published.html_url)"
+          $publishedJson = gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" --json isDraft,isPrerelease,url
+          $published = $publishedJson | ConvertFrom-Json
+          if ($published.isDraft -or $published.isPrerelease) {
+            throw "GitHub no publicó la Release final."
+          }
+          Write-Output "Release publicada: $($published.url)"

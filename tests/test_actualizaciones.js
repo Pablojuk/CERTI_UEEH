@@ -113,7 +113,8 @@ test('el workflow valida la etiqueta, prueba, empaqueta y publica sin tokens pro
     assert.match(workflow, /unittest discover/);
     assert.match(workflow, /npm run release/);
     assert.match(workflow, /secrets\.GITHUB_TOKEN/);
-    assert.match(workflow, /draft\s*=\s*\$false/);
+    assert.match(workflow, /gh release edit/);
+    assert.match(workflow, /--draft=false/);
     assert.match(workflow, /Falta el asset requerido/);
     assert.doesNotMatch(workflow, /PERSONAL_ACCESS_TOKEN|github_pat_|ghp_/i);
     assert.match(workflow, /latest\.yml/);
