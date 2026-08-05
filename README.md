@@ -2,10 +2,12 @@
 
 ## Actualizaciones automáticas
 
-La versión `1.1.5` incorpora actualizaciones automáticas para las instalaciones
+La versión `1.1.0` incorporó actualizaciones automáticas para las instalaciones
 NSIS de Windows. Las instalaciones anteriores, que todavía no incluyen el
-actualizador, deben instalar manualmente esta versión una vez. A partir de ella,
-las siguientes versiones se pueden descargar e instalar desde la aplicación.
+actualizador, deben instalar manualmente una versión `1.1.x` compatible una vez.
+A partir de ella, las siguientes versiones se pueden descargar e instalar desde
+la aplicación. La versión `1.1.6` corrige la transferencia UTF-8 de nombres y
+asignaturas al procesador empaquetado que genera los certificados.
 
 El actualizador solo se activa en una aplicación empaquetada. `npm start` no
 consulta GitHub Releases. Los datos académicos, la licencia y los archivos
@@ -32,10 +34,9 @@ git push origin v1.1.1
 ```
 
 El workflow `.github/workflows/release.yml` ejecuta las pruebas en Windows,
-prepara el ejecutable Python y genera el instalador NSIS. Primero adjunta el
-instalador, `latest.yml` y el `blockmap` a un borrador; después de validar los
-tres assets publica la Release no borrador. Todo usa el `GITHUB_TOKEN` de GitHub
-Actions y no se incluyen tokens en la aplicación.
+prepara el ejecutable Python, genera el instalador NSIS y publica una Release no
+borrador después de comprobar el instalador, `latest.yml` y el `blockmap`. Todo
+usa el `GITHUB_TOKEN` de GitHub Actions y no se incluyen tokens en la aplicación.
 
 ### Construcción local
 

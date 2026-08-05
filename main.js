@@ -22,6 +22,8 @@ const MAX_PAYLOAD_BYTES = 20 * 1024 * 1024;
 const MAX_LOGO_BYTES = 5 * 1024 * 1024;
 const MAX_PYTHON_OUTPUT_BYTES = 25 * 1024 * 1024;
 const PYTHON_TIMEOUT_MS = 120000;
+const PDF_READY_TIMEOUT_MS = 15000;
+const PDF_READY_POLL_MS = 100;
 const RETRASO_ACTUALIZACION_INICIAL_MS = 8 * 1000;
 const INTERVALO_ACTUALIZACIONES_MS = 4 * 60 * 60 * 1000;
 const DURACION_PRUEBA_MS = 15 * 24 * 60 * 60 * 1000;
@@ -170,6 +172,54 @@ function publicarEstadoActualizacion(cambios) {
     return publico;
 }
 
+function sanitizarValorLogActualizacion(valor) {
+    if (typeof valor === 'number' || typeof valor === 'boolean' || valor === null) return valor;
+    return String(valor || '')
+        .replace(/([?&](?:token|access_token|auth|key)=)[^&\s]+/gi, '$1[REDACTADO]')
+        .replace(/(authorization\s*[:=]\s*)([^\s,;]+)/gi, '$1[REDACTADO]')
+        .slice(0, 500);
+}
+
+function registrarEventoActualizacion(evento, detalles = {}, dependencias = {}) {
+    const appActual = dependencias.app || app;
+    const fsActual = dependencias.fs || fs;
+    const pathActual = dependencias.path || path;
+    try {
+        const directorio = pathActual.join(appActual.getPath('userData'), 'logs');
+        fsActual.mkdirSync(directorio, { recursive: true });
+        const permitidos = [
+            'versionInstalada',
+            'proveedor',
+            'url',
+            'nuevaVersion',
+            'porcentaje',
+            'mensaje',
+            'empaquetada'
+        ];
+        const datos = Object.fromEntries(
+            permitidos
+                .filter(clave => Object.prototype.hasOwnProperty.call(detalles, clave))
+                .map(clave => [clave, sanitizarValorLogActualizacion(detalles[clave])])
+        );
+        const registro = {
+            fecha: new Date().toISOString(),
+            evento: sanitizarValorLogActualizacion(evento),
+            ...datos
+        };
+        fsActual.appendFileSync(
+            pathActual.join(directorio, 'actualizaciones.log'),
+            `${JSON.stringify(registro)}\n`,
+            'utf8'
+        );
+        return true;
+    } catch (error) {
+        if (!appActual?.isPackaged) {
+            console.error('[actualizaciones/log] No se pudo escribir el registro.', error);
+        }
+        return false;
+    }
+}
+
 function obtenerActualizador() {
     if (!app?.isPackaged) return null;
     if (!autoUpdaterInstancia) {
@@ -187,8 +237,18 @@ function configurarActualizador() {
     updater.autoDownload = false;
     updater.autoInstallOnAppQuit = false;
     updater.allowDowngrade = false;
+    registrarEventoActualizacion('configurado', {
+        versionInstalada: app.getVersion(),
+        proveedor: 'github:Pablojuk/CERTI_UEEH',
+        url: 'https://github.com/Pablojuk/CERTI_UEEH/releases',
+        empaquetada: app.isPackaged
+    });
 
     updater.on('checking-for-update', () => {
+        registrarEventoActualizacion('buscando', {
+            versionInstalada: app.getVersion(),
+            proveedor: 'github:Pablojuk/CERTI_UEEH'
+        });
         publicarEstadoActualizacion({
             estado: 'buscando',
             mensaje: 'Buscando actualización...',
@@ -210,6 +270,10 @@ function configurarActualizador() {
         }
         actualizacionDisponibleInfo = info;
         actualizacionDescargada = false;
+        registrarEventoActualizacion('disponible', {
+            versionInstalada: app.getVersion(),
+            nuevaVersion: info?.version || ''
+        });
         publicarEstadoActualizacion({
             estado: 'disponible',
             nuevaVersion: info?.version || null,
@@ -221,6 +285,9 @@ function configurarActualizador() {
     updater.on('update-not-available', () => {
         actualizacionDisponibleInfo = null;
         actualizacionDescargada = false;
+        registrarEventoActualizacion('no-disponible', {
+            versionInstalada: app.getVersion()
+        });
         publicarEstadoActualizacion({
             estado: 'no-disponible',
             nuevaVersion: null,
@@ -231,6 +298,7 @@ function configurarActualizador() {
     });
     updater.on('download-progress', progreso => {
         const porcentaje = Math.max(0, Math.min(100, Number(progreso?.percent) || 0));
+        registrarEventoActualizacion('progreso', { porcentaje: Number(porcentaje.toFixed(1)) });
         publicarEstadoActualizacion({
             estado: 'descargando',
             porcentaje,
@@ -241,6 +309,9 @@ function configurarActualizador() {
         actualizacionDisponibleInfo = info || actualizacionDisponibleInfo;
         actualizacionDescargada = true;
         descargaActualizacionEnCurso = null;
+        registrarEventoActualizacion('descargada', {
+            nuevaVersion: actualizacionDisponibleInfo?.version || ''
+        });
         publicarEstadoActualizacion({
             estado: 'descargada',
             nuevaVersion: actualizacionDisponibleInfo?.version || null,
@@ -254,6 +325,9 @@ function configurarActualizador() {
         descargaActualizacionEnCurso = null;
         const sinConexion = esErrorSinConexion(error);
         registrarErrorSeguro('actualizaciones', error);
+        registrarEventoActualizacion('error', {
+            mensaje: error?.message || String(error || 'Error desconocido')
+        });
         publicarEstadoActualizacion({
             estado: sinConexion ? 'sin-conexion' : 'error',
             porcentaje: null,
@@ -362,6 +436,10 @@ function instalarActualizacion() {
         });
     }
     const updater = obtenerActualizador();
+    registrarEventoActualizacion('instalacion-solicitada', {
+        versionInstalada: app.getVersion(),
+        nuevaVersion: actualizacionDisponibleInfo?.version || ''
+    });
     const respuesta = publicarEstadoActualizacion({
         estado: 'instalando',
         mensaje: 'Reiniciando para instalar la actualización...'
@@ -827,6 +905,118 @@ function validarHtmlRecibido(htmlContent) {
         && htmlContent.length > 0
         && Buffer.byteLength(htmlContent, 'utf8') <= MAX_HTML_BYTES
     );
+}
+
+function normalizarSolicitudImpresionCertificados(solicitud) {
+    if (typeof solicitud === 'string') {
+        return { html: solicitud, diagnostico: null };
+    }
+    if (!esObjetoPlano(solicitud) || !esObjetoPlano(solicitud.diagnostico)) return null;
+    const diagnostico = solicitud.diagnostico;
+    if (
+        !Number.isSafeInteger(diagnostico.notasEsperadas)
+        || diagnostico.notasEsperadas < 0
+        || diagnostico.notasEsperadas > 100000
+        || !Number.isSafeInteger(diagnostico.estudiantesEsperados)
+        || diagnostico.estudiantesEsperados < 1
+        || diagnostico.estudiantesEsperados > 2000
+        || !esSegmentoRutaSeguro(String(diagnostico.cursoId || ''), 100)
+        || typeof diagnostico.plantilla !== 'string'
+        || !PLANTILLAS_CERTIFICADO_PERMITIDAS.includes(diagnostico.plantilla)
+    ) {
+        return null;
+    }
+    return {
+        html: solicitud.html,
+        diagnostico: {
+            notasEsperadas: diagnostico.notasEsperadas,
+            estudiantesEsperados: diagnostico.estudiantesEsperados,
+            cursoId: String(diagnostico.cursoId),
+            plantilla: diagnostico.plantilla
+        }
+    };
+}
+
+function obtenerDestinoPdfPruebaEmpaquetada(dependencias = {}) {
+    const appActual = dependencias.app || app;
+    const fsActual = dependencias.fs || fs;
+    const pathActual = dependencias.path || path;
+    const entorno = dependencias.env || process.env;
+    if (entorno.CERTI_MODO_PRUEBA_EMPAQUETADA !== '1') return null;
+    const destino = entorno.CERTI_PRUEBA_PDF_DESTINO;
+    const baseTemporal = pathActual.resolve(appActual.getPath('temp'));
+    const destinoResuelto = typeof destino === 'string' && pathActual.isAbsolute(destino)
+        ? pathActual.resolve(destino)
+        : '';
+    const relativa = destinoResuelto ? pathActual.relative(baseTemporal, destinoResuelto) : '..';
+    if (
+        !appActual.isPackaged
+        || !destinoResuelto
+        || pathActual.extname(destinoResuelto).toLowerCase() !== '.pdf'
+        || relativa.startsWith('..')
+        || pathActual.isAbsolute(relativa)
+        || !fsActual.existsSync(pathActual.dirname(destinoResuelto))
+    ) {
+        const error = new Error('El destino de la prueba PDF empaquetada no es válido.');
+        error.code = 'PDF_DESTINO_PRUEBA_INVALIDO';
+        throw error;
+    }
+    return destinoResuelto;
+}
+
+async function esperarDocumentoListoParaPdf(webContents, diagnostico, dependencias = {}) {
+    const ahora = dependencias.ahora || Date.now;
+    const esperar = dependencias.esperar || (milisegundos => (
+        new Promise(resolve => setTimeout(resolve, milisegundos))
+    ));
+    const timeoutMs = dependencias.timeoutMs || PDF_READY_TIMEOUT_MS;
+    const intervaloMs = dependencias.intervaloMs || PDF_READY_POLL_MS;
+    const inicio = ahora();
+
+    while (ahora() - inicio <= timeoutMs) {
+        const estado = await webContents.executeJavaScript(`(() => {
+            const celdas = Array.from(document.querySelectorAll(
+                '.cert-page tr[data-subject] td[data-academic-value="true"]'
+            ));
+            return {
+                readyState: document.readyState,
+                marca: window.__CERTI_PDF_READY__ === true,
+                fuentes: !document.fonts || document.fonts.status === 'loaded',
+                imagenes: Array.from(document.images).every(imagen => imagen.complete),
+                paginas: document.querySelectorAll('.cert-page').length,
+                notas: celdas.filter(celda => celda.textContent.trim() !== '').length
+            };
+        })()`, true);
+
+        if (
+            estado?.readyState === 'complete'
+            && estado.marca
+            && estado.fuentes
+            && estado.imagenes
+        ) {
+            if (diagnostico) {
+                if (estado.paginas !== diagnostico.estudiantesEsperados) {
+                    const error = new Error(
+                        `Se esperaban ${diagnostico.estudiantesEsperados} certificado(s), pero el documento contiene ${estado.paginas}.`
+                    );
+                    error.code = 'PDF_CERTIFICADOS_INCOMPLETOS';
+                    throw error;
+                }
+                if (estado.notas !== diagnostico.notasEsperadas) {
+                    const error = new Error(
+                        `Se esperaban ${diagnostico.notasEsperadas} notas, pero el documento contiene ${estado.notas}.`
+                    );
+                    error.code = 'PDF_NOTAS_INCOMPLETAS';
+                    throw error;
+                }
+            }
+            return estado;
+        }
+        await esperar(intervaloMs);
+    }
+    const error = new Error('El certificado no terminó de cargar antes de generar el PDF.');
+    error.code = 'PDF_DOCUMENTO_NO_LISTO';
+    throw error;
 }
 
 function validarPayloadGeneracion(datos) {
@@ -1809,18 +1999,23 @@ registrarManejadorIpcSeguro('leer-certificado-generado', async (event, cursoId, 
 });
 
 // IPC: Generar PDF de certificados desde HTML ensamblado
-registrarManejadorIpcSeguro('imprimir-certificados', async (event, htmlContent) => {
+registrarManejadorIpcSeguro('imprimir-certificados', async (event, solicitud) => {
     let directorioTemporal = null;
     try {
+        const normalizada = normalizarSolicitudImpresionCertificados(solicitud);
+        const htmlContent = normalizada?.html;
         if (!validarHtmlRecibido(htmlContent)) {
             return { success: false, error: 'El contenido del certificado no es válido.' };
         }
-        // Diálogo para elegir dónde guardar el PDF
-        const saveResult = await dialog.showSaveDialog(mainWindow, {
-            title: 'Guardar Certificados como PDF',
-            defaultPath: path.join(app.getPath('documents'), 'Certificados_UEEH.pdf'),
-            filters: [{ name: 'Archivo PDF', extensions: ['pdf'] }]
-        });
+        const destinoPrueba = obtenerDestinoPdfPruebaEmpaquetada();
+        // Diálogo para elegir dónde guardar el PDF, salvo en la prueba empaquetada aislada.
+        const saveResult = destinoPrueba
+            ? { canceled: false, filePath: destinoPrueba }
+            : await dialog.showSaveDialog(mainWindow, {
+                title: 'Guardar Certificados como PDF',
+                defaultPath: path.join(app.getPath('documents'), 'Certificados_UEEH.pdf'),
+                filters: [{ name: 'Archivo PDF', extensions: ['pdf'] }]
+            });
 
         if (saveResult.canceled || !saveResult.filePath) {
             return { success: false, cancelled: true };
@@ -1853,8 +2048,10 @@ registrarManejadorIpcSeguro('imprimir-certificados', async (event, htmlContent) 
         try {
             await printWindow.loadFile(tempHtmlPath);
 
-            // Esperar a que Tailwind CSS (CDN) compile los estilos
-            await new Promise(resolve => setTimeout(resolve, 2500));
+            await esperarDocumentoListoParaPdf(
+                printWindow.webContents,
+                normalizada.diagnostico
+            );
 
             // Generar el PDF
             const pdfBuffer = await printWindow.webContents.printToPDF({
@@ -1878,6 +2075,21 @@ registrarManejadorIpcSeguro('imprimir-certificados', async (event, htmlContent) 
         }
     } catch (error) {
         registrarErrorSeguro('imprimir-certificados', error);
+        if (error?.code === 'PDF_NOTAS_INCOMPLETAS') {
+            return {
+                success: false,
+                error: 'No se generó el PDF porque faltan notas respecto de las cargadas en la interfaz. Revise los archivos del curso e inténtelo nuevamente.'
+            };
+        }
+        if (error?.code === 'PDF_CERTIFICADOS_INCOMPLETOS') {
+            return {
+                success: false,
+                error: 'No se generó el PDF porque faltan certificados de estudiantes seleccionados.'
+            };
+        }
+        if (error?.code === 'PDF_DOCUMENTO_NO_LISTO') {
+            return { success: false, error: error.message };
+        }
         return { success: false, error: "Error al generar el PDF de certificados." };
     } finally {
         if (directorioTemporal) {
@@ -1952,11 +2164,14 @@ module.exports = {
     DURACION_PRUEBA_MS,
     RETRASO_ACTUALIZACION_INICIAL_MS,
     INTERVALO_ACTUALIZACIONES_MS,
+    PDF_READY_TIMEOUT_MS,
     PLANTILLAS_CERTIFICADO_PERMITIDAS,
     normalizarNotasVersion,
     esVersionSuperior,
     esErrorSinConexion,
     obtenerEstadoActualizacionPublico,
+    sanitizarValorLogActualizacion,
+    registrarEventoActualizacion,
     comprobarActualizaciones,
     descargarActualizacion,
     instalarActualizacion,
@@ -1978,6 +2193,9 @@ module.exports = {
     validarSeleccionOptativasBgu3,
     validarArchivoExcel,
     validarHtmlRecibido,
+    normalizarSolicitudImpresionCertificados,
+    obtenerDestinoPdfPruebaEmpaquetada,
+    esperarDocumentoListoParaPdf,
     validarPayloadGeneracion,
     esSegmentoRutaSeguro,
     resolverRutaHija,

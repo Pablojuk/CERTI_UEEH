@@ -20,7 +20,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     seleccionarArchivo: (opciones) => ipcRenderer.invoke('seleccionar-archivo', opciones),
     descargarFormato: (formatoId, opciones = {}) => ipcRenderer.invoke('descargar-formato', formatoId, opciones),
     leerPlantilla: (nombre) => ipcRenderer.invoke('leer-plantilla', nombre),
-    imprimirCertificados: (html) => ipcRenderer.invoke('imprimir-certificados', html),
+    imprimirCertificados: (solicitud) => ipcRenderer.invoke('imprimir-certificados', solicitud),
     abrirVistaPreviaCertificado: (html) => ipcRenderer.invoke('abrir-vista-previa-certificado', html),
     generarCertificados: (datos) => ipcRenderer.invoke('generar-certificados', datos),
     actualizarSupletorios: (datos) => ipcRenderer.invoke('actualizar-supletorios', datos),

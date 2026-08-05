@@ -12,6 +12,7 @@ import json
 import shutil
 
 try:
+    sys.stdin.reconfigure(encoding='utf-8')
     sys.stdout.reconfigure(encoding='utf-8')
     sys.stderr.reconfigure(encoding='utf-8')
 except Exception:
@@ -68,6 +69,29 @@ def registrar_debug(mensaje):
     """Emite diagnósticos sin datos académicos únicamente cuando se habilita explícitamente."""
     if DEBUG_ACTIVO:
         print(str(mensaje), file=sys.stderr)
+
+
+def leer_stdin_utf8(stdin=None):
+    """Lee el contrato IPC de Python como bytes UTF-8, también dentro de PyInstaller."""
+    flujo = stdin if stdin is not None else sys.stdin
+    flujo_binario = getattr(flujo, "buffer", None)
+    contenido = flujo_binario.read() if flujo_binario is not None else flujo.read()
+    if isinstance(contenido, bytes):
+        return contenido.decode("utf-8-sig")
+    return str(contenido)
+
+
+def escribir_json_stdout(datos, stdout=None):
+    """Escribe una única respuesta JSON UTF-8 sin depender de la página de códigos."""
+    flujo = stdout if stdout is not None else sys.stdout
+    texto = json.dumps(datos, ensure_ascii=False) + "\n"
+    flujo_binario = getattr(flujo, "buffer", None)
+    if flujo_binario is not None:
+        flujo_binario.write(texto.encode("utf-8"))
+        flujo_binario.flush()
+        return
+    flujo.write(texto)
+    flujo.flush()
 
 
 def es_segmento_ruta_seguro(valor, maximo=180):
@@ -2125,7 +2149,7 @@ def main():
     
     if args.generar_formato_bgu3:
         try:
-            input_data = sys.stdin.read()
+            input_data = leer_stdin_utf8()
             if not input_data:
                 raise ValueError("No se recibió la configuración del formato.")
             payload = json.loads(input_data)
@@ -2134,18 +2158,18 @@ def main():
                 payload.get("destino"),
                 payload.get("optativas"),
             )
-            print(json.dumps(resultado, ensure_ascii=False))
+            escribir_json_stdout(resultado)
         except Exception as error:
-            print(json.dumps({
+            escribir_json_stdout({
                 "success": False,
                 "error": str(error),
-            }, ensure_ascii=False))
+            })
         return
 
     if args.supletorios:
         try:
             contenido_updates = (
-                sys.stdin.read()
+                leer_stdin_utf8()
                 if args.supletorios == '-'
                 else args.supletorios
             )
@@ -2163,20 +2187,20 @@ def main():
                     if student_id and asignatura and nota_su is not None:
                         if actualizar_certificado_supletorio(student_id, asignatura, nota_su, cert_output_dir):
                             success_count += 1
-            print(json.dumps({"success": True, "updated": success_count}, ensure_ascii=False))
+            escribir_json_stdout({"success": True, "updated": success_count})
         except Exception:
-            print(json.dumps({
+            escribir_json_stdout({
                 "success": False,
                 "error": "No se pudieron validar o actualizar las notas de supletorio.",
-            }, ensure_ascii=False))
+            })
         return
 
     if args.certificados:
         try:
             # Leer el payload JSON enviado desde Electron a través de stdin
-            input_data = sys.stdin.read()
+            input_data = leer_stdin_utf8()
             if not input_data:
-                print(json.dumps({"success": False, "error": "No se recibió payload en stdin"}, ensure_ascii=False))
+                escribir_json_stdout({"success": False, "error": "No se recibió payload en stdin"})
                 return
                 
             payload = json.loads(input_data)
@@ -2184,14 +2208,14 @@ def main():
             
             # result is now a dict with supletorios, archivos, plantilla_usada, cert_output_dir
             if isinstance(result, dict) and "error" in result:
-                print(json.dumps({"success": False, "error": result["error"]}, ensure_ascii=False))
+                escribir_json_stdout({"success": False, "error": result["error"]})
             else:
-                print(json.dumps({"success": True, **result}, ensure_ascii=False))
+                escribir_json_stdout({"success": True, **result})
         except Exception:
-            print(json.dumps({
+            escribir_json_stdout({
                 "success": False,
                 "error": "No se pudieron generar los certificados.",
-            }, ensure_ascii=False))
+            })
         return
 
     elif args.analizar:
@@ -2218,10 +2242,10 @@ def main():
                     partes_error.append("No corresponden al curso: " + ", ".join(ignoradas) + ".")
                 if desconocidas:
                     partes_error.append("No están en el catálogo oficial: " + ", ".join(desconocidas) + ".")
-                print(json.dumps({
+                escribir_json_stdout({
                     "error": " ".join(partes_error),
                     **diagnostico,
-                }, ensure_ascii=False))
+                })
                 return
                 
             estudiantes = list(records.values())
@@ -2255,16 +2279,16 @@ def main():
                 "estudiantes_tabla": estudiantes_tabla,
                 **diagnostico,
             }
-            print(json.dumps(output_data, ensure_ascii=False))
+            escribir_json_stdout(output_data)
         except Exception as e:
-            print(json.dumps({"error": str(e)}, ensure_ascii=False))
+            escribir_json_stdout({"error": str(e)})
             
     elif args.generar:
         try:
             # Leer el payload JSON enviado desde Electron a través de stdin
-            input_data = sys.stdin.read()
+            input_data = leer_stdin_utf8()
             if not input_data:
-                print(json.dumps({"success": False, "error": "No se recibió payload en stdin"}, ensure_ascii=False))
+                escribir_json_stdout({"success": False, "error": "No se recibió payload en stdin"})
                 return
                 
             payload = json.loads(input_data)
@@ -2284,7 +2308,7 @@ def main():
                 seleccionados_data = [est for est in datos_completos if est["id_real"] in estudiantes_seleccionados]
             
             if not seleccionados_data:
-                print(json.dumps({"success": False, "error": "No se encontraron datos para los estudiantes seleccionados"}, ensure_ascii=False))
+                escribir_json_stdout({"success": False, "error": "No se encontraron datos para los estudiantes seleccionados"})
                 return
                 
             output_pdf = payload.get("outputPath")
@@ -2294,22 +2318,22 @@ def main():
                 or Path(output_pdf).suffix.lower() != ".pdf"
                 or not Path(output_pdf).parent.is_dir()
             ):
-                print(json.dumps({
+                escribir_json_stdout({
                     "success": False,
                     "error": "No se recibió un destino PDF autorizado.",
-                }, ensure_ascii=False))
+                })
                 return
             output_pdf = str(Path(output_pdf).resolve())
             
             generar_boletin_pdf(seleccionados_data, inst, logos, output_pdf)
             
-            print(json.dumps({"success": True, "path": output_pdf}, ensure_ascii=False))
+            escribir_json_stdout({"success": True, "path": output_pdf})
             
         except Exception:
-            print(json.dumps({
+            escribir_json_stdout({
                 "success": False,
                 "error": "No se pudo generar el PDF solicitado.",
-            }, ensure_ascii=False))
+            })
     else:
         parser.print_help()
 

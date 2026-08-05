@@ -4131,6 +4131,53 @@
             }
         }
 
+        function _certTieneValor(valor) {
+            return mostrarValorSeguro(valor) !== '';
+        }
+
+        function contarNotasEsperadasCertificados(estudiantesData, plantillaDoc) {
+            const materiasPlantilla = new Set(
+                Array.from(plantillaDoc.querySelectorAll('tr[data-subject]'))
+                    .map(fila => normalizarTextoAsignatura(fila.dataset.subject || ''))
+                    .filter(Boolean)
+            );
+            let total = 0;
+            estudiantesData.forEach(estudiante => {
+                Object.entries(estudiante.materias || {}).forEach(([nombre, datos]) => {
+                    if (!datos || typeof datos !== 'object') return;
+                    const reconocida = reconocerAsignaturaCatalogo(nombre);
+                    const nombrePlantilla = reconocida?.nombre || nombre;
+                    if (!materiasPlantilla.has(normalizarTextoAsignatura(nombrePlantilla))) return;
+                    const metadatos = metadatosAsignaturaCatalogo(nombre, datos);
+                    if (metadatos.tipo === 'cualitativa') {
+                        total += ['t1', 't2', 't3'].filter(campo => _certTieneValor(datos[campo])).length;
+                        return;
+                    }
+                    total += ['t1', 't2', 't3'].filter(campo => (
+                        _certTieneValor(datos[campo]) && Number.isFinite(Number(datos[campo]))
+                    )).length;
+                    if (
+                        metadatos.permite_supletorio
+                        && _certTieneValor(datos.supletorio)
+                        && Number.isFinite(Number(datos.supletorio))
+                    ) {
+                        total += 1;
+                    }
+                    const finalExplicita = datos.nota_final ?? datos.promedio_anual;
+                    const trimestresCompletos = ['t1', 't2', 't3'].every(campo => (
+                        _certTieneValor(datos[campo]) && Number.isFinite(Number(datos[campo]))
+                    ));
+                    if (
+                        (_certTieneValor(finalExplicita) && Number.isFinite(Number(finalExplicita)))
+                        || trimestresCompletos
+                    ) {
+                        total += 1;
+                    }
+                });
+            });
+            return total;
+        }
+
         async function regenerarPDFConsolidado(estudiantesData) {
             const curso = obtenerCursoActivo();
             if (!curso) return null;
@@ -4150,11 +4197,14 @@
             const tDoc = tParser.parseFromString(templateHTML, 'text/html');
             const bodyClass = tDoc.body.className || 'bg-white text-slate-900 font-sans p-8 max-w-5xl mx-auto';
             const bodyStyle = tDoc.body.getAttribute('style') || '';
+            const notasEsperadas = contarNotasEsperadasCertificados(estudiantesData, tDoc);
 
             const pagesHTML = [];
             for (const est of estudiantesData) {
                 const certRes = await window.electronAPI.leerCertificadoGenerado(curso.id, `certificado_${est.id_real}.html`);
-                if (certRes.error) continue;
+                if (certRes.error) {
+                    throw new Error(`No se encontró el certificado generado para ${est.nombre || 'un estudiante seleccionado'}.`);
+                }
 
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(certRes.content, 'text/html');
@@ -4240,10 +4290,38 @@
 </head>
 <body class="bg-white">
     ${pagesHTML.map(page => `<div class="cert-page ${bodyClass}" style="${bodyStyle}">${page}</div>`).join('\n')}
+    <script>
+        window.__CERTI_PDF_READY__ = false;
+        (() => {
+            const imagenes = Array.from(document.images);
+            const esperarImagen = imagen => imagen.complete
+                ? Promise.resolve()
+                : new Promise(resolve => {
+                    imagen.addEventListener('load', resolve, { once: true });
+                    imagen.addEventListener('error', resolve, { once: true });
+                });
+            const fuentes = document.fonts && document.fonts.ready
+                ? document.fonts.ready
+                : Promise.resolve();
+            Promise.all([fuentes, ...imagenes.map(esperarImagen)]).then(() => {
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    window.__CERTI_PDF_READY__ = true;
+                }));
+            });
+        })();
+    <\/script>
 </body>
 </html>`;
 
-            return await window.electronAPI.imprimirCertificados(finalHTML);
+            return await window.electronAPI.imprimirCertificados({
+                html: finalHTML,
+                diagnostico: {
+                    cursoId: curso.id,
+                    plantilla: plantillaName,
+                    estudiantesEsperados: estudiantesData.length,
+                    notasEsperadas
+                }
+            });
         }
 
         async function generarCertificadosHTML(estudiantesData) {
